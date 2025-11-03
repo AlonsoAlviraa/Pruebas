@@ -1,269 +1,329 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+from __future__ import annotations
 
-"""
-SCRIPT DE SCANNER DE ACCIONES v1.6
-Autor: [Tu Nombre/Gemini]
-Universidad: [Tu Universidad]
-Fecha: 3/11/2025
-
-Descripción:
-Este script escanea el mercado de acciones de EE. UU. (usando un listado
-completo del NASDAQ) en busca de compañías que cumplan 4 criterios:
-1. Crecimiento Fundamental (EPS y Ingresos)
-2. Momentum de Precio (3 meses)
-3. Contracción de Volatilidad (1 semana)
-4. Carácter de la Acción (ADR alto)
-
-Uso:
-1. Asegúrate de tener las librerías: pip install yfinance pandas tqdm
-2. Coloca 'nasdaqlisted.txt' en la misma carpeta que este script.
-3. Ejecuta el script: python stock_scanner.py
-4. Los resultados se imprimirán y guardarán en 'scanner_resultados.csv'.
-
-Historial de Cambios:
-v1.6: Eliminado 'multiprocessing'. Se cambia a un enfoque serial (secuencial)
-      para evitar todos los errores de "Rate Limit".
-      Añadida la librería 'tqdm' para mostrar una barra de progreso,
-      ya que el script ahora tardará mucho más en completarse.
-v1.5: Ajustado CHUNK_SIZE (200->50) y COOLDOWN_SEC (10->15).
-v1.4: Eliminado yf.set_tz_cache_location() para prevenir error 'database is locked'.
-v1.3: Implementado procesamiento por lotes (chunking).
-v1.2: Añadido df.dropna() para tickers.
-"""
-
-import yfinance as yf
-import pandas as pd
+import argparse
 import logging
-import warnings
+import re
 import time
-from tqdm import tqdm # Importamos tqdm para la barra de progreso
+import warnings
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable, List, Optional
 
-# --- 1. CONFIGURACIÓN DE CRITERIOS ---
-# Aquí puedes ajustar tus parámetros de filtrado.
-# 1.1. Fundamentales (Crecimiento)
-MIN_EPS_GROWTH = 0.50
-MIN_REVENUE_GROWTH = 0.50
+import pandas as pd
+import yfinance as yf
+from tqdm import tqdm
 
-# 1.2. Momentum (Precio)
-MIN_MOMENTUM_3M = 0.50
+# -----------------------------------------------------------------------------
+# Configuración global y constantes por defecto
+# -----------------------------------------------------------------------------
 
-# 1.3. Contracción de Volatilidad (El Patrón)
-MAX_VOLATILITY_1WK = 0.05
+DEFAULT_INPUT = "nasdaqlisted.txt"
+DEFAULT_OUTPUT = "scanner_resultados.csv"
+DEFAULT_SERIAL_DELAY = 0.15  # segundos
 
-# 1.4. Carácter de la Acción
-MIN_ADR = 0.05
+# Umbrales por defecto solicitados (50%-100% para crecimiento/momentum).
+DEFAULT_MIN_EPS_GROWTH = 0.50
+DEFAULT_MIN_REVENUE_GROWTH = 0.50
+DEFAULT_MIN_MOMENTUM_3M = 0.50
+DEFAULT_MAX_WEEKLY_VOL = 0.01  # 1%
+DEFAULT_MIN_ADR = 0.07  # 7% promedio de rango diario
 
-# --- 2. CONFIGURACIÓN DEL SCRIPT ---
-
-# [MOD v1.6] Pausa entre cada petición serial
-# Pausa muy corta (en segundos) después de procesar CADA ticker.
-# Esto es para ser "amigables" con la API de Yahoo Finance.
-SERIAL_DELAY_SEC = 0.1
-
-# Configura el logging para ver el progreso y los errores
-# Subimos el nivel a WARNING para no ver los 'Rate Limit' si es que
-# aun así ocurren (lo cual es poco probable).
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Suprime warnings de yfinance y pandas
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
+# Configuración de logging y warnings
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
 
 
-def get_nasdaq_tickers(filename="nasdaqlisted.txt"):
-    """
-    Obtiene la lista de tickers del NASDAQ desde un archivo local (nasdaqlisted.txt).
-    Filtra para incluir solo acciones comunes (excluye ETFs, Test Issues, etc.).
-    """
-    logging.info(f"Obteniendo listado de tickers del archivo '{filename}'...")
+@dataclass(frozen=True)
+class Thresholds:
+    """Agrupa todos los umbrales utilizados en el análisis."""
+
+    min_eps_growth: float
+    min_revenue_growth: float
+    min_momentum_3m: float
+    max_week_volatility: float
+    min_adr: float
+
+
+def parse_args() -> argparse.Namespace:
+    """Crea el parser de argumentos y devuelve los parámetros."""
+
+    parser = argparse.ArgumentParser(
+        description="Scanner de acciones USA con criterios de crecimiento y volatilidad",
+    )
+    parser.add_argument(
+        "--input",
+        default=DEFAULT_INPUT,
+        help=(
+            "Ruta al archivo .txt con los tickers a analizar. Puede ser un listado "
+            "simple o el fichero oficial nasdaqlisted.txt (delimitado por '|')."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help="Nombre del archivo CSV donde guardar los resultados.",
+    )
+    parser.add_argument(
+        "--min-eps-growth",
+        type=float,
+        default=DEFAULT_MIN_EPS_GROWTH,
+        help="Crecimiento mínimo de EPS (formato decimal, 0.50 = 50%).",
+    )
+    parser.add_argument(
+        "--min-revenue-growth",
+        type=float,
+        default=DEFAULT_MIN_REVENUE_GROWTH,
+        help="Crecimiento mínimo de ingresos (formato decimal).",
+    )
+    parser.add_argument(
+        "--min-momentum-3m",
+        type=float,
+        default=DEFAULT_MIN_MOMENTUM_3M,
+        help="Revalorización mínima en 3 meses (formato decimal).",
+    )
+    parser.add_argument(
+        "--max-week-volatility",
+        type=float,
+        default=DEFAULT_MAX_WEEKLY_VOL,
+        help="Volatilidad máxima (rango/primer precio) de la última semana.",
+    )
+    parser.add_argument(
+        "--min-adr",
+        type=float,
+        default=DEFAULT_MIN_ADR,
+        help="ADR mínimo medio de los últimos 3 meses (formato decimal).",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=DEFAULT_SERIAL_DELAY,
+        help="Pausa (en segundos) entre solicitudes para evitar límites de la API.",
+    )
+    return parser.parse_args()
+
+
+def load_tickers(path: Path) -> List[str]:
+    """Lee y normaliza tickers desde un archivo de texto."""
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No se encontró el archivo de tickers: {path}."
+        )
+
+    # Intento 1: fichero estilo nasdaqlisted.txt (delimitado por '|').
     try:
-        df = pd.read_csv(filename, delimiter='|')
+        df = pd.read_csv(path, delimiter="|")
+        if "Symbol" in df.columns:
+            tickers = (
+                df["Symbol"].dropna().astype(str).str.extract(r"([A-Z\.]+)")[0].dropna()
+            )
+            if "ETF" in df.columns:
+                tickers = tickers[df["ETF"].fillna("N") == "N"]
+            if "Test Issue" in df.columns:
+                tickers = tickers[df["Test Issue"].fillna("N") == "N"]
+            cleaned = sorted(set(tickers.str.upper()))
+            if cleaned:
+                logging.info(
+                    "Se cargaron %s tickers desde un fichero estilo nasdaqlisted.txt",
+                    len(cleaned),
+                )
+                return cleaned
+    except Exception as exc:  # noqa: BLE001 - Queremos capturar cualquier parsing error.
+        logging.debug("No se pudo interpretar como nasdaqlisted.txt: %s", exc)
 
-        # --- [FIX v1.2] LIMPIEZA DE DATOS ---
-        df.dropna(subset=['Symbol', 'ETF', 'Test Issue'], inplace=True)
+    # Intento 2: listado libre (símbolos separados por espacios, comas, etc.).
+    content = path.read_text(encoding="utf-8", errors="ignore")
+    raw_symbols = re.split(r"[\s,;|]+", content)
+    cleaned = []
+    for raw in raw_symbols:
+        token = raw.strip().upper()
+        if token and re.fullmatch(r"[A-Z\.]+", token):
+            cleaned.append(token)
 
-        # --- FILTROS DE CALIDAD ---
-        df_filtered = df[df['ETF'] == 'N']
-        df_filtered = df_filtered[df_filtered['Test Issue'] == 'N']
-        df_filtered = df_filtered[df_filtered['Symbol'].str.contains(r'^[A-Z]+$')]
+    unique = sorted(set(cleaned))
+    if not unique:
+        raise ValueError(
+            "El archivo de tickers no contiene símbolos válidos (solo letras o '.')."
+        )
 
-        tickers = df_filtered['Symbol'].tolist()
-        
-        logging.info(f"Se encontraron {len(tickers)} tickers de acciones comunes en '{filename}'.")
-        return tickers
-    
-    except FileNotFoundError:
-        logging.error(f"Error: No se encontró el archivo '{filename}'.")
-        logging.error("Asegúrate de que 'nasdaqlisted.txt' esté en la misma carpeta que el script.")
-        logging.warning("Usando una lista de respaldo corta (solo para demo).")
-        return ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMZN']
-    except Exception as e:
-        logging.error(f"No se pudo procesar el archivo de tickers: {e}")
-        logging.warning("Usando una lista de respaldo corta (solo para demo).")
-        return ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMZN']
+    logging.info("Se cargaron %s tickers desde un listado plano", len(unique))
+    return unique
 
-def check_single_stock(ticker_symbol):
-    """
-    Función que aplica todos los filtros a UN solo ticker.
-    
-    Devuelve un diccionario con datos si pasa los filtros, o None si falla.
-    """
+
+def format_percentage(value: float) -> str:
+    """Formatea un decimal como porcentaje con dos decimales."""
+
+    return f"{value:.2%}"
+
+
+def analyze_ticker(ticker: str, thresholds: Thresholds) -> Optional[dict]:
+    """Obtiene datos del *ticker* y verifica los criterios solicitados."""
+
     try:
-        ticker = yf.Ticker(ticker_symbol)
-        
-        # Descarga de datos: .info para fundamentales, .history para precios
-        info = ticker.info
-        hist_3mo = ticker.history(period="3mo")
-        hist_1wk = ticker.history(period="7d") # 7 días para asegurar 5 de trading
+        yf_ticker = yf.Ticker(ticker)
+        info = yf_ticker.info
 
-        # --- 1. CRITERIO: FUNDAMENTALES (CRECIMIENTO) ---
-        eps_growth = info.get('earningsQuarterlyGrowth')
-        rev_growth = info.get('revenueGrowth')
+        eps_growth = info.get("earningsQuarterlyGrowth")
+        revenue_growth = info.get("revenueGrowth")
 
-        if eps_growth is None or rev_growth is None:
-            # logging.debug ya no es visible, usamos logging.info para fallos
-            # logging.info(f"[{ticker_symbol}] DESCARTADO: Faltan datos fundamentales (EPS_G: {eps_growth}, REV_G: {rev_growth}).")
+        if eps_growth is None or revenue_growth is None:
             return None
-        
-        if eps_growth < MIN_EPS_GROWTH or rev_growth < MIN_REVENUE_GROWTH:
-            # logging.info(f"[{ticker_symbol}] DESCARTADO: Crecimiento insuficiente (EPS_G: {eps_growth:.2%}, REV_G: {rev_growth:.2%}).")
+        if eps_growth < thresholds.min_eps_growth:
+            return None
+        if revenue_growth < thresholds.min_revenue_growth:
             return None
 
-        # --- VALIDACIÓN DE DATOS HISTÓRICOS ---
-        if hist_3mo.empty or len(hist_3mo) < 50 or hist_1wk.empty or len(hist_1wk) < 5:
-            # logging.info(f"[{ticker_symbol}] DESCARTADO: Datos históricos insuficientes.")
+        hist_3m = yf_ticker.history(period="3mo")
+        hist_1w = yf_ticker.history(period="7d")
+
+        if hist_3m.empty or hist_1w.empty:
             return None
 
-        # --- 2. CRITERIO: MOMENTUM (PRECIO) ---
-        price_now = hist_3mo['Close'].iloc[-1]
-        price_3mo_ago = hist_3mo['Close'].iloc[0]
+        hist_3m = hist_3m.dropna(subset=["Close", "High", "Low"])
+        hist_1w = hist_1w.dropna(subset=["Open", "High", "Low", "Close"])
 
-        if price_3mo_ago == 0: return None # Evitar división por cero
-        
-        momentum_3m = (price_now - price_3mo_ago) / price_3mo_ago
-
-        if momentum_3m < MIN_MOMENTUM_3M:
-            # logging.info(f"[{ticker_symbol}] DESCARTADO: Momentum 3M insuficiente ({momentum_3m:.2%}).")
+        if len(hist_3m) < 40 or len(hist_1w) < 5:
             return None
 
-        # --- 4. CRITERIO: CARÁCTER (ADR ALTO) ---
-        hist_3mo['ADR_pct'] = (hist_3mo['High'] - hist_3mo['Low']) / hist_3mo['Close']
-        adr_mean = hist_3mo['ADR_pct'].mean()
-
-        if adr_mean < MIN_ADR:
-            # logging.info(f"[{ticker_symbol}] DESCARTADO: ADR (carácter) insuficiente ({adr_mean:.2%}).")
+        price_now = float(hist_3m["Close"].iloc[-1])
+        price_3m_ago = float(hist_3m["Close"].iloc[0])
+        if price_3m_ago <= 0:
+            return None
+        momentum = (price_now - price_3m_ago) / price_3m_ago
+        if momentum < thresholds.min_momentum_3m:
             return None
 
-        # --- 3. CRITERIO: CONTRACCIÓN DE VOLATILIDAD (1 SEMANA) ---
-        hist_1wk = hist_1wk.iloc[-5:] 
-        
-        if len(hist_1wk) < 5: # Asegurarnos de tener 5 días
+        adr_series = (hist_3m["High"] - hist_3m["Low"]) / hist_3m["Close"]
+        adr_mean = float(adr_series.mean())
+        if adr_mean < thresholds.min_adr:
             return None
 
-        wk_high = hist_1wk['High'].max()
-        wk_low = hist_1wk['Low'].min()
-        wk_ref_price = hist_1wk['Open'].iloc[0] # Precio referencia al inicio de la semana
-
-        if wk_ref_price == 0: return None # Evitar división por cero
-
-        volatility_1wk = (wk_high - wk_low) / wk_ref_price
-
-        if volatility_1wk > MAX_VOLATILITY_1WK:
-            # logging.info(f"[{ticker_symbol}] DESCARTADO: Contracción de volatilidad fallida. Vol={volatility_1wk:.2%}")
+        last_week = hist_1w.tail(5)
+        ref_price = float(last_week["Open"].iloc[0])
+        if ref_price <= 0:
+            return None
+        weekly_range = float(last_week["High"].max() - last_week["Low"].min())
+        weekly_volatility = weekly_range / ref_price
+        if weekly_volatility > thresholds.max_week_volatility:
             return None
 
-        # --- ¡ÉXITO! LA ACCIÓN CUMPLE TODO ---
-        # (Ahora solo logueamos los ÉXITOS para no llenar la consola)
-        logging.info(f"¡ÉXITO! {ticker_symbol} cumple todos los criterios.")
-        
-        result_data = {
-            'Ticker': ticker_symbol,
-            'Sector': info.get('sector', 'N/A'),
-            'Industria': info.get('industry', 'N/A'),
-            'Precio Actual': f"{price_now:.2f}",
-            'Momentum 3M': f"{momentum_3m:.2%}",
-            'ADR 3M (Carácter)': f"{adr_mean:.2%}",
-            'Volatilidad 1WK': f"{volatility_1wk:.2%}",
-            'Crec. EPS (Q)': f"{eps_growth:.2%}",
-            'Crec. REV (Q)': f"{rev_growth:.2%}",
+        return {
+            "Ticker": ticker,
+            "Sector": info.get("sector", "N/A"),
+            "Industria": info.get("industry", "N/A"),
+            "Precio Cierre": price_now,
+            "Momentum 3M": momentum,
+            "ADR Medio": adr_mean,
+            "Volatilidad 1W": weekly_volatility,
+            "Crec. EPS (QoQ)": eps_growth,
+            "Crec. Ingresos": revenue_growth,
         }
-        return result_data
-
-    except Exception as e:
-        # Captura cualquier error (datos faltantes, ticker deslistado, problemas de conexión)
-        # Ocultamos errores '401' y '404' que son comunes por el rate limit o tickers malos
-        if "401 Client Error" not in str(e) and "404 Client Error" not in str(e) and "No data found" not in str(e):
-             logging.warning(f"Error procesando {ticker_symbol}: {e}")
+    except Exception as exc:  # noqa: BLE001 - Queremos capturar fallos de red/datos.
+        message = str(exc)
+        if "404" in message or "401" in message or "No data found" in message:
+            return None
+        logging.warning("Error procesando %s: %s", ticker, exc)
         return None
 
-def main():
-    """
-    Función principal del script.
-    Orquesta la obtención de tickers, el análisis en serial y el guardado.
-    """
-    start_time = time.time()
-    logging.info("--- Iniciando Scanner de Acciones (Estrategia Crecimiento + Contracción) ---")
 
-    # 1. Obtener tickers
-    tickers = get_nasdaq_tickers(filename="nasdaqlisted.txt")
-    if not tickers:
-        logging.error("No se obtuvieron tickers, finalizando script.")
+def build_results_dataframe(results: Iterable[dict]) -> pd.DataFrame:
+    """Convierte los resultados en un DataFrame ordenado."""
+
+    df = pd.DataFrame(results)
+    if df.empty:
+        return df
+
+    numeric_cols = [
+        "Precio Cierre",
+        "Momentum 3M",
+        "ADR Medio",
+        "Volatilidad 1W",
+        "Crec. EPS (QoQ)",
+        "Crec. Ingresos",
+    ]
+    df = df.sort_values(by="Momentum 3M", ascending=False).reset_index(drop=True)
+    for col in numeric_cols:
+        if col not in df:
+            continue
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
+
+
+def display_results(df: pd.DataFrame) -> None:
+    """Imprime los resultados en consola con formato legible."""
+
+    if df.empty:
+        logging.info(
+            "No se encontraron acciones que cumplan todos los criterios. "
+            "Puedes flexibilizar los umbrales con los argumentos de línea de comandos."
+        )
         return
-    
-    # (Opcional) Limitar a N tickers para una prueba rápida
-    # tickers = tickers[:200] 
 
-    # --- [MOD v1.6] Procesamiento SERIAL ---
-    # Se elimina el 'multiprocessing.Pool'
-    # Se añade un bucle 'for' simple con 'tqdm' para la barra de progreso
-    
-    logging.info(f"Iniciando análisis de {len(tickers)} tickers en modo SERIAL (esto tardará)...")
-    
-    passed_stocks = []
-    
-    # tqdm envuelve la lista 'tickers' y muestra una barra de progreso
-    for ticker_symbol in tqdm(tickers, desc="Analizando Tickers"):
-        result = check_single_stock(ticker_symbol)
-        if result:
-            passed_stocks.append(result)
-        
-        # Pausa CORTA después de cada ticker para no saturar la API
-        time.sleep(SERIAL_DELAY_SEC)
+    printable = df.copy()
+    printable["Precio Cierre"] = printable["Precio Cierre"].map(lambda x: f"${x:.2f}")
+    for col in [
+        "Momentum 3M",
+        "ADR Medio",
+        "Volatilidad 1W",
+        "Crec. EPS (QoQ)",
+        "Crec. Ingresos",
+    ]:
+        printable[col] = printable[col].map(format_percentage)
+
+    print("\n" + "=" * 100)
+    print("ACCIONES QUE CUMPLEN LOS CRITERIOS (ORDENADAS POR MOMENTUM 3M)")
+    print("=" * 100)
+    print(printable.to_string(index=False))
 
 
-    # 3. Filtrar y guardar resultados
-    end_time = time.time()
-    logging.info(f"--- Análisis completado en {end_time - start_time:.2f} segundos ---")
+def save_results(df: pd.DataFrame, output_path: Path) -> None:
+    """Guarda los resultados en CSV conservando valores numéricos."""
 
-    if not passed_stocks:
-        logging.info("No se encontraron acciones que cumplan TODOS los criterios.")
-        logging.warning("NOTA: El criterio de volatilidad < 1% en una semana (MAX_VOLATILITY_1WK) es extremadamente restrictivo.")
-        logging.warning("Prueba a relajarlo (ej. 0.02 para 2%) si no obtienes resultados.")
-    else:
-        logging.info(f"¡Se encontraron {len(passed_stocks)} acciones que cumplen los criterios!")
+    if df.empty:
+        return
 
-        # Convertir lista de diccionarios a DataFrame de Pandas
-        df_results = pd.DataFrame(passed_stocks)
-        df_results.set_index('Ticker', inplace=True)
+    try:
+        df.to_csv(output_path, index=False, encoding="utf-8-sig")
+        logging.info("Resultados guardados en %s", output_path)
+    except Exception as exc:  # noqa: BLE001
+        logging.error("No se pudo guardar el archivo CSV: %s", exc)
 
-        # Guardar en CSV
-        output_file = "scanner_resultados.csv"
-        try:
-            df_results.to_csv(output_file, encoding='utf-8-sig')
-            logging.info(f"Resultados guardados en '{output_file}'")
-        except Exception as e:
-            logging.error(f"No se pudo guardar el archivo CSV: {e}")
 
-        # Imprimir en consola
-        print("\n" + "="*80)
-        print("      ACCIONES QUE CUMPLEN LOS CRITERIOS")
-        print("="*80)
-        print(df_results.to_string())
+def main() -> None:
+    args = parse_args()
+    thresholds = Thresholds(
+        min_eps_growth=args.min_eps_growth,
+        min_revenue_growth=args.min_revenue_growth,
+        min_momentum_3m=args.min_momentum_3m,
+        max_week_volatility=args.max_week_volatility,
+        min_adr=args.min_adr,
+    )
+
+    try:
+        tickers = load_tickers(Path(args.input))
+    except Exception as exc:  # noqa: BLE001
+        logging.error("No fue posible cargar los tickers: %s", exc)
+        return
+
+    logging.info("Analizando %s tickers en modo secuencial", len(tickers))
+
+    results = []
+    for ticker in tqdm(tickers, desc="Analizando tickers", unit="ticker"):
+        match = analyze_ticker(ticker, thresholds)
+        if match:
+            logging.info("✔ %s cumple todos los criterios", ticker)
+            results.append(match)
+        time.sleep(max(args.delay, 0))
+
+    df_results = build_results_dataframe(results)
+    display_results(df_results)
+    save_results(df_results, Path(args.output))
 
 
 if __name__ == "__main__":
-    # Esta línea asegura que la función main() solo se ejecute
-    # cuando el script es llamado directamente (no si es importado)
     main()
-
