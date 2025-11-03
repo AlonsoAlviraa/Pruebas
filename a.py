@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 import pandas as pd
+import requests
+from requests import Response
+from requests.exceptions import RequestException
 from tqdm import tqdm
-from yahooquery import Ticker
 
 # -----------------------------------------------------------------------------
 # Configuración global y constantes por defecto
@@ -24,16 +26,33 @@ DEFAULT_BATCH_SIZE = 32
 DEFAULT_MAX_RETRIES = 4
 DEFAULT_RATE_LIMIT_COOLDOWN = 12.0  # segundos
 
+# Endpoints y cabeceras necesarios para sortear el consentimiento europeo de Yahoo.
+YAHOO_COOKIE_ENDPOINT = "https://fc.yahoo.com"
+YAHOO_CRUMB_ENDPOINT = "https://query1.finance.yahoo.com/v1/test/getcrumb"
+YAHOO_QUOTE_SUMMARY_ENDPOINT = "https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}"
+YAHOO_CHART_ENDPOINT = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+REQUEST_TIMEOUT = 15  # segundos
+DEFAULT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+}
+
 # Umbrales por defecto solicitados (50%-100% para crecimiento/momentum).
 DEFAULT_MIN_EPS_GROWTH = 0.20
 DEFAULT_MIN_REVENUE_GROWTH = 0.20
-DEFAULT_MIN_MOMENTUM_3M = 0.25
-DEFAULT_MAX_WEEKLY_VOL = 0.1
-DEFAULT_MIN_ADR = 0.03
+DEFAULT_MIN_MOMENTUM_3M = 0.20
+DEFAULT_MAX_WEEKLY_VOL = 0.2  # 1%
+DEFAULT_MIN_ADR = 0.07  # 7% promedio de rango diario
 
 # Configuración de logging y warnings
 logging.basicConfig(
-    level=logging.DEBUG,  # <-- CAMBIADO DE INFO A DEBUG
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -191,28 +210,193 @@ def is_rate_limit_message(message: str) -> bool:
     return "too many requests" in lowered or "rate limit" in lowered or "429" in lowered
 
 
-def detect_rate_limit(payload: object) -> bool:
-    """Inspecciona respuestas anidadas en busca de textos de límite de tasa."""
-
-    if isinstance(payload, str):
-        return is_rate_limit_message(payload)
-    if isinstance(payload, dict):
-        return any(detect_rate_limit(value) for value in payload.values())
-    if isinstance(payload, list):
-        return any(detect_rate_limit(value) for value in payload)
-    return False
-
-
 def safe_float(value: Optional[object]) -> Optional[float]:
     """Convierte valores numéricos o cadenas en ``float`` de forma segura."""
 
     if value is None:
+        return None
+    if isinstance(value, dict):
+        if "raw" in value:
+            return safe_float(value.get("raw"))
         return None
     try:
         return float(value)
     except (TypeError, ValueError):
         return None
 
+
+class YahooFinanceEUClient:
+    """Cliente ligero para Yahoo Finance que acepta el consentimiento de cookies."""
+
+    def __init__(self) -> None:
+        self.session = requests.Session()
+        self.session.headers.update(DEFAULT_HEADERS)
+        self._crumb: Optional[str] = None
+        self._refresh_tokens()
+
+    def refresh_tokens(self) -> None:
+        """Permite refrescar manualmente las cookies y el crumb."""
+
+        self._refresh_tokens()
+
+    # ------------------------------------------------------------------
+    # Métodos públicos
+    # ------------------------------------------------------------------
+    def fetch_summary(self, ticker: str) -> dict:
+        """Obtiene ``earningsTrend``, ``financialData`` y ``assetProfile``."""
+
+        params = {"modules": "earningsTrend,financialData,assetProfile"}
+        data = self._request(
+            YAHOO_QUOTE_SUMMARY_ENDPOINT.format(ticker=ticker),
+            params,
+            expected_root="quoteSummary",
+        )
+        results = data.get("quoteSummary", {}).get("result")
+        if not results:
+            raise ValueError("Yahoo Finance devolvió un resultado vacío")
+        return results[0]
+
+    def fetch_history(self, ticker: str) -> pd.DataFrame:
+        """Descarga el histórico de 3 meses en velas diarias."""
+
+        params = {"range": "3mo", "interval": "1d", "events": "history"}
+        data = self._request(
+            YAHOO_CHART_ENDPOINT.format(ticker=ticker),
+            params,
+            expected_root="chart",
+        )
+        chart = data.get("chart", {})
+        results = chart.get("result") or []
+        if not results:
+            raise ValueError("No hay datos de histórico para el ticker")
+
+        payload = results[0]
+        timestamps = payload.get("timestamp") or []
+        if not timestamps:
+            raise ValueError("Histórico sin marcas temporales")
+
+        indicators = payload.get("indicators", {}).get("quote", [])
+        if not indicators:
+            raise ValueError("Histórico sin columnas de precios")
+
+        quotes = indicators[0]
+        frame = pd.DataFrame(quotes)
+        required_cols = {"open", "high", "low", "close"}
+        missing = required_cols.difference(frame.columns)
+        if missing:
+            raise ValueError("Histórico sin columnas completas de precios")
+        frame["date"] = pd.to_datetime(timestamps, unit="s", utc=True)
+        frame = frame.set_index("date").sort_index()
+        frame = frame[["open", "high", "low", "close"]].dropna()
+        index = frame.index
+        if getattr(index, "tz", None) is not None:
+            frame.index = index.tz_convert("UTC").tz_localize(None)
+        return frame
+
+    # ------------------------------------------------------------------
+    # Métodos internos
+    # ------------------------------------------------------------------
+    def _refresh_tokens(self) -> None:
+        """Obtiene cookies y ``crumb`` válidos para superar el consentimiento."""
+
+        self.session.cookies.clear()
+        try:
+            self.session.get(YAHOO_COOKIE_ENDPOINT, timeout=REQUEST_TIMEOUT)
+        except RequestException as exc:
+            logging.debug("No se pudo obtener la cookie base de Yahoo: %s", exc)
+
+        response = self.session.get(
+            YAHOO_CRUMB_ENDPOINT,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        crumb = response.text.strip()
+        if not crumb:
+            raise RuntimeError("Yahoo Finance no devolvió un crumb válido")
+        self._crumb = crumb
+
+    def _request(self, url: str, params: dict, *, expected_root: str) -> dict:
+        """Realiza una petición con gestión automática de consentimiento."""
+
+        params = {**params, "crumb": self._crumb}
+        for attempt in range(1, 5):
+            try:
+                response = self.session.get(
+                    url,
+                    params=params,
+                    timeout=REQUEST_TIMEOUT,
+                    allow_redirects=True,
+                )
+            except RequestException as exc:
+                raise RuntimeError(f"Fallo de red solicitando {url}: {exc}") from exc
+
+            if response.status_code == 429:
+                raise RateLimitError("Yahoo Finance devolvió HTTP 429 (rate limit)")
+            if response.status_code in {401, 403}:
+                self._refresh_tokens()
+                continue
+            if "consent.yahoo.com" in response.url:
+                logging.debug("Respuesta redirigida a la página de consentimiento. Reintentando...")
+                self._refresh_tokens()
+                continue
+
+            if response.status_code >= 400:
+                message = self._extract_error_message(response)
+                if is_rate_limit_message(message):
+                    raise RateLimitError(message)
+                if "Invalid Crumb" in message:
+                    self._refresh_tokens()
+                    continue
+                raise RuntimeError(
+                    f"Error {response.status_code} al consultar Yahoo Finance: {message}"
+                )
+
+            payload = self._parse_json(response)
+            error = self._read_embedded_error(payload, expected_root)
+            if error:
+                description = error.get("description") or error.get("message") or ""
+                if "Invalid Crumb" in description:
+                    self._refresh_tokens()
+                    continue
+                if is_rate_limit_message(description):
+                    raise RateLimitError(description)
+                if description:
+                    raise RuntimeError(description)
+                raise RuntimeError(f"Yahoo Finance devolvió un error genérico: {error}")
+
+            return payload
+
+        raise RuntimeError("No fue posible obtener datos válidos tras varios intentos")
+
+    @staticmethod
+    def _extract_error_message(response: Response) -> str:
+        try:
+            data = response.json()
+        except ValueError:
+            return response.text
+        if isinstance(data, dict):
+            for key in ("message", "error", "description"):
+                value = data.get(key)
+                if isinstance(value, str):
+                    return value
+        return response.text
+
+    @staticmethod
+    def _parse_json(response: Response) -> dict:
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise RuntimeError("No se pudo interpretar la respuesta JSON de Yahoo Finance") from exc
+
+    @staticmethod
+    def _read_embedded_error(payload: dict, expected_root: str) -> Optional[dict]:
+        section = payload.get(expected_root)
+        if not isinstance(section, dict):
+            return None
+        error = section.get("error")
+        if isinstance(error, dict):
+            return error
+        return None
 
 def extract_eps_growth(earnings_data: object) -> Optional[float]:
     """Obtiene el crecimiento de EPS trimestral a partir de ``earningsTrend``."""
@@ -229,22 +413,6 @@ def extract_eps_growth(earnings_data: object) -> Optional[float]:
         if period in {"0q", "+0q"}:  # Periodo actual trimestral
             return safe_float(entry.get("growth"))
     return None
-
-
-def get_history_slice(history: pd.DataFrame, ticker: str) -> pd.DataFrame:
-    """Extrae y limpia el histórico de un ``ticker`` concreto."""
-
-    if history.empty:
-        return pd.DataFrame()
-    try:
-        symbol_frame = history.xs(ticker, level=0)
-    except (KeyError, ValueError):
-        return pd.DataFrame()
-    columns_needed = {"close", "high", "low", "open"}
-    missing = columns_needed.difference(symbol_frame.columns)
-    if missing:
-        return pd.DataFrame()
-    return symbol_frame.sort_index().dropna(subset=["close", "high", "low", "open"])
 
 
 def evaluate_ticker(
@@ -264,14 +432,7 @@ def evaluate_ticker(
     revenue_growth = safe_float(financial.get("revenueGrowth") if isinstance(financial, dict) else None)
 
     if eps_growth is None or revenue_growth is None:
-        # --- BLOQUE AÑADIDO PARA DEPURACIÓN ---
-        logging.debug(
-            f"[{ticker}] DESCARTADO (SILENCIOSO): Faltan datos fundamentales clave. "
-            f"(EPS_G: {eps_growth}, REV_G: {revenue_growth})"
-        )
-        # -------------------------------------
         return None
-        
     if eps_growth < thresholds.min_eps_growth or revenue_growth < thresholds.min_revenue_growth:
         return None
 
@@ -318,39 +479,39 @@ def evaluate_ticker(
     }
 
 
-def analyze_batch(tickers: list[str], thresholds: Thresholds) -> list[dict]:
-    """Descarga datos en lote y devuelve los tickers que superan los filtros."""
-
-    try:
-        client = Ticker(tickers, asynchronous=False)
-        history = client.history(period="3mo", interval="1d")
-    except Exception as exc:  # noqa: BLE001
-        message = str(exc)
-        if is_rate_limit_message(message):
-            raise RateLimitError(message) from exc
-        raise
-
-    earnings = client.earnings_trend
-    financial = client.financial_data
-    profile = client.asset_profile
-
-    for payload in (earnings, financial, profile):
-        if detect_rate_limit(payload):
-            raise RateLimitError("Too Many Requests detectado en la respuesta de Yahoo Finance")
+def analyze_batch(
+    client: YahooFinanceEUClient,
+    tickers: list[str],
+    thresholds: Thresholds,
+) -> list[dict]:
+    """Descarga datos de cada ticker aplicando los filtros establecidos."""
 
     matches: list[dict] = []
     for ticker in tickers:
-        history_slice = get_history_slice(history, ticker)
+        try:
+            summary = client.fetch_summary(ticker)
+            history = client.fetch_history(ticker)
+        except RateLimitError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logging.debug("[%s] Descargado sin éxito: %s", ticker, exc)
+            continue
+
+        earnings = summary.get("earningsTrend") if isinstance(summary, dict) else None
+        financial = summary.get("financialData") if isinstance(summary, dict) else None
+        profile = summary.get("assetProfile") if isinstance(summary, dict) else None
+
         result = evaluate_ticker(
             ticker,
-            history_slice,
-            earnings.get(ticker) if isinstance(earnings, dict) else None,
-            financial.get(ticker) if isinstance(financial, dict) else None,
-            profile.get(ticker) if isinstance(profile, dict) else None,
+            history,
+            earnings,
+            financial,
+            profile,
             thresholds,
         )
         if result:
             matches.append(result)
+
     return matches
 
 
@@ -454,6 +615,7 @@ def main() -> None:
         max_retries,
     )
 
+    client = YahooFinanceEUClient()
     results: list[dict] = []
     with tqdm(total=len(tickers), desc="Analizando tickers", unit="ticker") as progress:
         for chunk in chunked(tickers, batch_size):
@@ -461,8 +623,9 @@ def main() -> None:
             batch_results: list[dict] = []
             for attempt in range(1, max_retries + 1):
                 try:
-                    batch_results = analyze_batch(chunk, thresholds)
+                    batch_results = analyze_batch(client, chunk, thresholds)
                 except RateLimitError as exc:
+                    client.refresh_tokens()
                     wait_time = cooldown * attempt
                     logging.warning(
                         "Límite de peticiones al procesar el lote iniciado en %s (intento %s/%s). "
