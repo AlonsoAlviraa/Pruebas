@@ -6,6 +6,7 @@ import re
 import time
 import warnings
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -43,16 +44,16 @@ DEFAULT_HEADERS = {
     "Connection": "keep-alive",
 }
 
-# Umbrales por defecto solicitados (50%-100% para crecimiento/momentum).
-DEFAULT_MIN_EPS_GROWTH = 0.20
-DEFAULT_MIN_REVENUE_GROWTH = 0.20
-DEFAULT_MIN_MOMENTUM_3M = 0.20
-DEFAULT_MAX_WEEKLY_VOL = 0.2  # 1%
-DEFAULT_MIN_ADR = 0.07  # 7% promedio de rango diario
+# --- Umbrales Estrictos (VCP Estándar) por Defecto ---
+DEFAULT_MIN_EPS_GROWTH = 0.25
+DEFAULT_MIN_REVENUE_GROWTH = 0.25
+DEFAULT_MIN_MOMENTUM_3M = 0.40
+DEFAULT_MAX_WEEKLY_VOL = 0.05  # 5%
+DEFAULT_MIN_ADR = 0.04  # 4%
 
 # Configuración de logging y warnings
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # <-- CAMBIADO DE DEBUG A INFO (Terminal Limpia)
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -245,7 +246,8 @@ class YahooFinanceEUClient:
     def fetch_summary(self, ticker: str) -> dict:
         """Obtiene ``earningsTrend``, ``financialData`` y ``assetProfile``."""
 
-        params = {"modules": "earningsTrend,financialData,assetProfile"}
+        # --- MODIFICADO: Añadido 'calendarEvents' ---
+        params = {"modules": "earningsTrend,financialData,assetProfile,calendarEvents"}
         data = self._request(
             YAHOO_QUOTE_SUMMARY_ENDPOINT.format(ticker=ticker),
             params,
@@ -305,15 +307,48 @@ class YahooFinanceEUClient:
         except RequestException as exc:
             logging.debug("No se pudo obtener la cookie base de Yahoo: %s", exc)
 
-        response = self.session.get(
-            YAHOO_CRUMB_ENDPOINT,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        crumb = response.text.strip()
+        # --- AÑADIDO BUCLE DE REINTENTO PARA OBTENER EL CRUMB ---
+        crumb_response: Optional[Response] = None
+        for attempt in range(1, 6): # Reintenta 5 veces
+            try:
+                crumb_response = self.session.get(
+                    YAHOO_CRUMB_ENDPOINT,
+                    timeout=REQUEST_TIMEOUT,
+                )
+                crumb_response.raise_for_status() # Lanza error si es 4xx o 5xx
+                break # Éxito, salimos del bucle
+            
+            except RequestException as exc:
+                # Si es un error 429 (Too Many Requests) o 403 (Forbidden)
+                status = getattr(getattr(exc, "response", None), "status_code", 0)
+                if status in {429, 403, 401} and attempt < 5:
+                    wait_time = 5 * attempt # Espera 5, 10, 15, 20 segundos
+                    logging.warning(
+                        "Error %s obteniendo el CRUMB (intento %s/5). "
+                        "Esperando %s s...",
+                        status, attempt, wait_time
+                    )
+                    time.sleep(wait_time)
+                    continue
+                
+                # Si es otro error, lanzamos la excepción
+                raise RuntimeError(
+                    f"Fallo de red obteniendo el crumb de Yahoo: {exc}"
+                ) from exc
+            
+        if crumb_response is None or not crumb_response.ok:
+             raise RuntimeError(
+                f"No se pudo obtener el crumb de Yahoo tras 5 intentos. "
+                f"Respuesta final: {crumb_response.text if crumb_response else 'No response'}"
+            )
+
+        crumb = crumb_response.text.strip()
         if not crumb:
             raise RuntimeError("Yahoo Finance no devolvió un crumb válido")
+        
+        logging.debug("Crumb y cookie de sesión obtenidos con éxito.")
         self._crumb = crumb
+
 
     def _request(self, url: str, params: dict, *, expected_root: str) -> dict:
         """Realiza una petición con gestión automática de consentimiento."""
@@ -421,6 +456,7 @@ def evaluate_ticker(
     earnings: object,
     financial: object,
     profile: object,
+    calendar: object,  # <-- NUEVO
     thresholds: Thresholds,
 ) -> Optional[dict]:
     """Calcula las métricas necesarias y valida los umbrales."""
@@ -428,12 +464,59 @@ def evaluate_ticker(
     if history.empty or len(history) < 40:
         return None
 
+    # --- NUEVO FILTRO DE FECHA DE RESULTADOS ---
+    days_since_earnings: Optional[int] = None
+    try:
+        # 1. Get today's date (UTC)
+        today = datetime.now(timezone.utc)
+        
+        # 2. Extract timestamp
+        if not isinstance(calendar, dict):
+            raise ValueError("Datos de calendario no válidos")
+        
+        earnings_timestamps = calendar.get("earnings", {}).get("earningsDate", [])
+        if not earnings_timestamps:
+            raise ValueError("No se encontró 'earningsDate'")
+        
+        # 3. Get the most recent (first) timestamp
+        ts_data = earnings_timestamps[0]
+        if not isinstance(ts_data, dict) or "raw" not in ts_data:
+            raise ValueError("Formato de timestamp de 'earningsDate' inesperado")
+        
+        ts = int(ts_data["raw"]) # Timestamp UNIX
+        earnings_date = datetime.fromtimestamp(ts, timezone.utc)
+        
+        # 4. Calculate days since
+        days_since_earnings = (today - earnings_date).days
+        
+        # 5. Apply filter
+        if days_since_earnings < 0:
+            logging.debug(f"[{ticker}] DESCARTADO: Resultados en el futuro ({days_since_earnings} días).")
+            return None
+        if days_since_earnings > 60:
+            logging.debug(f"[{ticker}] DESCARTADO: Resultados demasiado antiguos ({days_since_earnings} días).")
+            return None
+        
+        # Si estamos aquí, los resultados son frescos (0 <= días <= 60)
+        logging.debug(f"[{ticker}] OK: Resultados presentados hace {days_since_earnings} días.")
+    
+    except Exception as e:
+        logging.debug(f"[{ticker}] DESCARTADO: No se pudo procesar la fecha de resultados. Error: {e}")
+        return None
+    # --- FIN DEL NUEVO FILTRO ---
+
+
     eps_growth = extract_eps_growth(earnings)
     revenue_growth = safe_float(financial.get("revenueGrowth") if isinstance(financial, dict) else None)
 
     if eps_growth is None or revenue_growth is None:
+        logging.debug(
+            f"[{ticker}] DESCARTADO (SILENCIOSO): Faltan datos fundamentales clave. "
+            f"(EPS_G: {eps_growth}, REV_G: {revenue_growth})"
+        )
         return None
     if eps_growth < thresholds.min_eps_growth or revenue_growth < thresholds.min_revenue_growth:
+        logging.debug(f"[{ticker}] DESCARTADO: Crecimiento insuficiente (EPS_G: {eps_growth}, REV_G: {revenue_growth})")
         return None
 
     price_now = safe_float(history["close"].iloc[-1])
@@ -442,11 +525,13 @@ def evaluate_ticker(
         return None
     momentum = (price_now - price_3m_ago) / price_3m_ago
     if momentum < thresholds.min_momentum_3m:
+        logging.debug(f"[{ticker}] DESCARTADO: Momentum 3M insuficiente ({momentum})")
         return None
 
     adr_series = (history["high"] - history["low"]) / history["close"]
     adr_mean = safe_float(adr_series.mean())
     if adr_mean is None or adr_mean < thresholds.min_adr:
+        logging.debug(f"[{ticker}] DESCARTADO: ADR insuficiente ({adr_mean})")
         return None
 
     last_week = history.tail(5)
@@ -458,6 +543,7 @@ def evaluate_ticker(
     weekly_range = (last_week["high"].max() - last_week["low"].min())
     weekly_volatility = weekly_range / ref_price
     if weekly_volatility > thresholds.max_week_volatility:
+        logging.debug(f"[{ticker}] DESCARTADO: Volatilidad semanal excesiva ({weekly_volatility})")
         return None
 
     sector = "N/A"
@@ -476,6 +562,7 @@ def evaluate_ticker(
         "Volatilidad 1W": weekly_volatility,
         "Crec. EPS (QoQ)": eps_growth,
         "Crec. Ingresos": revenue_growth,
+        "Días Res.": days_since_earnings,  # <-- NUEVA COLUMNA
     }
 
 
@@ -500,6 +587,7 @@ def analyze_batch(
         earnings = summary.get("earningsTrend") if isinstance(summary, dict) else None
         financial = summary.get("financialData") if isinstance(summary, dict) else None
         profile = summary.get("assetProfile") if isinstance(summary, dict) else None
+        calendar = summary.get("calendarEvents") if isinstance(summary, dict) else None # <-- NUEVO
 
         result = evaluate_ticker(
             ticker,
@@ -507,6 +595,7 @@ def analyze_batch(
             earnings,
             financial,
             profile,
+            calendar, # <-- NUEVO
             thresholds,
         )
         if result:
@@ -538,6 +627,7 @@ def build_results_dataframe(results: Iterable[dict]) -> pd.DataFrame:
         "Volatilidad 1W",
         "Crec. EPS (QoQ)",
         "Crec. Ingresos",
+        "Días Res.",  # <-- NUEVA COLUMNA
     ]
     df = df.sort_values(by="Momentum 3M", ascending=False).reset_index(drop=True)
     for col in numeric_cols:
@@ -567,6 +657,7 @@ def display_results(df: pd.DataFrame) -> None:
         "Crec. EPS (QoQ)",
         "Crec. Ingresos",
     ]:
+        # 'Días Res.' no se formatea como porcentaje, así que se queda fuera de este bucle
         printable[col] = printable[col].map(format_percentage)
 
     print("\n" + "=" * 100)
