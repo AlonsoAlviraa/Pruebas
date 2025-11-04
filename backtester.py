@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import json
 from dataclasses import dataclass
 from datetime import timezone, datetime
 from pathlib import Path
@@ -11,12 +12,12 @@ from statistics import mean
 from typing import Iterable, Optional
 
 import pandas as pd
+from tqdm import tqdm
 
 # Asumimos que 'a.py' está en la misma carpeta
 from a import (
     DEFAULT_INPUT,
-    DEFAULT_MIN_EPS_GROWTH,
-    DEFAULT_MIN_REVENUE_GROWTH,
+    # ¡YA NO IMPORTAMOS LOS FILTROS DE CRECIMIENTO!
     DEFAULT_MAX_WEEKLY_VOL,
     DEFAULT_MIN_ADR,
     DEFAULT_MIN_MOMENTUM_3M,
@@ -24,10 +25,10 @@ from a import (
     Thresholds,
     YahooFinanceEUClient,
     YAHOO_CHART_ENDPOINT,
-    extract_eps_growth,
-    extract_last_earnings_date,
+    # ¡YA NO IMPORTAMOS LOS EXTRACTORES DE FUNDAMENTALES!
     load_tickers,
     safe_float,
+    extract_last_earnings_date # <-- SÍ importamos este
 )
 
 
@@ -40,6 +41,7 @@ DEFAULT_START_DATE = "2020-01-01"
 DEFAULT_END_DATE = "2024-12-31"
 DEFAULT_STOP_LOSS_PCT = 0.04  # 4%
 DEFAULT_PROFIT_MULTIPLE = 2.0  # 2R
+CACHE_DIR = Path(".cache")
 
 
 @dataclass
@@ -73,13 +75,6 @@ class Trade:
         return (self.exit_price - self.entry_price) / risk
 
 
-@dataclass
-class FundamentalSnapshot:
-    eps_growth: float
-    revenue_growth: float
-    last_earnings_date: pd.Timestamp
-
-
 # ---------------------------------------------------------------------------
 # Utilidades de descarga de datos
 # ---------------------------------------------------------------------------
@@ -101,8 +96,7 @@ def download_history(
     end: pd.Timestamp,
 ) -> pd.DataFrame:
     """Descarga velas diarias entre ``start`` y ``end`` (ambos inclusive)."""
-
-    # Yahoo requiere epoch segundos (UTC) y el final es exclusivo.
+    # ... (Esta función no cambia) ...
     start_epoch = int(start.timestamp())
     end_epoch = int((end + pd.Timedelta(days=1)).timestamp())
     params = {
@@ -143,52 +137,15 @@ def download_history(
         raise RuntimeError("Histórico vacío tras limpiar NaN")
     return frame
 
-
-def build_fundamental_snapshot(
-    summary: dict,
-    *,
-    reference: pd.Timestamp,
-) -> Optional[FundamentalSnapshot]:
-    if not isinstance(summary, dict):
-        return None
-
-    earnings = summary.get("earningsTrend")
-    financial = summary.get("financialData")
-    calendar = summary.get("calendarEvents")
-    earnings_history = summary.get("earningsHistory")
-
-    eps_growth = extract_eps_growth(earnings)
-    revenue_growth = safe_float(financial.get("revenueGrowth") if isinstance(financial, dict) else None)
-    if eps_growth is None or revenue_growth is None:
-        return None
-
-    last_earnings = extract_last_earnings_date(
-        calendar,
-        earnings_history,
-        reference=reference.to_pydatetime(),
-    )
-    if last_earnings is None:
-        return None
-
-    last_ts = pd.Timestamp(last_earnings)
-    if last_ts.tzinfo is None:
-        last_ts = last_ts.tz_localize("UTC")
-    else:
-        last_ts = last_ts.tz_convert("UTC")
-
-    return FundamentalSnapshot(
-        eps_growth=float(eps_growth),
-        revenue_growth=float(revenue_growth),
-        last_earnings_date=last_ts,
-    )
-
+# --- build_fundamental_snapshot() HA SIDO ELIMINADO ---
+# (Ya no es necesario, porque no podemos usar los fundamentales en el backtest)
 
 # ---------------------------------------------------------------------------
 # Métricas del escáner
 # ---------------------------------------------------------------------------
 
-
 def compute_momentum(history: pd.DataFrame, window: int = 63) -> Optional[float]:
+    # ... (Esta función no cambia) ...
     if len(history) < window + 1:
         return None
     recent = history["close"].iloc[-1]
@@ -199,6 +156,7 @@ def compute_momentum(history: pd.DataFrame, window: int = 63) -> Optional[float]
 
 
 def compute_average_adr(history: pd.DataFrame, window: int = 63) -> Optional[float]:
+    # ... (Esta función no cambia) ...
     if len(history) < window:
         return None
     adr = (history["high"] - history["low"]) / history["close"]
@@ -209,6 +167,7 @@ def compute_average_adr(history: pd.DataFrame, window: int = 63) -> Optional[flo
 
 
 def compute_weekly_volatility(history: pd.DataFrame, window: int = 5) -> Optional[float]:
+    # ... (Esta función no cambia) ...
     if len(history) < window:
         return None
     segment = history.tail(window)
@@ -220,11 +179,13 @@ def compute_weekly_volatility(history: pd.DataFrame, window: int = 5) -> Optiona
 
 
 def passes_scanner(history: pd.DataFrame, thresholds: Thresholds) -> bool:
+    """Función de filtro TÉCNICO. Ignora EPS/Revenue."""
     momentum = compute_momentum(history)
     adr = compute_average_adr(history)
     week_vol = compute_weekly_volatility(history)
     if momentum is None or adr is None or week_vol is None:
         return False
+    # NOTA: NO filtramos por EPS/Revenue
     if momentum < thresholds.min_momentum_3m:
         return False
     if adr < thresholds.min_adr:
@@ -242,16 +203,19 @@ def passes_scanner(history: pd.DataFrame, thresholds: Thresholds) -> bool:
 def simulate_ticker(
     ticker: str,
     history: pd.DataFrame,
-    fundamentals: Optional[FundamentalSnapshot],
+    # --- MODIFICADO: 'fundamentals' ya no se necesita aquí ---
+    # fundamentals: Optional[FundamentalSnapshot], 
+    last_earnings_date: Optional[pd.Timestamp], # <-- SÍ pasamos la fecha de ER
     thresholds: Thresholds,
     config: BacktestConfig,
 ) -> list[Trade]:
     trades: list[Trade] = []
-    if fundamentals is None:
-        return trades
+    
+    # --- MODIFICADO: Ya no filtramos por 'fundamentals is None' ---
+    # if fundamentals is None:
+    #     return trades
 
     open_trade: Optional[Trade] = None
-    # Reducimos el histórico al rango de fechas solicitado más un margen para cálculos.
     usable = history.loc[: config.end_date]
     if usable.empty:
         return trades
@@ -263,6 +227,7 @@ def simulate_ticker(
         row = usable.iloc[idx]
 
         if open_trade and current_date >= open_trade.entry_date:
+            # ... (Lógica de salida de la operación - no cambia) ...
             low_price = float(row["low"])
             high_price = float(row["high"])
             exit_trade: Optional[Trade] = None
@@ -310,14 +275,18 @@ def simulate_ticker(
         else:
             current_ts = current_ts.tz_convert("UTC")
 
-        if fundamentals.eps_growth < thresholds.min_eps_growth:
-            continue
-        if fundamentals.revenue_growth < thresholds.min_revenue_growth:
-            continue
+        # --- MODIFICADO: Eliminados los filtros de EPS/Revenue ---
+        # if fundamentals.eps_growth < thresholds.min_eps_growth:
+        #     continue
+        # if fundamentals.revenue_growth < thresholds.min_revenue_growth:
+        #     continue
 
-        days_since_earnings = (current_ts - fundamentals.last_earnings_date).days
-        if days_since_earnings < 0 or days_since_earnings >= MAX_EARNINGS_AGE_DAYS:
-            continue
+        # --- MODIFICADO: Lógica de fecha de ER simplificada ---
+        if last_earnings_date: # Solo si tenemos una fecha de ER
+            days_since_earnings = (current_ts - last_earnings_date).days
+            if days_since_earnings < 0 or days_since_earnings >= MAX_EARNINGS_AGE_DAYS:
+                continue
+        # Si no hay 'last_earnings_date', no podemos aplicar el filtro, así que continuamos
 
         history_until_now = history.loc[:current_date]
         if not passes_scanner(history_until_now, thresholds):
@@ -341,7 +310,7 @@ def simulate_ticker(
         )
 
     if open_trade:
-        # Si la operación sigue abierta al finalizar el rango, cerramos al último cierre disponible.
+        # ... (Lógica de cierre de operación por "timeout" - no cambia) ...
         remaining = usable.loc[open_trade.entry_date :]
         if remaining.empty:
             remaining = usable.iloc[[-1]]
@@ -364,16 +333,17 @@ def simulate_ticker(
 
 def run_backtest(
     histories: dict[str, pd.DataFrame],
-    fundamentals_map: dict[str, FundamentalSnapshot],
+    earnings_dates: dict[str, Optional[pd.Timestamp]], # <-- MODIFICADO
     thresholds: Thresholds,
     config: BacktestConfig,
 ) -> list[Trade]:
     all_trades: list[Trade] = []
-    for ticker, history in histories.items():
+    # Usamos tqdm en el bucle principal de simulación
+    for ticker, history in tqdm(histories.items(), desc="Simulando operaciones"):
         trades = simulate_ticker(
             ticker,
             history,
-            fundamentals_map.get(ticker),
+            earnings_dates.get(ticker), # <-- MODIFICADO
             thresholds,
             config,
         )
@@ -389,6 +359,7 @@ def run_backtest(
 
 
 def compute_statistics(trades: Iterable[Trade]) -> dict[str, float]:
+    # ... (Esta función no cambia) ...
     trades = list(trades)
     if not trades:
         return {}
@@ -429,6 +400,7 @@ def compute_statistics(trades: Iterable[Trade]) -> dict[str, float]:
 
 
 def trades_to_dataframe(trades: Iterable[Trade]) -> pd.DataFrame:
+    # ... (Esta función no cambia) ...
     records = [
         {
             "Ticker": trade.ticker,
@@ -460,6 +432,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_INPUT,
         help="Archivo con la lista de tickers a simular.",
     )
+    # ... (El resto de esta función no cambia, EXCEPTO que eliminamos los args de fundamentales) ...
     parser.add_argument("--start-date", default=DEFAULT_START_DATE, help="Fecha inicial del backtest (YYYY-MM-DD).")
     parser.add_argument("--end-date", default=DEFAULT_END_DATE, help="Fecha final del backtest (YYYY-MM-DD).")
     parser.add_argument(
@@ -479,18 +452,15 @@ def parse_args() -> argparse.Namespace:
         default="backtest_resultados.csv",
         help="Fichero CSV donde guardar el registro de operaciones.",
     )
-    parser.add_argument(
-        "--min-eps-growth",
-        type=float,
-        default=DEFAULT_MIN_EPS_GROWTH,
-        help="Crecimiento mínimo de EPS trimestral (decimal, 0.20 = 20%).",
-    )
-    parser.add_argument(
-        "--min-revenue-growth",
-        type=float,
-        default=DEFAULT_MIN_REVENUE_GROWTH,
-        help="Crecimiento mínimo de ingresos (decimal).",
-    )
+    # --- MODIFICADO: Eliminados los args de EPS/Revenue ---
+    # parser.add_argument(
+    #     "--min-eps-growth",
+    #     ...
+    # )
+    # parser.add_argument(
+    #     "--min-revenue-growth",
+    #     ...
+    # )
     parser.add_argument(
         "--min-momentum-3m",
         type=float,
@@ -526,53 +496,84 @@ def main() -> None:
         take_profit_multiple=max(args.take_profit_multiple, 0.1),
     )
 
+    # --- MODIFICADO: Thresholds ya no incluye EPS/Revenue ---
     thresholds = Thresholds(
-        min_eps_growth=max(args.min_eps_growth, 0.0),
-        min_revenue_growth=max(args.min_revenue_growth, 0.0),
+        min_eps_growth=0.0, # Ignorado
+        min_revenue_growth=0.0, # Ignorado
         min_momentum_3m=max(args.min_momentum_3m, 0.0),
         max_week_volatility=max(args.max_week_volatility, 0.0),
         min_adr=max(args.min_adr, 0.0),
     )
 
     tickers = load_tickers(Path(args.input))
-    logging.info("Descargando históricos diarios para %s tickers", len(tickers))
-
+    
+    # --- LÓGICA DE CACHÉ ---
+    logging.info("Iniciando Fase 1: Carga de datos (usando caché si existe)")
+    CACHE_DIR.mkdir(exist_ok=True) # Crea la carpeta .cache/ si no existe
+    
     client = YahooFinanceEUClient()
     histories: dict[str, pd.DataFrame] = {}
-    fundamentals_map: dict[str, FundamentalSnapshot] = {}
-    margin = pd.Timedelta(days=200)
-    start_download = start_ts - margin
-    for ticker in tickers:
+    
+    # --- MODIFICADO: Solo guardamos la fecha de ER, no el snapshot ---
+    earnings_dates: dict[str, Optional[pd.Timestamp]] = {}
+    
+    margin = pd.Timedelta(days=200) # Margen para cálculos de momentum/ADR
+    start_download = start_ts - margin 
+    
+    for ticker in tqdm(tickers, desc="Cargando datos de tickers"):
+        summary_path = CACHE_DIR / f"{ticker}_summary.json"
+        history_path = CACHE_DIR / f"{ticker}_history.csv"
+        
+        summary = None
         try:
-            summary = client.fetch_summary(ticker)
+            if summary_path.exists():
+                with summary_path.open("r", encoding="utf-8") as f:
+                    summary = json.load(f)
+            else:
+                summary = client.fetch_summary(ticker)
+                with summary_path.open("w", encoding="utf-8") as f:
+                    json.dump(summary, f)
         except Exception as exc:  # noqa: BLE001
-            logging.warning("%s: no se pudo descargar el resumen fundamental (%s)", ticker, exc)
+            logging.warning("%s: no se pudo descargar/cachear el resumen fundamental (%s)", ticker, exc)
             continue
-
-        fundamentals = build_fundamental_snapshot(summary, reference=end_ts)
-        if fundamentals is None:
-            logging.debug("%s: sin datos fundamentales suficientes", ticker)
-            continue
-        if (
-            fundamentals.eps_growth < thresholds.min_eps_growth
-            or fundamentals.revenue_growth < thresholds.min_revenue_growth
-        ):
-            logging.debug("%s: no supera los filtros de crecimiento", ticker)
-            continue
-
+        
+        # --- MODIFICADO: Lógica de pre-filtrado eliminada ---
+        # Solo extraemos la fecha de ER para el filtro de simulación
         try:
-            history = download_history(client, ticker, start_download, end_ts)
+            last_earnings = extract_last_earnings_date(
+                summary.get("calendarEvents"),
+                summary.get("earningsHistory"),
+                reference=end_ts.to_pydatetime(), # Usamos end_ts como referencia estática
+            )
+            earnings_dates[ticker] = pd.Timestamp(last_earnings, tz=timezone.utc) if last_earnings else None
+        except Exception:
+            earnings_dates[ticker] = None
+
+        # --- MODIFICADO: Ahora SIEMPRE intentamos descargar el historial ---
+        # (ya que el pre-filtro fundamental fue eliminado)
+        try:
+            if history_path.exists():
+                history = pd.read_csv(history_path, index_col="date", parse_dates=True)
+                if history.index.tz is None:
+                    history.index = history.index.tz_localize(timezone.utc)
+            else:
+                history = download_history(client, ticker, start_download, end_ts)
+                history.to_csv(history_path)
+            
+            histories[ticker] = history # <-- Añadido
+            
         except Exception as exc:  # noqa: BLE001
-            logging.warning("%s: no se pudo descargar el histórico (%s)", ticker, exc)
+            logging.warning("%s: no se pudo descargar/cachear el histórico (%s)", ticker, exc)
             continue
-        histories[ticker] = history
-        fundamentals_map[ticker] = fundamentals
+            
+    # --- FIN DE LA LÓGICA DE CACHÉ ---
 
     if not histories:
         logging.error("No se descargó ningún histórico válido. Abortando.")
         return
 
-    trades = run_backtest(histories, fundamentals_map, thresholds, config)
+    logging.info("Iniciando Fase 2: Simulación de operaciones")
+    trades = run_backtest(histories, earnings_dates, thresholds, config)
     stats = compute_statistics(trades)
 
     if not trades:
