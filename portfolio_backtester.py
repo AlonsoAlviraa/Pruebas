@@ -12,7 +12,9 @@ métricas como CAGR y Ratio de Sharpe.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -265,6 +267,129 @@ def simulate_portfolio(
 
         if realized_pnl:
             metrics["realized_pnl"] = float(sum(realized_pnl))
+            gross_profit = sum(pnl for pnl in realized_pnl if pnl > 0)
+            gross_loss = -sum(pnl for pnl in realized_pnl if pnl < 0)
+            if gross_loss > 0:
+                metrics["profit_factor"] = float(gross_profit / gross_loss)
+            elif gross_profit > 0:
+                metrics["profit_factor"] = float("inf")
+            else:
+                metrics["profit_factor"] = float("nan")
+
+    if not equity_curve.empty:
+        running_max = equity_curve["equity"].cummax()
+        drawdown = equity_curve["equity"] / running_max - 1.0
+        metrics["max_drawdown"] = float(drawdown.min())
+
+    return equity_curve, metrics
+
+
+
+def _write_equity_curve(equity_curve: pd.DataFrame, output_path: Path | None) -> None:
+    if output_path is None or equity_curve.empty:
+        return
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    equity_curve.to_csv(output_path, encoding="utf-8-sig")
+
+
+def _sanitize_metrics(metrics: Dict[str, float]) -> Dict[str, float | None]:
+    sanitized: Dict[str, float | None] = {}
+    for key, value in metrics.items():
+        if isinstance(value, float):
+            if math.isnan(value) or math.isinf(value):
+                sanitized[key] = None
+            else:
+                sanitized[key] = float(value)
+        else:
+            sanitized[key] = value  # type: ignore[assignment]
+    return sanitized
+
+
+def export_metrics_to_json(metrics: Dict[str, float], output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as handle:
+        json.dump(_sanitize_metrics(metrics), handle, ensure_ascii=False, indent=2)
+
+
+def run_portfolio_backtest(
+    *,
+    input_path: str | Path = DEFAULT_INPUT,
+    start_date: str = DEFAULT_START_DATE,
+    end_date: str = DEFAULT_END_DATE,
+    vol_stop_multiple: float = DEFAULT_WEEKLY_VOL_STOP_MULTIPLE,
+    ema_period: int = DEFAULT_EMA_PERIOD,
+    ema_tolerance: float = DEFAULT_EMA_TOLERANCE,
+    min_eps_growth: float = DEFAULT_MIN_EPS_GROWTH,
+    min_revenue_growth: float = DEFAULT_MIN_REVENUE_GROWTH,
+    min_momentum_3m: float = DEFAULT_MIN_MOMENTUM_3M,
+    min_adr: float = DEFAULT_MIN_ADR,
+    max_week_volatility: float = DEFAULT_MAX_WEEKLY_VOL,
+    capital_inicial: float = DEFAULT_INITIAL_CAPITAL,
+    riesgo_por_trade: float = DEFAULT_RISK_PER_TRADE,
+    equity_output: str | Path | None = "equity_curve.csv",
+) -> tuple[pd.DataFrame, Dict[str, float]]:
+    start_ts = _ensure_timestamp(start_date)
+    end_ts = _ensure_timestamp(end_date)
+    if end_ts <= start_ts:
+        raise ValueError("La fecha final debe ser posterior a la fecha inicial")
+
+    config = BacktestConfig(
+        start_date=start_ts,
+        end_date=end_ts,
+        vol_stop_multiple=max(vol_stop_multiple, 0.1),
+        ema_trail_period=max(int(ema_period), 1),
+        ema_tolerance=max(ema_tolerance, 0.0),
+    )
+
+    thresholds = Thresholds(
+        min_eps_growth=min_eps_growth,
+        min_revenue_growth=min_revenue_growth,
+        min_momentum_3m=max(min_momentum_3m, 0.0),
+        max_week_volatility=max(max_week_volatility, 0.0),
+        min_adr=max(min_adr, 0.0),
+    )
+
+    tickers = load_tickers(Path(input_path))
+    CACHE_DIR.mkdir(exist_ok=True)
+
+    logging.info("Iniciando Fase 1: Carga de datos (usando caché si existe)")
+    histories, fundamentals = _prepare_histories(tickers)
+
+    if not histories:
+        logging.error("No se encontraron históricos cacheados. Ejecuta downloader.py antes de simular.")
+        return pd.DataFrame(columns=["cash", "equity"]), {}
+
+    index_path = CACHE_DIR / "QQQ_history.csv"
+    if index_path.exists():
+        index_history = load_history_from_cache(index_path)
+        index_history = index_history.sort_index()
+        index_history["ma50"] = index_history["close"].rolling(window=50).mean()
+        index_history["ma200"] = index_history["close"].rolling(window=200).mean()
+    else:
+        index_history = None
+        logging.warning("Datos del índice QQQ no encontrados. Los filtros de régimen podrían no aplicarse.")
+
+    logging.info("Iniciando Fase 2: Generación de señales (ejecutando backtest)")
+    trades = run_backtest(histories, fundamentals, thresholds, config, index_history)
+    if not trades:
+        logging.info("No se generaron operaciones con los parámetros actuales.")
+        return pd.DataFrame(columns=["cash", "equity"]), {}
+    logging.info("Se generaron %s operaciones teóricas.", len(trades))
+
+    logging.info("Iniciando Fase 3: Simulación de cartera con gestión de capital")
+    equity_curve, metrics = simulate_portfolio(
+        trades,
+        histories,
+        start=start_ts,
+        end=end_ts,
+        initial_capital=capital_inicial,
+        risk_per_trade=max(riesgo_por_trade, 0.0),
+    )
+
+    metrics["num_trades"] = float(len(trades))
+
+    equity_output_path = Path(equity_output) if equity_output else None
+    _write_equity_curve(equity_curve, equity_output_path)
 
     return equity_curve, metrics
 
@@ -322,83 +447,35 @@ def parse_args() -> argparse.Namespace:
         default="equity_curve.csv",
         help="Archivo CSV donde guardar la curva de patrimonio.",
     )
+    parser.add_argument(
+        "--metrics-output",
+        help="Archivo JSON donde guardar las métricas agregadas.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
 
-    start_ts = _ensure_timestamp(args.start_date)
-    end_ts = _ensure_timestamp(args.end_date)
-    if end_ts <= start_ts:
-        raise ValueError("La fecha final debe ser posterior a la fecha inicial")
-
-    # Configuración para el Backtester (generador de señales)
-    config = BacktestConfig(
-        start_date=start_ts,
-        end_date=end_ts,
-        vol_stop_multiple=max(args.vol_stop_multiple, 0.1),
-        ema_trail_period=max(int(args.ema_period), 1),
-        ema_tolerance=max(args.ema_tolerance, 0.0),
-    )
-
-    # Filtros para el Backtester
-    thresholds = Thresholds(
+    equity_curve, metrics = run_portfolio_backtest(
+        input_path=args.input,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        vol_stop_multiple=args.vol_stop_multiple,
+        ema_period=args.ema_period,
+        ema_tolerance=args.ema_tolerance,
         min_eps_growth=args.min_eps_growth,
         min_revenue_growth=args.min_revenue_growth,
-        min_momentum_3m=max(args.min_momentum_3m, 0.0),
-        max_week_volatility=max(args.max_week_volatility, 0.0),
-        min_adr=max(args.min_adr, 0.0),
+        min_momentum_3m=args.min_momentum_3m,
+        min_adr=args.min_adr,
+        max_week_volatility=args.max_week_volatility,
+        capital_inicial=args.capital_inicial,
+        riesgo_por_trade=args.riesgo_por_trade,
+        equity_output=args.equity_output,
     )
-
-    tickers = load_tickers(Path(args.input))
-    CACHE_DIR.mkdir(exist_ok=True)
-
-    # --- Fase 1: Cargar datos (igual que el backtester) ---
-    logging.info("Iniciando Fase 1: Carga de datos (usando caché si existe)")
-    histories, fundamentals = _prepare_histories(tickers)
-    
-    if not histories:
-        logging.error(
-            "No se encontraron históricos cacheados. Ejecuta downloader.py antes de simular."
-        )
-        return
-
-    index_path = CACHE_DIR / "QQQ_history.csv"
-    if index_path.exists():
-        index_history = load_history_from_cache(index_path)
-        index_history = index_history.sort_index()
-        index_history["ma50"]  = index_history["close"].rolling(window=50).mean()
-        index_history["ma200"] = index_history["close"].rolling(window=200).mean()
-    else:
-        index_history = None
-        logging.warning(
-            "Datos del índice QQQ no encontrados. Los filtros de régimen podrían no aplicarse."
-        )
-
-    # --- Fase 2: Generar Señales (correr el backtest) ---
-    logging.info("Iniciando Fase 2: Generación de señales (ejecutando backtest)")
-    trades = run_backtest(histories, fundamentals, thresholds, config, index_history)
-    if not trades:
-        logging.info("No se generaron operaciones con los parámetros actuales.")
-        return
-    logging.info(f"Se generaron {len(trades)} operaciones teóricas.")
-
-    # --- Fase 3: Simular Cartera ---
-    logging.info("Iniciando Fase 3: Simulación de cartera con gestión de capital")
-    equity_curve, metrics = simulate_portfolio(
-        trades,
-        histories,
-        start=start_ts,
-        end=end_ts,
-        initial_capital=args.capital_inicial,
-        risk_per_trade=max(args.riesgo_por_trade, 0.0),
-    )
-
-    equity_curve.to_csv(args.equity_output, encoding="utf-8-sig")
-    logging.info("Curva de patrimonio guardada en %s", args.equity_output)
 
     if metrics:
+        logging.info("Curva de patrimonio guardada en %s", args.equity_output)
         logging.info("--- Resumen de la Cartera ---")
         logging.info("Capital final: %.2f", metrics.get("final_equity", 0.0))
         logging.info("Rentabilidad total: %.2f%%", metrics.get("total_return", 0.0) * 100)
@@ -406,8 +483,20 @@ def main() -> None:
         logging.info("Sharpe Ratio: %.2f", metrics.get("sharpe", float("nan")))
         if "realized_pnl" in metrics:
             logging.info("Beneficio/Pérdida realizada: %.2f", metrics["realized_pnl"])
+        if "profit_factor" in metrics:
+            logging.info("Profit Factor: %s", metrics.get("profit_factor"))
+        logging.info("Máximo drawdown: %.2f%%", metrics.get("max_drawdown", 0.0) * 100)
+        logging.info("Número de operaciones: %.0f", metrics.get("num_trades", 0.0))
+    else:
+        logging.info("No se generaron métricas para los parámetros proporcionados.")
 
+    if args.metrics_output and metrics:
+        export_metrics_to_json(metrics, Path(args.metrics_output))
+        logging.info("Métricas guardadas en %s", args.metrics_output)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    main()
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     main()
