@@ -19,73 +19,15 @@ from a import (
     load_tickers,
     safe_float,
 )
-# backtester.py ahora no tiene estas constantes, así que las definimos aquí
-CACHE_DIR = Path(".cache")
-DEFAULT_START_DATE = "2020-01-01"
-DEFAULT_END_DATE = "2024-12-31"
 
-# Importamos la función de descarga de historial desde a.py (asumiendo que está allí)
-# Si no, la copiamos de la versión anterior.
-# Por coherencia con tu diff, la importaré desde el backtester v1
-try:
-    from backtester_v1 import download_history, _ensure_timestamp # Asumiendo que guardaste el anterior
-except ImportError:
-    # Si no, definimos las funciones necesarias que faltan
-    def _ensure_timestamp(value: str) -> pd.Timestamp:
-        ts = pd.Timestamp(value)
-        if ts.tzinfo is None:
-            ts = ts.tz_localize(timezone.utc)
-        else:
-            ts = ts.tz_convert(timezone.utc)
-        return ts
-
-    def download_history(
-        client: YahooFinanceEUClient,
-        ticker: str,
-        start: pd.Timestamp,
-        end: pd.Timestamp,
-    ) -> pd.DataFrame:
-        """Descarga velas diarias entre ``start`` y ``end`` (ambos inclusive)."""
-        from a import YAHOO_CHART_ENDPOINT
-        start_epoch = int(start.timestamp())
-        end_epoch = int((end + pd.Timedelta(days=1)).timestamp())
-        params = {
-            "period1": start_epoch,
-            "period2": end_epoch,
-            "interval": "1d",
-            "events": "history",
-        }
-        payload = client._request(  # noqa: SLF001
-            YAHOO_CHART_ENDPOINT.format(ticker=ticker),
-            params,
-            expected_root="chart",
-        )
-        chart = payload.get("chart", {})
-        results = chart.get("result") or []
-        if not results:
-            raise RuntimeError("Histórico no disponible")
-
-        result = results[0]
-        indicators = result.get("indicators", {}).get("quote", [])
-        if not indicators:
-            raise RuntimeError("Histórico sin columnas de precios")
-
-        frame = pd.DataFrame(indicators[0])
-        required_cols = {"open", "high", "low", "close"}
-        missing = required_cols.difference(frame.columns)
-        if missing:
-            raise RuntimeError("Histórico incompleto: faltan columnas de precios")
-
-        timestamps = result.get("timestamp") or []
-        if not timestamps:
-            raise RuntimeError("Histórico sin marcas temporales")
-
-        frame["date"] = pd.to_datetime(timestamps, unit="s", utc=True)
-        frame = frame.set_index("date").sort_index()
-        frame = frame[["open", "high", "low", "close"]].dropna()
-        if frame.empty:
-            raise RuntimeError("Histórico vacío tras limpiar NaN")
-        return frame
+# Importamos desde backtester.py (aunque sea circular, funciona para constantes)
+from backtester import (
+    CACHE_DIR,
+    DEFAULT_END_DATE,
+    DEFAULT_START_DATE,
+    download_history,
+    _ensure_timestamp,
+)
 
 FUNDAMENTALS_ENDPOINT = (
     "https://query2.finance.yahoo.com/ws/fundamentals-timeseries/"
@@ -213,7 +155,7 @@ def save_history(
     except RateLimitError:
         raise
     except Exception as exc:  # noqa: BLE001
-        logging.warning("%s: error descargando histórico (%s)", ticker, exc)
+        """logging.warning("%s: error descargando histórico (%s)", ticker, exc)"""
         return False
     history.to_csv(history_path)
     return True
@@ -233,10 +175,10 @@ def save_fundamentals(
     except RateLimitError:
         raise
     except Exception as exc:  # noqa: BLE001
-        logging.warning("%s: error descargando fundamentales (%s)", ticker, exc)
+        """logging.warning("%s: error descargando fundamentales (%s)", ticker, exc)"""
         return False
     if fundamentals.empty:
-        logging.warning("%s: Yahoo no devolvió fundamentales trimestrales", ticker)
+        """logging.warning("%s: Yahoo no devolvió fundamentales trimestrales", ticker)"""
         return False
     lag = pd.to_timedelta(max(lag_days, 0), unit="D")
     fundamentals["available_at"] = fundamentals["as_of"] + lag
@@ -256,6 +198,9 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     tickers = load_tickers(Path(args.input))
+    tickers_to_download = list(tickers)
+    if "QQQ" not in {t.upper() for t in tickers_to_download}:
+        tickers_to_download.append("QQQ")
     client = YahooFinanceEUClient()
 
     margin = pd.Timedelta(days=200)
@@ -263,11 +208,11 @@ def main() -> None:
 
     logging.info(
         "Descargando datos para %s tickers (lag fundamentales: %s días)",
-        len(tickers),
+        len(tickers_to_download),
         args.lag_days,
     )
 
-    for ticker in tqdm(tickers, desc="Descargas", unit="ticker"):
+    for ticker in tqdm(tickers_to_download, desc="Descargas", unit="ticker"):
         history_path = output_dir / f"{ticker}_history.csv"
         fundamentals_path = output_dir / f"{ticker}_fundamentals.csv"
         try:
@@ -279,13 +224,17 @@ def main() -> None:
                 end_ts,
                 args.force,
             )
-            ok_fundamentals = save_fundamentals(
-                client,
-                ticker,
-                fundamentals_path,
-                args.lag_days,
-                args.force,
-            )
+            # No descargar fundamentales para el índice
+            if ticker.upper() == "QQQ":
+                ok_fundamentals = True
+            else:
+                ok_fundamentals = save_fundamentals(
+                    client,
+                    ticker,
+                    fundamentals_path,
+                    args.lag_days,
+                    args.force,
+                )
         except RateLimitError as exc:
             logging.warning("%s: límite de peticiones alcanzado (%s)", ticker, exc)
             client.refresh_tokens()
