@@ -367,6 +367,9 @@ def main() -> None:
     index_path = CACHE_DIR / "QQQ_history.csv"
     if index_path.exists():
         index_history = load_history_from_cache(index_path)
+        index_history = index_history.sort_index()
+        index_history["ma50"]  = index_history["close"].rolling(window=50).mean()
+        index_history["ma200"] = index_history["close"].rolling(window=200).mean()
     else:
         index_history = None
         logging.warning(
