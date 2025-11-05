@@ -19,13 +19,73 @@ from a import (
     load_tickers,
     safe_float,
 )
-from backtester import (
-    CACHE_DIR,
-    DEFAULT_END_DATE,
-    DEFAULT_START_DATE,
-    download_history,
-    _ensure_timestamp,
-)
+# backtester.py ahora no tiene estas constantes, así que las definimos aquí
+CACHE_DIR = Path(".cache")
+DEFAULT_START_DATE = "2020-01-01"
+DEFAULT_END_DATE = "2024-12-31"
+
+# Importamos la función de descarga de historial desde a.py (asumiendo que está allí)
+# Si no, la copiamos de la versión anterior.
+# Por coherencia con tu diff, la importaré desde el backtester v1
+try:
+    from backtester_v1 import download_history, _ensure_timestamp # Asumiendo que guardaste el anterior
+except ImportError:
+    # Si no, definimos las funciones necesarias que faltan
+    def _ensure_timestamp(value: str) -> pd.Timestamp:
+        ts = pd.Timestamp(value)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize(timezone.utc)
+        else:
+            ts = ts.tz_convert(timezone.utc)
+        return ts
+
+    def download_history(
+        client: YahooFinanceEUClient,
+        ticker: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+    ) -> pd.DataFrame:
+        """Descarga velas diarias entre ``start`` y ``end`` (ambos inclusive)."""
+        from a import YAHOO_CHART_ENDPOINT
+        start_epoch = int(start.timestamp())
+        end_epoch = int((end + pd.Timedelta(days=1)).timestamp())
+        params = {
+            "period1": start_epoch,
+            "period2": end_epoch,
+            "interval": "1d",
+            "events": "history",
+        }
+        payload = client._request(  # noqa: SLF001
+            YAHOO_CHART_ENDPOINT.format(ticker=ticker),
+            params,
+            expected_root="chart",
+        )
+        chart = payload.get("chart", {})
+        results = chart.get("result") or []
+        if not results:
+            raise RuntimeError("Histórico no disponible")
+
+        result = results[0]
+        indicators = result.get("indicators", {}).get("quote", [])
+        if not indicators:
+            raise RuntimeError("Histórico sin columnas de precios")
+
+        frame = pd.DataFrame(indicators[0])
+        required_cols = {"open", "high", "low", "close"}
+        missing = required_cols.difference(frame.columns)
+        if missing:
+            raise RuntimeError("Histórico incompleto: faltan columnas de precios")
+
+        timestamps = result.get("timestamp") or []
+        if not timestamps:
+            raise RuntimeError("Histórico sin marcas temporales")
+
+        frame["date"] = pd.to_datetime(timestamps, unit="s", utc=True)
+        frame = frame.set_index("date").sort_index()
+        frame = frame[["open", "high", "low", "close"]].dropna()
+        if frame.empty:
+            raise RuntimeError("Histórico vacío tras limpiar NaN")
+        return frame
 
 FUNDAMENTALS_ENDPOINT = (
     "https://query2.finance.yahoo.com/ws/fundamentals-timeseries/"

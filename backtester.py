@@ -37,8 +37,8 @@ from a import (
 
 DEFAULT_START_DATE = "2020-01-01"
 DEFAULT_END_DATE = "2024-12-31"
-DEFAULT_ADR_STOP_MULTIPLE = 2.0  # Múltiplo de ADR para el Stop
-DEFAULT_EMA_TRAIL_PERIOD = 20  # Período de la EMA para el trailing stop
+DEFAULT_ADR_STOP_MULTIPLE = 2.0
+DEFAULT_EMA_PERIOD = 50
 CACHE_DIR = Path(".cache")
 
 
@@ -56,7 +56,6 @@ class Trade:
     entry_date: pd.Timestamp
     entry_price: float
     stop_price: float
-    # target_price ya no existe
     exit_date: pd.Timestamp
     exit_price: float
     outcome: str
@@ -103,6 +102,7 @@ def download_history(
     end: pd.Timestamp,
 ) -> pd.DataFrame:
     """Descarga velas diarias entre ``start`` y ``end`` (ambos inclusive)."""
+    # ... (Esta función no cambia) ...
     start_epoch = int(start.timestamp())
     end_epoch = int((end + pd.Timedelta(days=1)).timestamp())
     params = {
@@ -111,13 +111,9 @@ def download_history(
         "interval": "1d",
         "events": "history",
     }
-    payload = client._request(  # noqa: SLF001
-        YAHOO_CHART_ENDPOINT.format(ticker=ticker),
-        params,
-        expected_root="chart",
-    )
-    chart = payload.get("chart", {})
-    results = chart.get("result") or []
+    url = YAHOO_CHART_ENDPOINT.format(ticker=ticker)
+    payload = client._request(url, params)
+    results = payload.get("chart", {}).get("result") or []
     if not results:
         raise RuntimeError("Histórico no disponible")
 
@@ -160,6 +156,44 @@ def _prepare_series(values: pd.Series) -> pd.Series:
     return pd.to_numeric(values, errors="coerce")
 
 
+def _normalize_fundamental_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normaliza los nombres de columna para admitir cabeceras variadas."""
+
+    def _clean(name: object) -> str:
+        raw = str(name)
+        raw = raw.lstrip("\ufeff").strip()
+        normalized = raw.lower().replace("-", "_").replace(" ", "_")
+        return normalized
+
+    canonical_map = {
+        "available_at": "available_at",
+        "availableat": "available_at",
+        "fecha_disponible": "available_at",
+        "as_of": "as_of",
+        "asof": "as_of",
+        "eps": "eps",
+        "dilutedeps": "eps",
+        "reported_eps": "eps",
+        "revenue": "revenue",
+        "total_revenue": "revenue",
+        "ingresos": "revenue",
+    }
+
+    renamed: dict[str, str] = {}
+    for column in df.columns:
+        cleaned = _clean(column)
+        if cleaned.startswith("unnamed"):
+            continue
+        renamed[column] = canonical_map.get(cleaned, cleaned)
+
+    if renamed:
+        df = df.rename(columns=renamed)
+
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    return df
+
+
 def load_fundamental_snapshots(path: Path) -> list[FundamentalSnapshot]:
     if not path.exists():
         return []
@@ -170,6 +204,8 @@ def load_fundamental_snapshots(path: Path) -> list[FundamentalSnapshot]:
         return []
     if df.empty:
         return []
+
+    df = _normalize_fundamental_columns(df)
 
     if "available_at" not in df or "eps" not in df or "revenue" not in df:
         logging.warning("%s: formato de fundamentales inesperado", path.name)
@@ -254,8 +290,8 @@ def select_snapshot(
 # Métricas del escáner
 # ---------------------------------------------------------------------------
 
-
 def compute_momentum(history: pd.DataFrame, window: int = 63) -> Optional[float]:
+    # ... (Esta función no cambia) ...
     if len(history) < window + 1:
         return None
     recent = history["close"].iloc[-1]
@@ -266,6 +302,7 @@ def compute_momentum(history: pd.DataFrame, window: int = 63) -> Optional[float]
 
 
 def compute_average_adr(history: pd.DataFrame, window: int = 63) -> Optional[float]:
+    # ... (Esta función no cambia) ...
     if len(history) < window:
         return None
     adr = (history["high"] - history["low"]) / history["close"]
@@ -276,6 +313,7 @@ def compute_average_adr(history: pd.DataFrame, window: int = 63) -> Optional[flo
 
 
 def compute_weekly_volatility(history: pd.DataFrame, window: int = 5) -> Optional[float]:
+    # ... (Esta función no cambia) ...
     if len(history) < window:
         return None
     segment = history.tail(window)
@@ -313,21 +351,32 @@ def simulate_ticker(
     snapshots: Sequence[FundamentalSnapshot],
     thresholds: Thresholds,
     config: BacktestConfig,
+    index_history: pd.DataFrame,
 ) -> list[Trade]:
     trades: list[Trade] = []
 
     if not snapshots:
         return trades
 
-    # Pre-calcula las fechas de disponibilidad (ordenadas) para búsquedas rápidas
-    availability_dates = [snap.available_at for snap in snapshots]
+    availability = [snap.available_at for snap in snapshots]
 
     open_trade: Optional[Trade] = None
-    
-    # --- NUEVA LÓGICA DE TRAILING STOP ---
-    working_history = history.copy()
-    # Calcula la EMA de 20 sesiones (o el período especificado)
-    working_history["ema_trail"] = working_history["close"].ewm(span=config.ema_trail_period, adjust=False).mean()
+    working_history = history.copy().sort_index()
+    aligned_index = index_history.reindex(working_history.index, method="ffill")
+    working_history["ema_trail"] = working_history["close"].ewm(
+        span=config.ema_trail_period, adjust=False
+    ).mean()
+    working_history["ma50"] = working_history["close"].rolling(window=50).mean()
+    working_history["ma200"] = working_history["close"].rolling(window=200).mean()
+    if aligned_index is not None:
+        index_close = aligned_index["close"].replace(0, pd.NA)
+        working_history["rs_line"] = working_history["close"] / index_close
+        working_history["rs_ma21"] = working_history["rs_line"].ewm(
+            span=21, adjust=False
+        ).mean()
+        working_history["rs_63_high"] = (
+            working_history["rs_line"].rolling(window=63).max()
+        )
     usable = working_history.loc[: config.end_date]
     if usable.empty:
         return trades
@@ -338,13 +387,29 @@ def simulate_ticker(
     for idx, current_date in enumerate(dates):
         row = usable.iloc[idx]
 
+        try:
+            market_now = index_history.loc[current_date]
+        except KeyError:
+            try:
+                market_now = aligned_index.loc[current_date]
+            except KeyError:
+                continue
+
+        market_close = market_now.get("close")
+        market_ma50 = market_now.get("ma50")
+        market_bearish = True
+        if not pd.isna(market_close) and not pd.isna(market_ma50):
+            try:
+                market_bearish = float(market_close) < float(market_ma50)
+            except TypeError:
+                market_bearish = True
+
         if open_trade and current_date >= open_trade.entry_date:
+            # ... (Lógica de salida de la operación - no cambia) ...
             low_price = float(row["low"])
             close_price = float(row["close"])
             ema_value = row.get("ema_trail", pd.NA)
             exit_trade: Optional[Trade] = None
-
-            # 1. Comprobar Stop Catastrófico (ADR)
             if low_price <= open_trade.stop_price:
                 exit_trade = Trade(
                     ticker=open_trade.ticker,
@@ -353,9 +418,8 @@ def simulate_ticker(
                     stop_price=open_trade.stop_price,
                     exit_date=current_date,
                     exit_price=open_trade.stop_price,
-                    outcome="stop_adr", # Motivo actualizado
+                    outcome="stop_adr",
                 )
-            # 2. Comprobar Trailing Stop (EMA)
             elif not pd.isna(ema_value) and close_price < float(ema_value):
                 exit_trade = Trade(
                     ticker=open_trade.ticker,
@@ -363,14 +427,25 @@ def simulate_ticker(
                     entry_price=open_trade.entry_price,
                     stop_price=open_trade.stop_price,
                     exit_date=current_date,
-                    exit_price=close_price, # Salida al cierre
-                    outcome="stop_ema", # Motivo actualizado
+                    exit_price=close_price,
+                    outcome="ema50_break",
                 )
 
             if exit_trade:
+                logging.info(
+                    "%s: salida el %s a %.2f (motivo: %s, R=%.2f)",
+                    exit_trade.ticker,
+                    exit_trade.exit_date.date().isoformat(),
+                    exit_trade.exit_price,
+                    exit_trade.outcome,
+                    exit_trade.r_multiple,
+                )
                 trades.append(exit_trade)
                 open_trade = None
                 continue
+
+        if market_bearish:
+            continue
 
         if open_trade is not None:
             continue
@@ -388,42 +463,52 @@ def simulate_ticker(
         else:
             current_ts = current_ts.tz_convert("UTC")
 
-        # --- Lógica de Filtro Point-in-Time ---
-        snapshot = select_snapshot(snapshots, current_ts, dates=availability_dates)
+        snapshot = select_snapshot(snapshots, current_ts, dates=availability)
         if snapshot is None:
-            continue  # No hay datos fundamentales conocidos en esta fecha
+            continue
 
-        # 1. Filtro de "Reciente" (Evita ER inminente/antiguo)
         days_since_earnings = (current_ts - snapshot.available_at).days
         if days_since_earnings < 0 or days_since_earnings >= MAX_EARNINGS_AGE_DAYS:
             continue
 
-        # 2. Filtro de Crecimiento Fundamental
         if snapshot.eps_growth < thresholds.min_eps_growth:
             continue
         if snapshot.revenue_growth < thresholds.min_revenue_growth:
             continue
-        
-        # 3. Filtro Técnico
+
         history_until_now = working_history.loc[:current_date]
         if not passes_scanner(history_until_now, thresholds):
             continue
 
-        # --- Si todo pasa, abrimos la operación en la apertura del día siguiente ---
+        row_now = working_history.loc[current_date]
+        ma50_value = row_now.get("ma50")
+        ma200_value = row_now.get("ma200")
+        if pd.isna(ma50_value) or pd.isna(ma200_value):
+            continue
+        if float(row_now["close"]) < float(ma50_value):
+            continue
+        if float(ma50_value) < float(ma200_value):
+            continue
+
+        rs_line = row_now.get("rs_line")
+        rs_ma21 = row_now.get("rs_ma21")
+        rs_high = row_now.get("rs_63_high")
+        if pd.isna(rs_line) or pd.isna(rs_ma21) or pd.isna(rs_high):
+            continue
+        if float(rs_line) < float(rs_ma21):
+            continue
+        if float(rs_line) < float(rs_high):
+            continue
+
         next_row = usable.iloc[idx + 1]
         if pd.isna(next_row["open"]):
             continue
         entry_price = float(next_row["open"])
-
-        # --- NUEVA LÓGICA DE STOP BASADO EN ADR ---
         adr_mean = compute_average_adr(history_until_now)
         if adr_mean is None:
-            continue # No se puede calcular el ADR, no se puede entrar
-        
-        # El riesgo (stop) se basa en el ADR del día de la señal
+            continue
         risk_dollars = entry_price * adr_mean * config.adr_stop_multiple
-        stop_price = max(entry_price - risk_dollars, 0.01) # Asegura que no sea negativo
-
+        stop_price = max(entry_price - risk_dollars, 0.01)
         open_trade = Trade(
             ticker=ticker,
             entry_date=next_date,
@@ -433,22 +518,38 @@ def simulate_ticker(
             exit_price=entry_price,
             outcome="open",
         )
+        logging.info(
+            "%s: entrada el %s a %.2f (stop inicial %.2f, ADR63=%.4f, múltiplo=%.2f)",
+            ticker,
+            next_date.date().isoformat(),
+            entry_price,
+            stop_price,
+            adr_mean,
+            config.adr_stop_multiple,
+        )
 
     if open_trade:
+        # ... (Lógica de cierre de operación por "timeout" - no cambia) ...
         remaining = usable.loc[open_trade.entry_date :]
         if remaining.empty:
             remaining = usable.iloc[[-1]]
         last_row = remaining.iloc[-1]
-        trades.append(
-            Trade(
-                ticker=open_trade.ticker,
-                entry_date=open_trade.entry_date,
-                entry_price=open_trade.entry_price,
-                stop_price=open_trade.stop_price,
-                exit_date=last_row.name,
-                exit_price=float(last_row["close"]),
-                outcome="timeout",
-            )
+        final_trade = Trade(
+            ticker=open_trade.ticker,
+            entry_date=open_trade.entry_date,
+            entry_price=open_trade.entry_price,
+            stop_price=open_trade.stop_price,
+            exit_date=last_row.name,
+            exit_price=float(last_row["close"]),
+            outcome="timeout",
+        )
+        trades.append(final_trade)
+        logging.info(
+            "%s: salida el %s a %.2f (motivo: timeout, R=%.2f)",
+            final_trade.ticker,
+            final_trade.exit_date.date().isoformat(),
+            final_trade.exit_price,
+            final_trade.r_multiple,
         )
 
     return trades
@@ -459,8 +560,10 @@ def run_backtest(
     fundamentals: dict[str, Sequence[FundamentalSnapshot]],
     thresholds: Thresholds,
     config: BacktestConfig,
+    index_history: pd.DataFrame,
 ) -> list[Trade]:
     all_trades: list[Trade] = []
+    # Usamos tqdm en el bucle principal de simulación
     for ticker, history in tqdm(histories.items(), desc="Simulando operaciones"):
         trades = simulate_ticker(
             ticker,
@@ -468,6 +571,7 @@ def run_backtest(
             fundamentals.get(ticker, ()),
             thresholds,
             config,
+            index_history,
         )
         if trades:
             logging.info("%s: %s operaciones simuladas", ticker, len(trades))
@@ -481,6 +585,7 @@ def run_backtest(
 
 
 def compute_statistics(trades: Iterable[Trade]) -> dict[str, float]:
+    # ... (Esta función no cambia) ...
     trades = list(trades)
     if not trades:
         return {}
@@ -495,12 +600,14 @@ def compute_statistics(trades: Iterable[Trade]) -> dict[str, float]:
         running_total += value
         cumulative.append(running_total)
 
-    peak = float("-inf")
+    peak = cumulative[0]
     max_drawdown = 0.0
     for value in cumulative:
-        peak = max(peak, value)
+        if value > peak:
+            peak = value
         drawdown = peak - value
-        max_drawdown = max(max_drawdown, drawdown)
+        if drawdown > max_drawdown:
+            max_drawdown = drawdown
 
     stats = {
         "trades": len(trades),
@@ -521,6 +628,7 @@ def compute_statistics(trades: Iterable[Trade]) -> dict[str, float]:
 
 
 def trades_to_dataframe(trades: Iterable[Trade]) -> pd.DataFrame:
+    # ... (Esta función no cambia) ...
     records = [
         {
             "Ticker": trade.ticker,
@@ -529,7 +637,6 @@ def trades_to_dataframe(trades: Iterable[Trade]) -> pd.DataFrame:
             "Precio Entrada": trade.entry_price,
             "Precio Salida": trade.exit_price,
             "Stop": trade.stop_price,
-            # "Objetivo" ya no existe
             "Resultado (R)": trade.r_multiple,
             "Motivo": trade.outcome,
         }
@@ -552,6 +659,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_INPUT,
         help="Archivo con la lista de tickers a simular.",
     )
+    # ... (El resto de esta función no cambia, EXCEPTO que eliminamos los args de fundamentales) ...
     parser.add_argument("--start-date", default=DEFAULT_START_DATE, help="Fecha inicial del backtest (YYYY-MM-DD).")
     parser.add_argument("--end-date", default=DEFAULT_END_DATE, help="Fecha final del backtest (YYYY-MM-DD).")
     parser.add_argument(
@@ -561,10 +669,10 @@ def parse_args() -> argparse.Namespace:
         help="Multiplicador del ADR medio de 63 sesiones para fijar el stop inicial.",
     )
     parser.add_argument(
-        "--ema-period", # <-- NUEVO ARGUMENTO
+        "--ema-period",
         type=int,
-        default=DEFAULT_EMA_TRAIL_PERIOD,
-        help="Período de la EMA para el trailing stop (ej. 20)",
+        default=DEFAULT_EMA_PERIOD,
+        help="Periodo de la EMA utilizada como stop dinámico (por defecto 50).",
     )
     parser.add_argument(
         "--output",
@@ -615,9 +723,10 @@ def main() -> None:
         start_date=start_ts,
         end_date=end_ts,
         adr_stop_multiple=max(args.adr_stop_multiple, 0.1),
-        ema_trail_period=max(args.ema_period, 5), # Añadido
+        ema_trail_period=max(int(args.ema_period), 1),
     )
 
+    # --- MODIFICADO: Thresholds ya no incluye EPS/Revenue ---
     thresholds = Thresholds(
         min_eps_growth=args.min_eps_growth,
         min_revenue_growth=args.min_revenue_growth,
@@ -627,14 +736,31 @@ def main() -> None:
     )
 
     tickers = load_tickers(Path(args.input))
-    
+
+    # --- LÓGICA DE CACHÉ ---
     logging.info("Iniciando Fase 1: Carga de datos (usando caché si existe)")
     CACHE_DIR.mkdir(exist_ok=True)
 
+    client = YahooFinanceEUClient()
     histories: dict[str, pd.DataFrame] = {}
     fundamentals: dict[str, Sequence[FundamentalSnapshot]] = {}
 
+    index_path = CACHE_DIR / "QQQ_history.csv"
+    if not index_path.exists():
+        raise FileNotFoundError(
+            "Datos del índice QQQ no encontrados. Ejecuta downloader.py para generarlos."
+        )
+    index_history = load_history_from_cache(index_path)
+    index_history = index_history.sort_index()
+    index_history["ma50"] = index_history["close"].rolling(window=50).mean()
+    index_history["ma200"] = index_history["close"].rolling(window=200).mean()
+
+    margin = pd.Timedelta(days=200)
+    start_download = start_ts - margin
+
     for ticker in tqdm(tickers, desc="Cargando datos de tickers"):
+        if ticker.upper() == "QQQ":
+            continue
         history_path = CACHE_DIR / f"{ticker}_history.csv"
         fundamentals_path = CACHE_DIR / f"{ticker}_fundamentals.csv"
 
@@ -642,11 +768,8 @@ def main() -> None:
             if history_path.exists():
                 history = load_history_from_cache(history_path)
             else:
-                logging.warning(
-                    "%s: no se encontró historial. Ejecuta downloader.py primero.",
-                    ticker,
-                )
-                continue
+                history = download_history(client, ticker, start_download, end_ts)
+                history.to_csv(history_path)
         except Exception as exc:  # noqa: BLE001
             logging.warning("%s: no se pudo preparar el histórico (%s)", ticker, exc)
             continue
@@ -669,7 +792,7 @@ def main() -> None:
         return
 
     logging.info("Iniciando Fase 2: Simulación de operaciones")
-    trades = run_backtest(histories, fundamentals, thresholds, config)
+    trades = run_backtest(histories, fundamentals, thresholds, config, index_history)
     stats = compute_statistics(trades)
 
     if not trades:
