@@ -41,14 +41,14 @@ except Exception:
     try:
         from drl_platform.env.trading_env import EnvironmentConfig, TradingEnvironment  # type: ignore
     except Exception:
-        # Intento 3: compatibilidad con versiones antiguas
+        # Intento 3: compatibilidad con versiones antiguas (archivo en el paquete raíz)
         try:
             from .trading_env import EnvironmentConfig, TradingEnvironment  # type: ignore
         except Exception:
             try:
                 from drl_platform.trading_env import EnvironmentConfig, TradingEnvironment  # type: ignore
             except Exception:
-                # Intento 4: carga directa desde archivo (fallback)
+                # Intento 4: carga directa desde el archivo (fallback)
                 import importlib.util
                 import sys
 
@@ -78,6 +78,7 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+
 # --------------------------------------------------------------------------------------
 # Configs
 # --------------------------------------------------------------------------------------
@@ -100,46 +101,53 @@ class TrackingConfig:
 class TrainingConfig:
     """Configuración del entrenamiento RLlib."""
     algorithm: str = "PPO"
-    total_iterations: int = 50
-    num_workers: int = 1
-    rllib_config: Optional[Dict[str, Any]] = field(default_factory=dict)
+    total_iterations: int = 100
+    num_workers: int = 2
+    rllib_config: Dict[str, Any] = field(default_factory=dict)
 
 
+# --------------------------------------------------------------------------------------
+# Orchestrator
+# --------------------------------------------------------------------------------------
 class TrainingOrchestrator:
-    """Coordinador de entrenamientos DRL basado en Ray/RLlib."""
+    """Orquesta el entrenamiento RLlib y el tracking de experimentos."""
 
     def __init__(self, tracking: TrackingConfig):
         self.tracking = tracking
-        self._mlflow_run = None
-        self._wandb_run = None
+        logger.info("TrainingOrchestrator inicializado. Directorio de salida: %s", self.tracking.output_dir)
 
-    # ----------------------------- Tracking ------------------------------------
-    def _start_tracking_run(self, ticker: str):
-        run_name = f"{ticker}-{datetime.now():%Y%m%d_%H%M%S}"
+    # --------------------------- Tracking helpers --------------------------------
+    def _start_tracking_run(self, ticker: str) -> None:  # pragma: no cover (side effects)
+        run_name = f"{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
         if self.tracking.use_mlflow and mlflow is not None:
-            mlflow.set_tracking_uri(self.tracking.mlflow_tracking_uri or "file:./mlruns")
+            if self.tracking.mlflow_tracking_uri:
+                mlflow.set_tracking_uri(self.tracking.mlflow_tracking_uri)
             mlflow.set_experiment(self.tracking.mlflow_experiment)
-            self._mlflow_run = mlflow.start_run(run_name=run_name)
+            mlflow.start_run(run_name=run_name)
+            mlflow.set_tag("ticker", ticker)
+
         if self.tracking.use_wandb and wandb is not None:
-            self._wandb_run = wandb.init(
+            if not self.tracking.wandb_project:
+                raise ValueError("Se debe especificar 'wandb_project' para usar W&B.")
+            wandb.init(
                 project=self.tracking.wandb_project,
                 entity=self.tracking.wandb_entity,
-                name=run_name,
+                tags=list(self.tracking.wandb_tags) + [ticker],
                 config={"ticker": ticker},
-                tags=self.tracking.wandb_tags,
+                name=run_name,
                 reinit=True,
             )
 
-    def _end_tracking_run(self) -> None:
+    def _end_tracking_run(self) -> None:  # pragma: no cover (side effects)
         if self.tracking.use_mlflow and mlflow is not None:
             mlflow.end_run()
         if self.tracking.use_wandb and wandb is not None:
             wandb.finish()
 
-    def _log_metrics(self, metrics: Dict[str, Any], step: int) -> None:
+    def _log_metrics(self, metrics: Dict[str, Any], step: int) -> None:  # pragma: no cover
         clean = {
-            k: float(v)
-            for k, v in metrics.items()
+            k: float(v) for k, v in metrics.items()
             if v is not None and isinstance(v, (int, float, np.floating)) and not np.isnan(v)
         }
         if not clean:
@@ -151,16 +159,20 @@ class TrainingOrchestrator:
 
     # --------------------------- RL helpers ------------------------------------
     @staticmethod
-    def _make_env_creator(df: pd.DataFrame, env_kwargs: Dict[str, Any]) -> str:
+    def _make_env_creator(
+        df: pd.DataFrame, env_kwargs: Optional[Dict[str, Any]]
+    ) -> str:
         """Registra un entorno específico y devuelve su identificador para RLlib."""
+
         env_id = f"drl_platform_env_{uuid4().hex}"
-        base_kwargs = dict(env_kwargs)
+        base_kwargs = dict(env_kwargs or {})
         valid_fields = {f.name for f in fields(EnvironmentConfig)}
 
         def _creator(config: Optional[Dict[str, Any]] = None) -> TradingEnvironment:
-            merged = dict(base_kwargs)
+            merged: Dict[str, Any] = dict(base_kwargs)
             if config:
                 merged.update(config)
+
             filtered = {k: v for k, v in merged.items() if k in valid_fields}
             filtered.setdefault("data", df)
 
@@ -195,24 +207,33 @@ class TrainingOrchestrator:
         env_kwargs: Optional[Dict[str, Any]],
         training: TrainingConfig,
     ) -> Path:
-        """Implementación principal del loop de entrenamiento."""
+        """Implementación principal del loop de entrenamiento.
+
+        Devuelve la ruta del último checkpoint generado para el ``ticker``.
+        """
         if view is None or view.empty:
             raise ValueError("El DataFrame de características `view` está vacío.")
 
+        # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
+
+        # Ray: inicializa una vez
         if not ray.is_initialized():
             ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
 
         self._start_tracking_run(ticker)
         try:
+            # 1) Selección de algoritmo
             algo = training.algorithm.upper()
             if algo != "PPO":
                 raise NotImplementedError(f"Algoritmo {training.algorithm} aún no soportado (solo PPO).")
 
+            # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
             env_creator = self._make_env_creator(view, env_kwargs)
+
             algo_config = PPOConfig()
-            algo_config.environment(env=env_creator, env_config=dict(env_kwargs))
-            algo_config.rollouts(num_rollout_workers=training.num_workers)
+            algo_config.environment(env=env_creator, env_config=dict(env_kwargs))    # NO reasignar
+            algo_config.rollouts(num_rollout_workers=training.num_workers)  # NO reasignar
 
             rllib_cfg = training.rllib_config or {}
             rllib_cfg = {
@@ -229,7 +250,9 @@ class TrainingOrchestrator:
             def _apply_training_config(config: PPOConfig, params: Dict[str, Any]) -> None:
                 method = config.training
                 signature = inspect.signature(method)
-                accepts_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in signature.parameters.values())
+                accepts_kwargs = any(
+                    p.kind == inspect.Parameter.VAR_KEYWORD for p in signature.parameters.values()
+                )
                 valid_param_names = {
                     name
                     for name, param in signature.parameters.items()
@@ -246,8 +269,12 @@ class TrainingOrchestrator:
                         removed["sgd_minibatch_size"] = adapted.pop("sgd_minibatch_size")
 
                 if not accepts_kwargs:
-                    filtered = {k: v for k, v in adapted.items() if k in valid_param_names}
-                    removed.update({k: v for k, v in adapted.items() if k not in filtered})
+                    filtered = {
+                        key: value for key, value in adapted.items() if key in valid_param_names
+                    }
+                    removed.update({
+                        key: value for key, value in adapted.items() if key not in filtered
+                    })
                 else:
                     filtered = adapted
 
@@ -257,12 +284,15 @@ class TrainingOrchestrator:
                         ", ".join(sorted(removed)),
                     )
 
-                method(**filtered)
+                method(**filtered)  # NO reasignar
 
             _apply_training_config(algo_config, rllib_cfg)
-            algo_config.framework("torch")
+            algo_config.framework("torch")    # NO reasignar
 
+            # 3) Construir algoritmo
             algorithm = algo_config.build()
+
+            # 4) Loop de entrenamiento
             best_reward = -float("inf")
             checkpoint_dir = self.tracking.output_dir / ticker
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -270,6 +300,7 @@ class TrainingOrchestrator:
 
             for it in range(1, int(training.total_iterations) + 1):
                 result = algorithm.train()
+
                 metrics = {
                     "episode_reward_mean": result.get("episode_reward_mean"),
                     "episode_reward_max": result.get("episode_reward_max"),
@@ -282,9 +313,35 @@ class TrainingOrchestrator:
                 mean_r = metrics.get("episode_reward_mean")
                 if mean_r is not None and mean_r > best_reward:
                     best_reward = mean_r
-                    last_ckpt_path = Path(algorithm.save(checkpoint_dir).checkpoint.path)
-                    logger.info("✅ Nueva mejor recompensa %.2f guardada en %s", best_reward, last_ckpt_path)
+                    try:
+                        ckpt_result = algorithm.save(checkpoint_dir)
+                        last_ckpt_path = Path(ckpt_result.checkpoint.path)
+                        logger.info(
+                            "Iter %d: Nuevo mejor reward=%.3f. Checkpoint guardado en %s",
+                            it, best_reward, last_ckpt_path
+                        )
+                    except Exception as e:  # pragma: no cover
+                        logger.error("Error al guardar el checkpoint: %s", e)
+                
+                if it % 10 == 0:
+                    logger.info("Iter %d: Reward mean=%.3f", it, mean_r)
 
-            return last_ckpt_path or checkpoint_dir
+            if last_ckpt_path is None:
+                logger.warning("No se guardó ningún checkpoint (el entrenamiento falló o no mejoró).")
+                # Guardar de todos modos para permitir la inferencia
+                ckpt_result = algorithm.save(checkpoint_dir)
+                last_ckpt_path = Path(ckpt_result.checkpoint.path)
+                logger.info("Guardando checkpoint final en %s", last_ckpt_path)
+
+        except Exception as e:
+            logger.error("Error durante el entrenamiento: %s", e, exc_info=True)
+            raise  # Re-lanzar la excepción
         finally:
             self._end_tracking_run()
+            algorithm.stop()
+            # ray.shutdown() # Comentado para permitir ejecuciones consecutivas
+
+        if last_ckpt_path is None or not last_ckpt_path.exists():
+            raise FileNotFoundError(f"El entrenamiento finalizó pero no se encontró el checkpoint en {checkpoint_dir}")
+
+        return last_ckpt_path

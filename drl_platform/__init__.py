@@ -1,9 +1,9 @@
 """Public API for the DRL research platform.
 
 This module intentionally avoids importing heavy optional dependencies at import
-time. Objects are exposed lazily via ``__getattr__`` so that modules that
-require extra packages (torch, transformers, etc.) are only imported when they
-are actually used.
+ time. Objects are exposed lazily via ``__getattr__`` so that modules that
+ require extra packages (torch, transformers, etc.) are only imported when they
+ are actually used.
 """
 from __future__ import annotations
 
@@ -43,8 +43,8 @@ __all__ = [
     "SignalAgentOutput",
 ]
 
-# Mapping from exported names to ``(module, attribute)`` pairs.
-# Modules are only imported when their attributes are accessed.
+# Mapping from exported names to ``(module, attribute)`` pairs. Modules are only
+# imported when their attributes are accessed.
 _EXPORTS: Dict[str, Tuple[str, str]] = {
     # Data
     "DataPipeline": ("drl_platform.data_pipeline", "DataPipeline"),
@@ -92,7 +92,6 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
-    """Return dynamic module attributes for autocomplete and introspection."""
     return sorted(set(__all__))
 
 
