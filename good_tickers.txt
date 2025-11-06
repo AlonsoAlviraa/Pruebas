@@ -1,5 +1,4 @@
-﻿Encontrados 3341 tickers con datos de precios en data.
-AACG
+﻿AACG
 AAL
 AAME
 AAOI

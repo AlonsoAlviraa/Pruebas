@@ -138,7 +138,7 @@ def run_training(args: argparse.Namespace) -> None:
         use_wandb=args.wandb_project is not None,
         wandb_project=args.wandb_project,
     )
-    orchestrator = TrainingOrchestrator(tracking=tracking)
+    orchestrator = TrainingOrchestrator(tracking_config=tracking)
 
     for ticker in tickers:
         logger.info("--- Iniciando entrenamiento para %s ---", ticker)
