@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import unicodedata
 from pathlib import Path
-from typing import List
+from typing import List, Set, Callable, Dict
 
 import pandas as pd
 
@@ -26,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     """
     Parsea los argumentos de la línea de comandos.
     Esta función encapsula la lógica de argparse para evitar conflictos
-    de namespace en el script principal.
+    de namespace ('email.parser') en el script principal.
     """
     parser = argparse.ArgumentParser(description="DRL Research Platform CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -34,11 +35,11 @@ def parse_args() -> argparse.Namespace:
     # --- Comando: run-training ---
     train_parser = subparsers.add_parser("run-training", help="Launch an RLlib training job")
     
-    # --- GRUPO DE TICKERS MEJORADO ---
     ticker_group = train_parser.add_mutually_exclusive_group(required=True)
     ticker_group.add_argument("--tickers", help="Comma separated list of tickers (ej. 'AAL,MSFT')")
-    ticker_group.add_argument("--ticker-file", type=Path, help="Archivo de texto con un ticker por línea (ej. 'good_tickers.txt')")
-    # --------------------------------
+    ticker_group.add_argument(
+        "--ticker_file", type=Path, help="Path to a file with one ticker per line"
+    )
     
     train_parser.add_argument("--data-root", default="data", help="Directory with cached datasets")
     train_parser.add_argument(
@@ -47,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     train_parser.add_argument("--iterations", type=int, default=10)
     train_parser.add_argument("--num-workers", type=int, default=1)
     train_parser.add_argument("--use-continuous", action="store_true", help="Usar espacio de acciones continuo")
-    train_parser.add_argument("--mlflow-uri", help="MLflow tracking URI (ej. http://127.0.0.1:5000)")
+    train_parser.add_argument("--mlflow-uri", help="MLflow tracking URI")
     train_parser.add_argument("--wandb-project", help="Weights & Biases project name")
 
     # --- Comando: run-backtest ---
@@ -56,51 +57,81 @@ def parse_args() -> argparse.Namespace:
     backtest_parser.add_argument("--ticker", required=True)
     backtest_parser.add_argument("--n-splits", type=int, default=5)
     backtest_parser.add_argument("--purge-window", type=int, default=5)
+
+    return parser.parse_args()
+
+
+def _normalise_ticker(raw: str) -> str | None:
+    """
+    Normaliza los strings de tickers, eliminando espacios (incl. Unicode) y BOMs.
+    """
+    if raw is None:
+        return None
+
+    # 1. Normalizar caracteres Unicode (ej. \xa0 -> espacio)
+    #    y eliminar BOMs (Byte Order Marks) comunes al inicio de archivos.
+    try:
+        normalised = unicodedata.normalize("NFKC", raw)
+        cleaned = normalised.replace("\ufeff", "").strip()
+    except TypeError:
+        return None # En caso de que 'raw' no sea un string
+
+    if not cleaned:
+        return None
+
+    # 2. Eliminar cualquier espacio interno restante y convertir a mayúsculas
+    cleaned = "".join(ch for ch in cleaned if not ch.isspace())
+    if not cleaned:
+        return None
+
+    return cleaned.upper()
+
+
+def get_tickers_from_args(args: argparse.Namespace) -> list[str]:
+    """Retorna una lista limpia y de-duplicada de tickers desde los argumentos CLI."""
+
+    candidates: list[str] = []
+    if getattr(args, "tickers", None):
+        expanded = args.tickers.replace("\n", ",")
+        candidates.extend(expanded.split(","))
+
+    ticker_file: Path | None = getattr(args, "ticker_file", None)
+    if ticker_file is not None:
+        try:
+            # Usar utf-8-sig para manejar BOM (Byte Order Mark) en archivos de texto
+            content = ticker_file.read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            raise ValueError(f"Unable to read ticker file: {ticker_file}") from exc
+        candidates.extend(content.splitlines())
+
+    cleaned: list[str] = []
+    seen: set[str] = set()
     
-    # Esta es la línea que fallaba en tu versión.
-    # Aquí, 'parser' es local y no hay conflicto.
-    return parser.parse_args() 
+    for raw in candidates:
+        ticker = _normalise_ticker(raw)
+        # Si el ticker es válido y no lo hemos visto, añadirlo
+        if ticker and ticker not in seen:
+            cleaned.append(ticker)
+            seen.add(ticker)
 
+    if not cleaned:
+        raise ValueError("No valid tickers provided after cleaning input")
 
-def get_tickers_from_args(args: argparse.Namespace) -> List[str]:
-    """Carga la lista de tickers desde --tickers o --ticker-file."""
-    tickers_raw = []
-    if args.ticker_file:
-        logger.info(f"Cargando tickers desde el archivo: {args.ticker_file}")
-        if not args.ticker_file.exists():
-            raise FileNotFoundError(f"El archivo de tickers no se encontró: {args.ticker_file}")
-        with open(args.ticker_file, 'r') as f:
-            tickers_raw = f.readlines()
-        
-    elif args.tickers:
-        tickers_raw = args.tickers.split(",")
-
-    # --- CORRECCIÓN DE ROBUSTEZ ---
-    # Limpiar (strip) CADA ticker y filtrar los que queden vacíos
-    tickers_clean = [t.strip() for t in tickers_raw]
-    tickers = [t for t in tickers_clean if t] # Filtra los strings vacíos
-    # ----------------------------
-
-    if not tickers:
-        logger.warning("No se encontraron tickers válidos para procesar.")
-    else:
-        logger.info(f"Cargados {len(tickers)} tickers válidos para procesar.")
-        
-    return tickers
+    logger.info(f"Cargados {len(cleaned)} tickers únicos y válidos.")
+    return cleaned
 
 
 def run_training(args: argparse.Namespace) -> None:
     """Ejecuta el pipeline de entrenamiento."""
     try:
         tickers = get_tickers_from_args(args)
-    except FileNotFoundError as e:
+    except ValueError as e:
         logger.error(f"Error al cargar tickers: {e}")
         return
-    
+
     pipeline = DataPipeline(
         PipelineConfig(data_root=Path(args.data_root))
     )
-    
     tracking = TrackingConfig(
         use_mlflow=args.mlflow_uri is not None,
         mlflow_tracking_uri=args.mlflow_uri,
@@ -110,12 +141,6 @@ def run_training(args: argparse.Namespace) -> None:
     orchestrator = TrainingOrchestrator(tracking)
 
     for ticker in tickers:
-        # --- CORRECCIÓN DE ROBUSTEZ (DOBLE COMPROBACIÓN) ---
-        if not ticker:
-            logger.warning("Se encontró un ticker vacío, saltando.")
-            continue
-        # ---------------------------------------------------
-
         logger.info("--- Iniciando entrenamiento para %s ---", ticker)
         try:
             # 1. Cargar y preparar datos
@@ -150,12 +175,16 @@ def run_training(args: argparse.Namespace) -> None:
 
 def run_backtest(args: argparse.Namespace) -> None:
     """Ejecuta el pipeline de backtesting (con un modelo 'dummy' por ahora)."""
-    logger.info("--- Iniciando backtest para %s ---", args.ticker)
+    ticker = _normalise_ticker(args.ticker)
+    if not ticker:
+        raise ValueError("Ticker parameter is empty after cleaning")
+
+    logger.info("--- Iniciando backtest para %s ---", ticker)
     
     pipeline = DataPipeline(PipelineConfig(data_root=Path(args.data_root)))
     
     try:
-        data = pipeline.load_feature_view(args.ticker, indicators=True, include_summary=True)
+        data = pipeline.load_feature_view(ticker, indicators=True, include_summary=True)
     except FileNotFoundError as e:
         logger.error("No se pudieron cargar los datos para el backtest: %s", e)
         return
@@ -177,7 +206,7 @@ def run_backtest(args: argparse.Namespace) -> None:
 
         def evaluate(test_df: pd.DataFrame) -> Dict:
             """Un 'dummy backtest' que solo calcula métricas simples."""
-            logger.error("Evaluando 'dummy model' en %d filas...", len(test_df))
+            logger.info("Evaluando 'dummy model' en %d filas...", len(test_df))
             test_returns = test_df["close"].pct_change().dropna()
             pnl = (1 + test_returns).prod() - 1
             sharpe = (test_returns.mean() / (test_returns.std() + 1e-9)) * (252 ** 0.5)
@@ -186,8 +215,6 @@ def run_backtest(args: argparse.Namespace) -> None:
         return evaluate
     # --- FIN DE LÓGICA 'DUMMY' ---
 
-    # TODO: Reemplazar 'build_dummy_model' con una función que cargue
-    # y evalúe el agente DRL (nuestro próximo paso).
     results = validator.evaluate(data, build_dummy_model)
     
     logger.info("--- Resultados del Backtest (Dummy) ---")
@@ -202,9 +229,9 @@ def run_backtest(args: argparse.Namespace) -> None:
 def main() -> None:
     """Punto de entrada principal de la CLI."""
     
-    # Esta es la línea que falla en tu versión.
-    # Aquí, 'parser' NO está en este scope.
-    args = parse_args() # <-- Esta es la llamada correcta
+    # Llamada a la función encapsulada. 
+    # Esto evita el conflicto de 'parser' con 'email.parser'.
+    args = parse_args()
     
     if args.command == "run-training":
         run_training(args)
