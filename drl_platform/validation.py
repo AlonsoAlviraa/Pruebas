@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Validation harness implementing Purged K-Fold cross validation."""
-from __future_ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Any

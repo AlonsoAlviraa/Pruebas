@@ -43,12 +43,16 @@ class PipelineConfig:
     """Configuration for :class:`DataPipeline`."""
 
     data_root: Path
-    price_pattern: str = "{ticker}.csv"
+    price_pattern: str = "{ticker}_history.csv" 
     fundamentals_pattern: str = "{ticker}_fundamentals.csv"
     summary_pattern: str = "{ticker}_summary.json"
     date_column: str = "date"  # Columna de fecha en el archivo de precios
     available_at_column: str = "available_at" # Columna de 'disponibilidad' en fundamentales
     fundamentals_lookback_days: int = 90
+    
+    # --- CORRECCIÓN APLICADA AQUÍ ---
+    indicators: IndicatorConfig = field(default_factory=IndicatorConfig)
+    # ---------------------------------
 
 
 class DataPipeline:
@@ -70,17 +74,7 @@ class DataPipeline:
         indicators: bool = True,
         include_summary: bool = False,
     ) -> pd.DataFrame:
-        """Return an aligned feature view for ``ticker``.
-
-        Parameters
-        ----------
-        ticker:
-            The instrument identifier whose data should be loaded.
-        indicators:
-            Whether to compute technical indicators as part of the feature view.
-        include_summary:
-            When ``True`` the JSON summary metadata is joined as static columns.
-        """
+        """Return an aligned feature view for ``ticker``."""
 
         price_df = self._load_price_data(ticker)
         fundamental_df = self._load_fundamentals(ticker)
@@ -97,13 +91,21 @@ class DataPipeline:
             # Aplanar JSON anidado y añadir como columnas
             flat_summary = self._flatten_json(summary, "summary")
             for key, value in flat_summary.items():
-                merged[key] = value
+                # Evitar sobreescribir columnas existentes (ej. 'summary_date')
+                if key not in merged.columns:
+                    merged[key] = value
 
         # Asegurar que el índice sea la columna de fecha para el entorno
+        # (El downloader guarda la fecha como índice, pd.read_csv la carga como columna 'date')
         merged = merged.set_index(self.config.date_column).sort_index()
         
         # Eliminar filas con NaNs (generalmente al inicio, por los indicadores)
-        merged = merged.dropna().reset_index(drop=False)
+        merged = merged.dropna().reset_index(drop=False) 
+        
+        # Renombrar la columna 'index' (que era la fecha) de nuevo a 'date'
+        if 'index' in merged.columns and self.config.date_column not in merged.columns:
+             merged = merged.rename(columns={'index': self.config.date_column})
+             
         logger.info("Feature view for %s contains %d rows", ticker, len(merged))
         return merged
 
@@ -134,19 +136,19 @@ class DataPipeline:
         path = self.data_root / self.config.price_pattern.format(ticker=ticker)
         if not path.exists():
             raise FileNotFoundError(f"Price file not found for {ticker}: {path}")
-        df = pd.read_csv(path)
+        
+        # El downloader guarda la fecha como índice, así que la leemos (index_col=0)
+        df = pd.read_csv(path, index_col=0) 
         
         # Normalizar nombres de columnas a minúsculas
         df.columns = [col.lower() for col in df.columns]
         
+        # El downloader ya nombra la columna de fecha 'date', pero si es el índice:
+        if df.index.name == self.config.date_column:
+             df = df.reset_index(drop=False)
+        
         if self.config.date_column not in df.columns:
-            # Fallback para índices de fecha comunes si 'date' no existe
-            for potential_col in ['datetime', 'timestamp', 'time']:
-                if potential_col in df.columns:
-                    self.config.date_column = potential_col
-                    break
-            else:
-                 raise KeyError(f"Date column '{self.config.date_column}' not found in {path}")
+             raise KeyError(f"Date column '{self.config.date_column}' not found in {path}")
 
         df[self.config.date_column] = pd.to_datetime(df[self.config.date_column], utc=True)
         df = df.sort_values(self.config.date_column).reset_index(drop=True)
@@ -159,17 +161,19 @@ class DataPipeline:
             logger.warning("Fundamentals file not found for %s: %s", ticker, path)
             return pd.DataFrame(columns=[self.config.available_at_column])
         
+        # El downloader guarda sin índice (index=False)
         df = pd.read_csv(path)
         available_col = self.config.available_at_column
         
+        # Tus archivos de fundamentales usan 'available_at'
         if available_col not in df.columns:
             logger.warning("'%s' not found in fundamentals, using '%s' as fallback.",
-                           available_col, self.config.date_column)
-            available_col = self.config.date_column # Fallback a 'date' o 'as_of'
+                           available_col, "as_of")
+            available_col = "as_of" # Fallback al nombre del downloader
 
         if available_col not in df.columns:
-             raise KeyError(f"Niether '{self.config.available_at_column}' nor '{self.config.date_column}' "
-                            f"found in fundamentals file {path}")
+             raise KeyError(f"Neither '{self.config.available_at_column}' nor 'as_of' "
+                            f"found in fundamentals file {path} (from {ticker})")
 
         df[available_col] = pd.to_datetime(df[available_col], utc=True)
         df = df.sort_values(available_col).reset_index(drop=True)
@@ -179,7 +183,7 @@ class DataPipeline:
     def _load_summary(self, ticker: str) -> Dict[str, Any]:
         path = self.data_root / self.config.summary_pattern.format(ticker=ticker)
         if not path.exists():
-            logger.info("Summary file not found for %s: %s", ticker, path)
+            logger.info("Summary file not found for %s: {path}", ticker, path)
             return {}
         with open(path) as fp:
             data = json.load(fp)
@@ -215,7 +219,7 @@ class DataPipeline:
         available_col = (
             self.config.available_at_column
             if self.config.available_at_column in fundamental_df.columns
-            else date_col
+            else "as_of" # Fallback al nombre del downloader
         )
 
         fundamentals = fundamental_df.copy()
@@ -240,7 +244,7 @@ class DataPipeline:
 
         # Aplicar el lookback: eliminar fundamentales si son "demasiado viejos"
         lookback = self.config.fundamentals_lookback_days
-        if lookback > 0:
+        if lookback > 0 and "available_at" in merged.columns:
             cutoff = merged[date_col] - pd.Timedelta(days=lookback)
             mask = merged["available_at"] >= cutoff
             
@@ -255,7 +259,7 @@ class DataPipeline:
         return merged
 
     def _append_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        cfg = self.config.indicators
+        cfg = self.config.indicators # <-- Esta línea es la que fallaba
         result = df.copy()
         
         if "close" not in result.columns:
@@ -283,7 +287,7 @@ class DataPipeline:
 
         # Bollinger Bands
         rolling_mean = close.rolling(cfg.bollinger_window).mean()
-        rolling_std = close.rolling(cfga.bollinger_window).std()
+        rolling_std = close.rolling(cfg.bollinger_window).std()
         result["bb_upper"] = rolling_mean + cfg.bollinger_std * rolling_std
         result["bb_lower"] = rolling_mean - cfg.bollinger_std * rolling_std
         result["bb_width"] = result["bb_upper"] - result["bb_lower"]
