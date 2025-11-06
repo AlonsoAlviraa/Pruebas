@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import annotations
+
+"""
+Motor de Backtesting para Estrategias de Momentum.
+
+Este script ejecuta una simulación de backtesting 'point-in-time' sobre
+un conjunto de tickers, basándose en datos históricos y fundamentales cacheados.
+
+Versión: 5.0 (Breakout Patterns + Risk Management)
+"""
 
 import argparse
-import bisect
 import logging
 from dataclasses import dataclass
-from datetime import timezone, datetime
+from datetime import timezone
 from pathlib import Path
 from statistics import mean
 from typing import Iterable, Optional, Sequence
@@ -37,9 +44,12 @@ from a import (
 
 DEFAULT_START_DATE = "2020-01-01"
 DEFAULT_END_DATE = "2024-12-31"
-DEFAULT_WEEKLY_VOL_STOP_MULTIPLE = 2.0  # <-- REQUISITO 1 (Stop por Vol Semanal)
-DEFAULT_EMA_PERIOD = 50
-DEFAULT_EMA_TOLERANCE = 0.03            # <-- REQUISITO 2 (Buffer EMA 3%)
+DEFAULT_WEEKLY_VOL_STOP_MULTIPLE = 2.0  # Mantener por compatibilidad con CLI
+DEFAULT_EMA_PERIOD = 10
+DEFAULT_EMA_TOLERANCE = 0.0
+DEFAULT_PARTIAL_PROFIT_FRACTION = 0.5
+DEFAULT_PARTIAL_PROFIT_DELAY = 3
+DEFAULT_MAX_RISK_TO_ADR_RATIO = 0.6
 CACHE_DIR = Path(".cache")
 
 
@@ -47,9 +57,12 @@ CACHE_DIR = Path(".cache")
 class BacktestConfig:
     start_date: pd.Timestamp
     end_date: pd.Timestamp
-    vol_stop_multiple: float  # <-- MODIFICADO
+    vol_stop_multiple: float
     ema_trail_period: int
-    ema_tolerance: float      # <-- NUEVO
+    ema_tolerance: float
+    partial_profit_fraction: float
+    partial_profit_delay: int
+    max_risk_to_adr: float
 
 
 @dataclass
@@ -62,6 +75,10 @@ class Trade:
     exit_date: pd.Timestamp
     exit_price: float
     outcome: str
+    partial_exit_date: Optional[pd.Timestamp] = None
+    partial_exit_price: Optional[float] = None
+    partial_fraction: float = 0.0
+    partial_reason: Optional[str] = None
 
     @property
     def risk_amount(self) -> float:
@@ -72,7 +89,23 @@ class Trade:
         risk = self.risk_amount
         if risk <= 0:
             return 0.0
-        return (self.exit_price - self.entry_price) / risk
+        realized = 0.0
+        remaining_fraction = 1.0
+        if self.partial_exit_price is not None and self.partial_fraction > 0:
+            fraction = max(0.0, min(1.0, self.partial_fraction))
+            realized += fraction * ((self.partial_exit_price - self.entry_price) / risk)
+            remaining_fraction -= fraction
+        realized += remaining_fraction * ((self.exit_price - self.entry_price) / risk)
+        return realized
+
+
+@dataclass(frozen=True)
+class SetupSignal:
+    kind: str
+    trigger_price: float
+    base_start: pd.Timestamp
+    base_end: pd.Timestamp
+    metadata: dict[str, float]
 
 
 @dataclass(frozen=True)
@@ -98,241 +131,139 @@ def _ensure_timestamp(value: str) -> pd.Timestamp:
     return ts
 
 
-def download_history(
-    client: YahooFinanceEUClient,
-    ticker: str,
-    start: pd.Timestamp,
-    end: pd.Timestamp,
-) -> pd.DataFrame:
-    """Descarga velas diarias entre ``start`` y ``end`` (ambos inclusive)."""
-    start_epoch = int(start.timestamp())
-    end_epoch = int((end + pd.Timedelta(days=1)).timestamp())
-    params = {
-        "period1": start_epoch,
-        "period2": end_epoch,
-        "interval": "1d",
-        "events": "history",
-    }
-    payload = client._request(  # noqa: SLF001
-        YAHOO_CHART_ENDPOINT.format(ticker=ticker),
-        params,
-        expected_root="chart",
-    )
-    chart = payload.get("chart", {})
-    results = chart.get("result") or []
-    if not results:
-        raise RuntimeError("Histórico no disponible")
-
-    result = results[0]
-    indicators = result.get("indicators", {}).get("quote", [])
-    if not indicators:
-        raise RuntimeError("Histórico sin columnas de precios")
-
-    frame = pd.DataFrame(indicators[0])
-    required_cols = {"open", "high", "low", "close"}
-    missing = required_cols.difference(frame.columns)
-    if missing:
-        raise RuntimeError("Histórico incompleto: faltan columnas de precios")
-
-    timestamps = result.get("timestamp") or []
-    if not timestamps:
-        raise RuntimeError("Histórico sin marcas temporales")
-
-    frame["date"] = pd.to_datetime(timestamps, unit="s", utc=True)
-    frame = frame.set_index("date").sort_index()
-    frame = frame[["open", "high", "low", "close"]].dropna()
-    if frame.empty:
-        raise RuntimeError("Histórico vacío tras limpiar NaN")
-    return frame
-
-
-def load_history_from_cache(path: Path) -> pd.DataFrame:
-    """Lee un CSV de histórico previamente cacheado."""
-    history = pd.read_csv(path, index_col="date", parse_dates=True)
-    index = history.index
-    if getattr(index, "tz", None) is None:
-        history.index = index.tz_localize(timezone.utc)
-    else:
-        history.index = index.tz_convert(timezone.utc)
-    history = history.sort_index()
-    return history
-
-
-def _prepare_series(values: pd.Series) -> pd.Series:
-    return pd.to_numeric(values, errors="coerce")
-
-
-def _normalize_fundamental_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Normaliza los nombres de columna para admitir cabeceras variadas."""
-
-    def _clean(name: object) -> str:
-        raw = str(name)
-        raw = raw.lstrip("\ufeff").strip()
-        normalized = raw.lower().replace("-", "_").replace(" ", "_")
-        return normalized
-
-    canonical_map = {
-        "available_at": "available_at",
-        "availableat": "available_at",
-        "fecha_disponible": "available_at",
-        "as_of": "as_of",
-        "asof": "as_of",
-        "eps": "eps",
-        "dilutedeps": "eps",
-        "reported_eps": "eps",
-        "revenue": "revenue",
-        "total_revenue": "revenue",
-        "ingresos": "revenue",
-    }
-
-    renamed: dict[str, str] = {}
-    for column in df.columns:
-        cleaned = _clean(column)
-        if cleaned.startswith("unnamed"):
-            continue
-        renamed[column] = canonical_map.get(cleaned, cleaned)
-
-    if renamed:
-        df = df.rename(columns=renamed)
-
-    df = df.loc[:, ~df.columns.duplicated()]
-
-    return df
-
-
-def load_fundamental_snapshots(path: Path) -> list[FundamentalSnapshot]:
-    if not path.exists():
-        return []
+def load_history_from_cache(filepath: Path) -> pd.DataFrame:
+    """Carga un historial desde un CSV cacheado."""
     try:
-        df = pd.read_csv(path)
-    except Exception as exc:  # noqa: BLE001
-        logging.debug("%s: no se pudo leer el CSV de fundamentales (%s)", path.name, exc)
-        return []
-    if df.empty:
-        return []
-
-    df = _normalize_fundamental_columns(df)
-
-    if "available_at" not in df or "eps" not in df or "revenue" not in df:
-        logging.debug("%s: formato de fundamentales inesperado", path.name)
-        return []
-
-    df = df.copy()
-    df["available_at"] = pd.to_datetime(df["available_at"], utc=True, errors="coerce")
-    if "as_of" in df:
-        df["as_of"] = pd.to_datetime(df["as_of"], utc=True, errors="coerce")
-    df["eps"] = _prepare_series(df["eps"])
-    df["revenue"] = _prepare_series(df["revenue"])
-    df = df.dropna(subset=["available_at", "eps", "revenue"])
-    if df.empty:
-        return []
-
-    df = df.sort_values("available_at").drop_duplicates(subset=["available_at"])
-
-    selected: Optional[pd.DataFrame] = None
-    for lag in (4, 1):  # Preferimos interanual; si no hay datos suficientes, usamos QoQ.
-        working = df.copy()
-        working["eps_prev"] = working["eps"].shift(lag)
-        working["revenue_prev"] = working["revenue"].shift(lag)
-
-        eps_valid = working["eps_prev"].abs() > 1e-9
-        rev_valid = working["revenue_prev"].abs() > 1e-9
-        working.loc[eps_valid, "eps_growth"] = (
-            working.loc[eps_valid, "eps"] - working.loc[eps_valid, "eps_prev"]
-        ) / working.loc[eps_valid, "eps_prev"]
-        working.loc[rev_valid, "revenue_growth"] = (
-            working.loc[rev_valid, "revenue"] - working.loc[rev_valid, "revenue_prev"]
-        ) / working.loc[rev_valid, "revenue_prev"]
-
-        working = working.dropna(subset=["eps_growth", "revenue_growth"])
-        if not working.empty:
-            selected = working
-            break
-
-    if selected is None:
-        return []
-
-    df = selected
-
-    snapshots: list[FundamentalSnapshot] = []
-    for row in df.itertuples():
-        available_at = getattr(row, "available_at", None)
-        if isinstance(available_at, pd.Timestamp):
-            if available_at.tzinfo is None:
-                available_at = available_at.tz_localize(timezone.utc)
-            else:
-                available_at = available_at.tz_convert(timezone.utc)
-        else:
-            continue
-        snapshots.append(
-            FundamentalSnapshot(
-                available_at=available_at,
-                eps=float(row.eps),
-                revenue=float(row.revenue),
-                eps_growth=float(row.eps_growth),
-                revenue_growth=float(row.revenue_growth),
-            )
+        history = pd.read_csv(
+            filepath,
+            parse_dates=["date"],
+            index_col="date",
+            dtype={
+                "open": float,
+                "high": float,
+                "low": float,
+                "close": float,
+                "volume": "Int64",
+            },
         )
-    return snapshots
+        if not isinstance(history.index, pd.DatetimeIndex):
+            raise ValueError("La columna 'date' no se pudo parsear como índice.")
+        history.index = history.index.map(_ensure_timestamp)
+        return history
+    except Exception as e:
+        logging.error("Error al cargar %s: %s", filepath, e)
+        return pd.DataFrame()
+
+
+def load_fundamental_snapshots(filepath: Path) -> Sequence[FundamentalSnapshot]:
+    """Carga los snapshots fundamentales desde un CSV cacheado."""
+    try:
+        df = pd.read_csv(filepath, parse_dates=["available_at"])
+        snapshots = [
+            FundamentalSnapshot(
+                available_at=_ensure_timestamp(row["available_at"]),
+                eps=float(row["eps"]),
+                revenue=float(row["revenue"]),
+                eps_growth=float(row["eps_growth"]),
+                revenue_growth=float(row["revenue_growth"]),
+            )
+            for _, row in df.iterrows()
+            if pd.notna(row["eps_growth"]) and pd.notna(row["revenue_growth"])
+        ]
+        # Ordenar por fecha de disponibilidad para búsqueda eficiente
+        return sorted(snapshots, key=lambda s: s.available_at)
+    except Exception as e:
+        logging.error("Error al cargar %s: %s", filepath, e)
+        return []
 
 
 def select_snapshot(
     snapshots: Sequence[FundamentalSnapshot],
     current_date: pd.Timestamp,
     *,
-    dates: Optional[Sequence[pd.Timestamp]] = None,
+    dates: Optional[list[pd.Timestamp]] = None,
 ) -> Optional[FundamentalSnapshot]:
+    """
+    Selecciona el snapshot fundamental más reciente disponible
+    en 'current_date' (búsqueda binaria).
+    """
     if not snapshots:
         return None
+
+    # Si no se proveen fechas pre-cacheadas, se extraen.
     if dates is None:
-        dates = [snap.available_at for snap in snapshots]
-    position = bisect.bisect_right(dates, current_date) - 1
-    if position < 0:
-        return None
-    return snapshots[position]
+        dates = [s.available_at for s in snapshots]
+
+    # bisect_right encuentra el punto de inserción
+    # El snapshot relevante es el que está justo antes (idx - 1)
+    idx = pd.Timestamp.searchsorted(dates, current_date, side="right")
+    if idx == 0:
+        return None  # No hay datos fundamentales tan antiguos
+
+    return snapshots[idx - 1]
 
 
 # ---------------------------------------------------------------------------
-# Métricas del escáner
+# Funciones de cálculo técnico (Point-in-Time)
 # ---------------------------------------------------------------------------
 
 
-def compute_momentum(history: pd.DataFrame, window: int = 63) -> Optional[float]:
-    if len(history) < window + 1:
+def compute_momentum(history: pd.DataFrame, days: int = 63) -> Optional[float]:
+    """Calcula la revalorización en los últimos N días (aprox 3 meses)."""
+    if len(history) < days:
         return None
-    recent = history["close"].iloc[-1]
-    past = history["close"].iloc[-1 - window]
-    if past <= 0:
+    past_price = history["close"].iloc[-days]
+    current_price = history["close"].iloc[-1]
+    if pd.isna(past_price) or past_price <= 0:
         return None
-    return (recent - past) / past
+    return (current_price - past_price) / past_price
 
 
-def compute_average_adr(history: pd.DataFrame, window: int = 63) -> Optional[float]:
-    if len(history) < window:
+def compute_average_adr(history: pd.DataFrame, days: int = 63) -> Optional[float]:
+    """Calcula el Average Daily Range (ADR) % de los últimos N días."""
+    if len(history) < days:
         return None
-    adr = (history["high"] - history["low"]) / history["close"]
-    adr = adr.replace([pd.NA, pd.NaT], pd.NA).dropna()
-    if len(adr) < window:
+    recent_history = history.iloc[-days:]
+    if recent_history["low"].min() <= 0:
         return None
-    return float(adr.tail(window).mean())
+    
+    # (High - Low) / Close
+    adr_pct = (recent_history["high"] - recent_history["low"]) / recent_history["close"]
+    
+    mean_adr = adr_pct.mean()
+    if pd.isna(mean_adr):
+        return None
+    return float(mean_adr)
 
 
-def compute_weekly_volatility(history: pd.DataFrame, window: int = 5) -> Optional[float]:
-    if len(history) < window:
+def compute_weekly_volatility(history: pd.DataFrame, days: int = 5) -> Optional[float]:
+    """
+    Calcula la volatilidad de N días (rango / cierre).
+    Usado para el stop inicial.
+    """
+    if len(history) < days:
         return None
-    segment = history.tail(window)
-    if segment.empty or pd.isna(segment["open"].iloc[0]):
+    recent_history = history.iloc[-days:]
+    
+    if recent_history.empty:
         return None
-    reference = segment["open"].iloc[0]
-    if reference <= 0:
+    
+    high = recent_history["high"].max()
+    low = recent_history["low"].min()
+    close = recent_history["close"].iloc[-1]
+    
+    if pd.isna(high) or pd.isna(low) or pd.isna(close) or close <= 0:
         return None
-    weekly_range = segment["high"].max() - segment["low"].min()
-    return float(weekly_range / reference)
+        
+    return (high - low) / close
 
 
-# --- REQUISITO 1: Nueva función de Volatilidad Semanal Promedio ---
 def compute_average_weekly_range_pct(history: pd.DataFrame, window_weeks: int = 10) -> Optional[float]:
-    """Calcula el rango semanal promedio como % del cierre, usando 'window_weeks' semanas."""
+    """
+    Calcula el Average Weekly Range (AWR) % de las últimas N semanas.
+    NOTA: Esta función mira el historial completo, no es point-in-time
+    para el escáner, sino para el backtest (donde se usa todo el historial).
+    """
     
     if len(history) < window_weeks * 5:
         return None
@@ -356,6 +287,137 @@ def compute_average_weekly_range_pct(history: pd.DataFrame, window_weeks: int = 
     if pd.isna(awr_mean):
         return None
     return float(awr_mean)
+
+
+def _percentage_change(current: float, previous: float) -> Optional[float]:
+    if previous <= 0:
+        return None
+    return (current - previous) / previous
+
+
+def detect_continuation_breakout(
+    history: pd.DataFrame,
+    *,
+    min_base_days: int = 10,
+    max_base_days: int = 45,
+    min_prior_run: float = 0.3,
+    max_base_depth: float = 0.25,
+) -> Optional[SetupSignal]:
+    if len(history) < max_base_days + 25:
+        return None
+
+    recent = history.iloc[-(max_base_days + 1) :]
+    if len(recent) <= min_base_days:
+        return None
+
+    pivot_row = recent.iloc[-1]
+    base = recent.iloc[:-1]
+    base_len = len(base)
+    if base_len < min_base_days:
+        return None
+
+    base_high = float(base["high"].max())
+    base_low = float(base["low"].min())
+    if base_high <= 0 or base_low <= 0:
+        return None
+
+    pivot_high = float(pivot_row["high"])
+    if pivot_high <= base_high:
+        return None
+
+    base_depth = (base_high - base_low) / base_high
+    if base_depth > max_base_depth:
+        return None
+
+    midpoint = base_len // 2 or 1
+    left = base.iloc[:midpoint]
+    right = base.iloc[midpoint:]
+    left_range = float(left["high"].max() - left["low"].min()) if not left.empty else float("inf")
+    right_range = float(right["high"].max() - right["low"].min()) if not right.empty else float("inf")
+    if right_range >= left_range:
+        return None
+
+    lows = base["low"].rolling(window=3, min_periods=1).min()
+    if lows.isna().any():
+        return None
+    if float(lows.iloc[-1]) <= float(lows.iloc[midpoint // 2]):
+        return None
+
+    prior_window = history.iloc[-(base_len + 60) : -base_len]
+    if len(prior_window) < 20:
+        return None
+    prior_start = float(prior_window["close"].iloc[0])
+    prior_end = float(prior_window["close"].iloc[-1])
+    prior_run = _percentage_change(prior_end, prior_start)
+    if prior_run is None or prior_run < min_prior_run:
+        return None
+
+    return SetupSignal(
+        kind="continuation",
+        trigger_price=pivot_high,
+        base_start=base.index[0],
+        base_end=base.index[-1],
+        metadata={
+            "base_depth": base_depth,
+            "prior_run": prior_run,
+            "base_length": float(base_len),
+        },
+    )
+
+
+def detect_episode_pivot(
+    history: pd.DataFrame,
+    *,
+    min_gap: float = 0.1,
+    min_base_days: int = 30,
+) -> Optional[SetupSignal]:
+    if len(history) < min_base_days + 2:
+        return None
+
+    today = history.iloc[-1]
+    yesterday = history.iloc[-2]
+
+    prev_close = float(yesterday["close"])
+    today_open = float(today["open"])
+    if prev_close <= 0:
+        return None
+    gap = (today_open - prev_close) / prev_close
+    if gap < min_gap:
+        return None
+
+    base = history.iloc[-(min_base_days + 1) : -1]
+    if base.empty:
+        return None
+    base_high = float(base["high"].max())
+    base_low = float(base["low"].min())
+    if base_high <= 0 or base_low <= 0:
+        return None
+
+    today_low = float(today["low"])
+    today_high = float(today["high"])
+    if today_low <= base_high:
+        return None
+    if today_high <= base_high:
+        return None
+
+    return SetupSignal(
+        kind="ep",
+        trigger_price=today_high,
+        base_start=base.index[0],
+        base_end=base.index[-1],
+        metadata={
+            "gap_pct": gap,
+            "base_low": base_low,
+            "base_high": base_high,
+        },
+    )
+
+
+def identify_setup(history: pd.DataFrame) -> Optional[SetupSignal]:
+    signal = detect_episode_pivot(history)
+    if signal is not None:
+        return signal
+    return detect_continuation_breakout(history)
 
 
 def passes_scanner(history: pd.DataFrame, thresholds: Thresholds) -> bool:
@@ -396,13 +458,20 @@ def simulate_ticker(
     availability_dates = [snap.available_at for snap in snapshots]
 
     open_trade: Optional[Trade] = None
-    
+    open_state: Optional[dict[str, object]] = None
+
     working_history = history.copy().sort_index()
-    
+
     aligned_index: Optional[pd.DataFrame] = None
     if index_history is not None:
         aligned_index = index_history.reindex(working_history.index, method="ffill")
 
+    working_history["ema_fast"] = working_history["close"].ewm(
+        span=10, adjust=False
+    ).mean()
+    working_history["ema_slow"] = working_history["close"].ewm(
+        span=20, adjust=False
+    ).mean()
     working_history["ema_trail"] = working_history["close"].ewm(
         span=config.ema_trail_period, adjust=False
     ).mean()
@@ -439,52 +508,67 @@ def simulate_ticker(
                     except KeyError:
                         pass # No hay datos de mercado para este día
 
-        market_bearish = index_history is not None # Asumir bajista si el filtro está activo
+        market_bearish = index_history is not None
         if market_now is not None:
-            market_close = market_now.get("close")
-            market_ma50 = market_now.get("ma50")
-            if not pd.isna(market_close) and not pd.isna(market_ma50):
+            ema_fast_idx = market_now.get("ema10")
+            ema_slow_idx = market_now.get("ema20")
+            if not pd.isna(ema_fast_idx) and not pd.isna(ema_slow_idx):
                 try:
-                    market_bearish = float(market_close) < float(market_ma50)
+                    market_bearish = float(ema_fast_idx) < float(ema_slow_idx)
                 except TypeError:
-                    pass # Dejar como True
+                    pass
         elif index_history is None:
-            market_bearish = False # Ignorar filtro si no hay índice
+            market_bearish = False
         # --- FIN FILTRO DE RÉGIMEN ---
 
+        exit_trade: Optional[Trade] = None
         if open_trade and current_date >= open_trade.entry_date:
+            if open_state is None:
+                open_state = {
+                    "dynamic_stop": open_trade.stop_price,
+                    "bars": 0,
+                    "partial_done": False,
+                }
+
+            bars = int(open_state.get("bars", 0)) + 1
+            open_state["bars"] = bars
+
+            dynamic_stop = float(open_state.get("dynamic_stop", open_trade.stop_price))
             low_price = float(row["low"])
             close_price = float(row["close"])
             ema_value = row.get("ema_trail", pd.NA)
-            exit_trade: Optional[Trade] = None
 
-            # 1. Comprobar Stop Catastrófico (Volatilidad Semanal)
-            if low_price <= open_trade.stop_price:
-                exit_trade = Trade(
-                    ticker=open_trade.ticker,
-                    entry_date=open_trade.entry_date,
-                    entry_price=open_trade.entry_price,
-                    stop_price=open_trade.stop_price,
-                    exit_date=current_date,
-                    exit_price=open_trade.stop_price,
-                    outcome="stop_vol", # Motivo actualizado
+            if low_price <= dynamic_stop:
+                open_trade.exit_date = current_date
+                open_trade.exit_price = dynamic_stop
+                open_trade.outcome = (
+                    "stop_breakeven" if open_state.get("partial_done") else "stop_initial"
                 )
-            
-            # 2. Comprobar Trailing Stop (EMA) con Banda de Tolerancia
-            elif not pd.isna(ema_value):
-                # --- REQUISITO 2: Lógica de Buffer/Tolerancia ---
-                ema_con_buffer = float(ema_value) * (1.0 - config.ema_tolerance)
-                
-                if close_price < ema_con_buffer:
-                    exit_trade = Trade(
-                        ticker=open_trade.ticker,
-                        entry_date=open_trade.entry_date,
-                        entry_price=open_trade.entry_price,
-                        stop_price=open_trade.stop_price,
-                        exit_date=current_date,
-                        exit_price=close_price,
-                        outcome=f"ema{config.ema_trail_period}_break",
-                    )
+                exit_trade = open_trade
+            else:
+                partial_done = bool(open_state.get("partial_done"))
+                if (
+                    not partial_done
+                    and bars >= max(1, config.partial_profit_delay)
+                    and close_price > open_trade.entry_price
+                ):
+                    fraction = max(0.0, min(1.0, config.partial_profit_fraction))
+                    if fraction > 0 and open_trade.partial_exit_date is None:
+                        open_trade.partial_exit_date = current_date
+                        open_trade.partial_exit_price = close_price
+                        open_trade.partial_fraction = fraction
+                        open_trade.partial_reason = "partial_take_profit"
+                        open_state["partial_done"] = True
+                        dynamic_stop = open_trade.entry_price
+                        open_state["dynamic_stop"] = dynamic_stop
+
+                if exit_trade is None and not pd.isna(ema_value):
+                    ema_threshold = float(ema_value) * (1.0 - config.ema_tolerance)
+                    if close_price < ema_threshold:
+                        open_trade.exit_date = current_date
+                        open_trade.exit_price = close_price
+                        open_trade.outcome = f"ema{config.ema_trail_period}_close"
+                        exit_trade = open_trade
 
             if exit_trade:
                 logging.info(
@@ -497,8 +581,9 @@ def simulate_ticker(
                 )
                 trades.append(exit_trade)
                 open_trade = None
+                open_state = None
                 continue
-        
+
         # No buscar entradas si el mercado está bajista
         if market_bearish:
             continue
@@ -536,65 +621,89 @@ def simulate_ticker(
                 continue
         # Si 'snapshot' es None (sin fundamentales), el script continúa (como pediste)
         
-        # 3. Filtro Técnico
+        # --- Si todo pasa, evaluamos el setup y la ruptura ---
         history_until_now = working_history.loc[:current_date]
         if not passes_scanner(history_until_now, thresholds):
             continue
 
-        # --- FILTROS v4.1 (Qullamaggie/Rai) ---
         row_now = working_history.loc[current_date]
-        
-        # 4. Filtro de Calidad de Setup (Posición de MAs)
         ma50_value = row_now.get("ma50")
         ma200_value = row_now.get("ma200")
-        if pd.isna(ma50_value) or pd.isna(ma200_value):
+        ema_fast = row_now.get("ema_fast")
+        ema_slow = row_now.get("ema_slow")
+        if (
+            pd.isna(ma50_value)
+            or pd.isna(ma200_value)
+            or pd.isna(ema_fast)
+            or pd.isna(ema_slow)
+        ):
             continue
-        if float(row_now["close"]) < float(ma50_value): # Precio > MA50
+        if float(row_now["close"]) < float(ma50_value):
             continue
-        if float(ma50_value) < float(ma200_value): # MA50 > MA200 (tendencia alcista)
+        if float(ma50_value) < float(ma200_value):
+            continue
+        if float(row_now["close"]) < float(ema_fast):
+            continue
+        if float(ema_fast) < float(ema_slow):
             continue
 
-        # 5. Filtro de Fuerza Relativa (RS)
-        if index_history is not None: # Solo aplicar si tenemos datos del índice
+        if index_history is not None:
             rs_line = row_now.get("rs_line")
             rs_ma21 = row_now.get("rs_ma21")
             if pd.isna(rs_line) or pd.isna(rs_ma21):
                 continue
-            if float(rs_line) < float(rs_ma21): # RS Line > RS MA21
+            if float(rs_line) < float(rs_ma21):
                 continue
-            # Filtro de RS_63_high ELIMINADO como se solicitó
 
-        # --- Si todo pasa, abrimos la operación en la apertura del día siguiente ---
-        next_row = usable.iloc[idx + 1]
-        if pd.isna(next_row["open"]):
+        setup_signal = identify_setup(history_until_now)
+        if setup_signal is None:
             continue
-        entry_price = float(next_row["open"])
 
-        # --- REQUISITO 1: NUEVA LÓGICA DE STOP BASADO EN VOL SEMANAL ---
-        week_vol = compute_weekly_volatility(history_until_now)
-        if week_vol is None:
+        next_row = usable.iloc[idx + 1]
+        if pd.isna(next_row["open"]) or pd.isna(next_row["high"]) or pd.isna(next_row["low"]):
+            continue
+
+        trigger_price = float(setup_signal.trigger_price)
+        next_high = float(next_row["high"])
+        if next_high < trigger_price:
+            continue
+
+        entry_price = max(float(next_row["open"]), trigger_price)
+        stop_candidate = float(next_row["low"])
+        if stop_candidate <= 0 or stop_candidate >= entry_price:
+            continue
+
+        risk_pct = (entry_price - stop_candidate) / entry_price
+        adr_value = compute_average_adr(history_until_now)
+        if adr_value is None or adr_value <= 0:
+            continue
+        adr_ratio = risk_pct / adr_value
+        if adr_ratio > config.max_risk_to_adr:
             continue
         
-        risk_dollars = entry_price * week_vol * config.vol_stop_multiple
-        stop_price = max(entry_price - risk_dollars, 0.01) 
-
         open_trade = Trade(
             ticker=ticker,
             entry_date=next_date,
             entry_price=entry_price,
-            stop_price=stop_price,
+            stop_price=stop_candidate,
             exit_date=next_date,
             exit_price=entry_price,
-            outcome="open",
+            outcome=f"open_{setup_signal.kind}",
         )
-        
+        open_state = {
+            "dynamic_stop": stop_candidate,
+            "bars": 0,
+            "partial_done": False,
+        }
+
         logging.info(
-            "[%s] ENTRADA: %s @ $%.2f (Stop VolSem: $%.2f, VolSem1S: %.4f)",
+            "[%s] ENTRADA: %s @ $%.2f (Stop Día: $%.2f, Riesgo%%=%.2f, Setup=%s)",
             ticker,
             next_date.date().isoformat(),
             entry_price,
-            stop_price,
-            week_vol,
+            stop_candidate,
+            risk_pct * 100,
+            setup_signal.kind,
         )
 
     if open_trade:
@@ -602,24 +711,18 @@ def simulate_ticker(
         if remaining.empty:
             remaining = usable.iloc[[-1]]
         last_row = remaining.iloc[-1]
-        
-        final_trade = Trade(
-            ticker=open_trade.ticker,
-            entry_date=open_trade.entry_date,
-            entry_price=open_trade.entry_price,
-            stop_price=open_trade.stop_price,
-            exit_date=last_row.name,
-            exit_price=float(last_row["close"]),
-            outcome="timeout",
-        )
-        trades.append(final_trade)
-        
+
+        open_trade.exit_date = last_row.name
+        open_trade.exit_price = float(last_row["close"])
+        open_trade.outcome = "timeout"
+        trades.append(open_trade)
+
         logging.info(
             "[%s] SALIDA: %s @ $%.2f (Motivo: timeout, R=%.2f)",
-            final_trade.ticker,
-            final_trade.exit_date.date().isoformat(),
-            final_trade.exit_price,
-            final_trade.r_multiple,
+            open_trade.ticker,
+            open_trade.exit_date.date().isoformat(),
+            open_trade.exit_price,
+            open_trade.r_multiple,
         )
 
     return trades
@@ -647,34 +750,40 @@ def run_backtest(
 
 
 # ---------------------------------------------------------------------------
-# Métricas estadísticas
+# Análisis y Reporte
 # ---------------------------------------------------------------------------
 
 
 def compute_statistics(trades: Iterable[Trade]) -> dict[str, float]:
-    trades = list(trades)
-    if not trades:
-        return {}
-
+    """Calcula las métricas de rendimiento clave a partir de una lista de trades."""
     r_values = [trade.r_multiple for trade in trades]
+    if not r_values:
+        return {
+            "total_trades": 0.0,
+            "win_rate": 0.0,
+            "average_r": 0.0,
+            "profit_factor": 0.0,
+            "avg_risk_reward": 0.0,
+            "max_drawdown": 0.0,
+        }
+    
     wins = [r for r in r_values if r > 0]
-    losses = [r for r in r_values if r < 0]
-
-    cumulative = []
-    running_total = 0.0
-    for value in r_values:
-        running_total += value
-        cumulative.append(running_total)
-
-    peak = float("-inf")
+    losses = [r for r in r_values if r <= 0]
+    
+    # Cálculo del Max Drawdown (basado en R)
+    cumulative_r = 0.0
+    peak_r = 0.0
     max_drawdown = 0.0
-    for value in cumulative:
-        peak = max(peak, value)
-        drawdown = peak - value
-        max_drawdown = max(max_drawdown, drawdown)
+    for r in r_values:
+        cumulative_r += r
+        if cumulative_r > peak_r:
+            peak_r = cumulative_r
+        drawdown = peak_r - cumulative_r
+        if drawdown > max_drawdown:
+            max_drawdown = drawdown
 
     stats = {
-        "trades": len(trades),
+        "total_trades": float(len(trades)),
         "win_rate": len(wins) / len(trades) if trades else 0.0,
         "average_r": mean(r_values),
         "profit_factor": (
@@ -700,6 +809,14 @@ def trades_to_dataframe(trades: Iterable[Trade]) -> pd.DataFrame:
             "Precio Entrada": trade.entry_price,
             "Precio Salida": trade.exit_price,
             "Stop": trade.stop_price,
+            "Fecha Parcial": (
+                trade.partial_exit_date.date().isoformat()
+                if trade.partial_exit_date is not None
+                else None
+            ),
+            "Precio Parcial": trade.partial_exit_price,
+            "Fracción Parcial": trade.partial_fraction if trade.partial_fraction > 0 else None,
+            "Motivo Parcial": trade.partial_reason,
             "Resultado (R)": trade.r_multiple,
             "Motivo": trade.outcome,
         }
@@ -748,6 +865,30 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Porcentaje de tolerancia bajo la EMA antes de ejecutar la salida "
             "dinámica (decimal, p.ej. 0.03 = 3%)."
+        ),
+    )
+    parser.add_argument(
+        "--partial-fraction",
+        type=float,
+        default=DEFAULT_PARTIAL_PROFIT_FRACTION,
+        help=(
+            "Fracción de la posición a tomar como ganancia parcial tras el "
+            "período inicial (decimal, p.ej. 0.5 = 50%)."
+        ),
+    )
+    parser.add_argument(
+        "--partial-delay",
+        type=int,
+        default=DEFAULT_PARTIAL_PROFIT_DELAY,
+        help="Número mínimo de sesiones (barra diaria) antes de ejecutar la toma parcial.",
+    )
+    parser.add_argument(
+        "--max-risk-adr",
+        type=float,
+        default=DEFAULT_MAX_RISK_TO_ADR_RATIO,
+        help=(
+            "Máximo cociente permitido entre el riesgo inicial (% sobre la entrada) "
+            "y el ADR de 3 meses. Valores < 1 fuerzan riesgos inferiores al ADR."
         ),
     )
     parser.add_argument(
@@ -801,6 +942,9 @@ def main() -> None:
         vol_stop_multiple=max(args.vol_stop_multiple, 0.1),
         ema_trail_period=max(int(args.ema_period), 1),
         ema_tolerance=max(args.ema_tolerance, 0.0),
+        partial_profit_fraction=max(0.0, min(1.0, args.partial_fraction)),
+        partial_profit_delay=max(int(args.partial_delay), 1),
+        max_risk_to_adr=max(args.max_risk_adr, 0.01),
     )
 
     thresholds = Thresholds(
@@ -827,6 +971,8 @@ def main() -> None:
         index_history = index_history.sort_index()
         index_history["ma50"] = index_history["close"].rolling(window=50).mean()
         index_history["ma200"] = index_history["close"].rolling(window=200).mean()
+        index_history["ema10"] = index_history["close"].ewm(span=10, adjust=False).mean()
+        index_history["ema20"] = index_history["close"].ewm(span=20, adjust=False).mean()
     else:
         index_history = None
         logging.warning(
@@ -853,49 +999,58 @@ def main() -> None:
                     ticker,
                 )
                 continue
-        except Exception as exc:  # noqa: BLE001
-            logging.debug("%s: no se pudo preparar el histórico (%s)", ticker, exc)
-            continue
+            
+            if fundamentals_path.exists():
+                snapshots = load_fundamental_snapshots(fundamentals_path)
+            else:
+                logging.debug(
+                    "%s: no se encontraron fundamentales. Se operará sin filtro fundamental.",
+                    ticker,
+                )
+                snapshots = [] # Permitir operar sin fundamentales
 
-        snapshots = load_fundamental_snapshots(fundamentals_path)
-        # --- MODIFICADO: PERMITE TICKERS SIN FUNDAMENTALES ---
-        if not snapshots:
-            logging.debug(
-                "%s: fundamentales no disponibles. Se ejecutará sin filtros fundamentales.",
-                ticker,
-            )
-            # No continuamos, permitimos que el ticker se añada
-        
-        histories[ticker] = history
-        fundamentals[ticker] = snapshots # Estará vacío si no se encontró
+            if not history.empty:
+                histories[ticker] = history
+                fundamentals[ticker] = snapshots
+        except Exception as e:
+            logging.warning("Error procesando %s: %s", ticker, e, exc_info=True)
 
     if not histories:
         logging.error(
-            "No se encontraron suficientes datos cacheados. Asegúrate de ejecutar downloader.py con los tickers requeridos."
+            "No se cargaron datos históricos para ningún ticker. "
+            "Asegúrate de ejecutar 'downloader.py' primero."
         )
         return
 
     logging.info("Iniciando Fase 2: Simulación de operaciones")
     trades = run_backtest(histories, fundamentals, thresholds, config, index_history)
-    stats = compute_statistics(trades)
-
+    
     if not trades:
         logging.info("No se generaron operaciones con los parámetros actuales.")
         return
 
-    df = trades_to_dataframe(trades)
-    df.to_csv(args.output, index=False, encoding="utf-8-sig")
-    logging.info("Registro de operaciones guardado en %s", args.output)
+    logging.info("Iniciando Fase 3: Cálculo de estadísticas y guardado")
+    
+    stats = compute_statistics(trades)
+    print("\n--- Estadísticas del Backtest (basadas en R) ---")
+    print(f"Total de Operaciones: {stats['total_trades']:.0f}")
+    print(f"Tasa de Acierto:     {stats['win_rate'] * 100:.2f}%")
+    print(f"R-Múltiplo Medio:    {stats['average_r']:.2f} R")
+    print(f"Profit Factor:       {stats['profit_factor']:.2f}")
+    print(f"Avg. Risk/Reward:    {stats['avg_risk_reward']:.2f}")
+    print(f"Max Drawdown (R):    {stats['max_drawdown']:.2f} R")
+    print("--------------------------------------------------")
 
-    logging.info("Resumen estadístico:")
-    logging.info("- Operaciones: %s", stats.get("trades", 0))
-    logging.info("- Win Rate: %.2f%%", stats.get("win_rate", 0.0) * 100)
-    logging.info("- Promedio R: %.2f", stats.get("average_r", 0.0))
-    logging.info("- Profit Factor: %.2f", stats.get("profit_factor", 0.0))
-    logging.info("- Máx. Drawdown (R): %.2f", stats.get("max_drawdown", 0.0))
-    logging.info("- Ratio Riesgo/Beneficio Promedio: %.2f", stats.get("avg_risk_reward", 0.0))
+    results_df = trades_to_dataframe(trades)
+    output_path = Path(args.output)
+    results_df.to_csv(output_path, index=False)
+    logging.info("Resultados guardados en: %s", output_path.resolve())
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     main()
