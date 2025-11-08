@@ -245,28 +245,38 @@ class TrainingOrchestrator:
                 workers = int(workers)
                 env_runners = getattr(config, "env_runners", None)
 
-                if env_runners is None:
-                    config.rollouts(num_rollout_workers=workers)  # NO reasignar
-                    return
-
-                signature = inspect.signature(env_runners)
-                kwargs: Dict[str, Any] = {}
-
-                if "num_env_runners" in signature.parameters:
-                    kwargs["num_env_runners"] = workers
-                elif "num_rollout_workers" in signature.parameters:
-                    kwargs["num_rollout_workers"] = workers
-                else:  # Fallback genérico
-                    kwargs["num_env_runners"] = workers
-
-                try:
-                    env_runners(**kwargs)
-                except Exception as exc:
-                    logger.warning(
-                        "Fallo configurando env_runners (%s). Reintentando con rollouts legacy.",
-                        exc,
+                if callable(env_runners):
+                    param_orders = (
+                        {"num_env_runners": workers},
+                        {"num_rollout_workers": workers},
+                        {"num_workers": workers},
                     )
-                    config.rollouts(num_rollout_workers=workers)  # NO reasignar
+
+                    for candidate in param_orders:
+                        try:
+                            env_runners(**candidate)
+                            return
+                        except TypeError:
+                            continue
+                        except Exception as exc:
+                            logger.warning(
+                                "Fallo configurando env_runners (%s). Probando compatibilidad legacy.",
+                                exc,
+                            )
+                            break
+                rollouts = getattr(config, "rollouts", None)
+                if callable(rollouts):
+                    try:
+                        rollouts(num_rollout_workers=workers)  # NO reasignar
+                        return
+                    except Exception as exc:
+                        logger.warning(
+                            "Fallo configurando rollouts legacy (%s).", exc
+                        )
+                logger.warning(
+                    "No se pudo configurar el número de workers (%s). Continuando con valores por defecto de RLlib.",
+                    workers,
+                )
 
             _configure_env_workers(algo_config, training.num_workers)
 
@@ -335,7 +345,36 @@ class TrainingOrchestrator:
             best_reward = -float("inf")
             checkpoint_dir = self.tracking.output_dir / ticker
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            checkpoint_dir = checkpoint_dir.resolve()
             last_ckpt_path: Optional[Path] = None
+
+            def _save_checkpoint() -> Optional[Path]:
+                try_paths = [checkpoint_dir.as_posix()]
+                try:
+                    try_paths.append(checkpoint_dir.as_uri())
+                except ValueError:
+                    pass
+
+                last_error: Optional[Exception] = None
+                for target in try_paths:
+                    try:
+                        ckpt = algorithm.save(target)
+                        if isinstance(ckpt, dict) and "checkpoint_path" in ckpt:
+                            return Path(ckpt["checkpoint_path"])  # type: ignore[arg-type]
+                        if isinstance(ckpt, (str, Path)):
+                            return Path(ckpt)
+                        return checkpoint_dir
+                    except Exception as exc:  # pragma: no cover - fallback path
+                        last_error = exc
+                        continue
+                if last_error:
+                    logger.error(
+                        "No se pudo guardar el checkpoint en %s: %s",
+                        checkpoint_dir,
+                        last_error,
+                    )
+                    raise last_error
+                return None
 
             for it in range(1, int(training.total_iterations) + 1):
                 result = algorithm.train()
@@ -355,11 +394,7 @@ class TrainingOrchestrator:
 
                 # Guardado periódico
                 if it % 5 == 0 or it == training.total_iterations:
-                    ckpt = algorithm.save(checkpoint_dir.as_posix())
-                    if isinstance(ckpt, dict) and "checkpoint_path" in ckpt:
-                        last_ckpt_path = Path(ckpt["checkpoint_path"])
-                    elif isinstance(ckpt, (str, Path)):
-                        last_ckpt_path = Path(ckpt)
+                    last_ckpt_path = _save_checkpoint()
                     logger.info("Iter %d: checkpoint guardado en %s", it, last_ckpt_path)
 
                 # Parada temprana
@@ -370,11 +405,7 @@ class TrainingOrchestrator:
                         break
 
             if last_ckpt_path is None:
-                ckpt = algorithm.save(checkpoint_dir.resolve().as_uri())
-                if isinstance(ckpt, dict) and "checkpoint_path" in ckpt:
-                    last_ckpt_path = Path(ckpt["checkpoint_path"])
-                elif isinstance(ckpt, (str, Path)):
-                    last_ckpt_path = Path(ckpt)
+                last_ckpt_path = _save_checkpoint()
 
             logger.info("Entrenamiento de %s finalizado. Mejor reward_mean=%.4f. Checkpoint=%s",
                         ticker, best_reward, last_ckpt_path)
