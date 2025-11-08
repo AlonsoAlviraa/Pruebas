@@ -124,6 +124,7 @@ class TrainingOrchestrator:
         self._init_tracking()
         self._env_id = f"drl_platform_env_shared_{uuid4().hex}"
         self._env_registered = False
+        self._env_payload_key = f"drl_platform_payload_{uuid4().hex}"
 
     # ------------------------ Tracking helpers ---------------------------------
     def _suppress_ray_warnings(self) -> None:
@@ -211,9 +212,11 @@ class TrainingOrchestrator:
 
             filtered = {k: v for k, v in merged.items() if k in _valid_fields}
 
-            if "data" not in filtered or filtered["data"] is None:
+            data_present = filtered.get("data") is not None
+            payload_present = bool(filtered.get("payload_key"))
+            if not data_present and not payload_present:
                 raise ValueError(
-                    "Environment config debe incluir una clave 'data' con el DataFrame a entrenar."
+                    "Environment config debe incluir una clave 'data' o 'payload_key'."
                 )
 
             unknown = sorted(k for k in merged if k not in _valid_fields)
@@ -305,6 +308,93 @@ class TrainingOrchestrator:
                 logger.debug("Fallo aplicando rollout_fragment_length=%s: %s", fragment, exc)
                 continue
 
+    def _publish_env_payload(
+        self, view: pd.DataFrame, env_kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Actualiza el payload compartido y devuelve la configuración del entorno."""
+
+        valid_fields = {f.name for f in fields(EnvironmentConfig)}
+        overrides: Dict[str, Any] = {}
+        ignored: list[str] = []
+
+        for key, value in env_kwargs.items():
+            if key in {"data", "payload_key"}:
+                continue
+            if key in valid_fields:
+                overrides[key] = value
+            else:
+                ignored.append(key)
+
+        if ignored:
+            logger.warning(
+                "Omitiendo configuraciones de entorno desconocidas: %s",
+                ", ".join(sorted(ignored)),
+            )
+
+        TradingEnvironment.set_shared_payload(
+            self._env_payload_key,
+            data=view,
+            overrides=overrides,
+        )
+
+        return {"payload_key": self._env_payload_key}
+
+    def _notify_shared_payload_update(self) -> None:
+        """Intenta avisar a los entornos existentes para que recarguen el payload."""
+
+        algorithm = self._algorithm
+        if algorithm is None:
+            return
+
+        def _reload_env(env_obj: Any) -> None:
+            if env_obj is None:
+                return
+            handler = getattr(env_obj, "reload_shared_payload", None)
+            if callable(handler):
+                try:
+                    handler()
+                except Exception:
+                    logger.debug("Fallo recargando payload en entorno", exc_info=True)
+
+        applied = False
+
+        env_runner_group = getattr(algorithm, "env_runner_group", None)
+        if env_runner_group is not None:
+            fn = getattr(env_runner_group, "foreach_env_runner", None)
+            if callable(fn):
+                try:
+                    def _apply_runner(runner: Any) -> None:
+                        for attr in ("env", "_env", "env_ref", "env_handler"):
+                            target = getattr(runner, attr, None)
+                            _reload_env(target)
+
+                    fn(_apply_runner)
+                    applied = True
+                except Exception:
+                    logger.debug(
+                        "No se pudo refrescar payload mediante env_runner_group",
+                        exc_info=True,
+                    )
+
+        if not applied:
+            workers = getattr(algorithm, "workers", None)
+            if workers is not None:
+                fn = getattr(workers, "foreach_env", None)
+                if callable(fn):
+                    try:
+                        fn(lambda env: _reload_env(env))
+                        applied = True
+                    except Exception:
+                        logger.debug(
+                            "No se pudo refrescar payload mediante workers.foreach_env",
+                            exc_info=True,
+                        )
+
+        if not applied:
+            logger.debug(
+                "No se encontró un mecanismo para notificar la actualización del payload compartido"
+            )
+
     # ------------------------------ Train --------------------------------------
     def train(
         self,
@@ -333,6 +423,9 @@ class TrainingOrchestrator:
         # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
 
+        # Publicar payload compartido antes de configurar el algoritmo
+        env_config = self._publish_env_payload(view, env_kwargs)
+
         # Ray: inicializa una vez por proceso para evitar reinicios costosos por ticker
         self._ensure_ray_initialized()
 
@@ -346,8 +439,6 @@ class TrainingOrchestrator:
             # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
             algo_config = PPOConfig()
             self._ensure_env_registered()
-            env_config = dict(env_kwargs or {})
-            env_config["data"] = view
             algo_config.environment(env=self._env_id, env_config=env_config)  # NO reasignar
 
             def _configure_env_workers(config: PPOConfig, workers: int) -> None:
@@ -556,6 +647,7 @@ class TrainingOrchestrator:
         if self._algorithm is None:
             logger.info("Creando algoritmo %s inicial para %s", algo_config.__class__.__name__, ticker)
             self._algorithm = algo_config.build()
+            self._notify_shared_payload_update()
         else:
             reset_fn = getattr(self._algorithm, "reset_config", None)
             reused = False
@@ -571,6 +663,7 @@ class TrainingOrchestrator:
                 else:
                     if reused:
                         logger.debug("Reutilizando algoritmo existente para %s", ticker)
+                        self._notify_shared_payload_update()
                         return self._algorithm
             else:
                 logger.debug("Algoritmo actual no expone reset_config; se reconstruirá para %s", ticker)
@@ -579,6 +672,7 @@ class TrainingOrchestrator:
             self._discard_algorithm()
             logger.info("Reconstruyendo algoritmo %s para %s", algo_config.__class__.__name__, ticker)
             self._algorithm = algo_config.build()
+            self._notify_shared_payload_update()
         return self._algorithm
 
     def _discard_algorithm(self) -> None:

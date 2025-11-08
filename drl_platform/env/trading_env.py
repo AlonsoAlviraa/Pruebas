@@ -2,8 +2,9 @@
 """Advanced trading environment supporting shorts, slippage and commissions."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+import logging
+from dataclasses import dataclass, fields
+from typing import Any, ClassVar, Dict, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
@@ -11,12 +12,26 @@ import pandas as pd
 
 from .rewards import REWARD_REGISTRY, RewardCalculator
 
+logger = logging.getLogger(__name__)
+
+# Almacén estático (nivel de clase) para payloads de datos compartidos.
+# Esto permite al orquestador publicar un DataFrame grande una vez, y a los
+# workers (incluido el local) leerlo sin pasarlo por la config de RLlib,
+# lo que evita que `reset_config` falle al comparar DataFrames.
+_SHARED_PAYLOADS: ClassVar[Dict[str, Dict[str, Any]]] = {}
+
 
 @dataclass
 class EnvironmentConfig:
     """Configuration object for :class:`TradingEnvironment`."""
 
-    data: pd.DataFrame
+    # --- Opciones de Carga de Datos ---
+    # Opción 1: Pasar el DataFrame directamente (para uso simple)
+    data: Optional[pd.DataFrame] = None
+    # Opción 2: Cargar desde un payload compartido (para reutilización de workers)
+    payload_key: Optional[str] = None
+
+    # --- Opciones de Simulación ---
     initial_cash: float = 1_000_000
     commission_rate: float = 0.001
     slippage: float = 0.0005
@@ -29,33 +44,17 @@ class TradingEnvironment(gym.Env):
 
     metadata = {"render_modes": ["human"]}
 
+    _SHARED_PAYLOADS: ClassVar[Dict[str, Dict[str, Any]]] = {}
+
     def __init__(self, config: EnvironmentConfig):
         super().__init__()
 
-        if config.data is None or config.data.empty:
-            raise ValueError("Environment requires a non-empty DataFrame of features")
-        if "close" not in config.data.columns:
-            raise KeyError("La columna 'close' es requerida en los datos para precios.")
-
         self.config = config
+        self.trades: list[Dict[str, Any]] = []
+        self._shared_payload_key = config.payload_key
+        self._payload_version = -1
 
-        # Cache common series
-        self.dates = config.data.get("date", pd.RangeIndex(start=0, stop=len(config.data)))
-        self.prices = config.data["close"].astype(float).to_numpy(copy=True)
-
-        feature_df = config.data.drop(columns=["close", "date"], errors="ignore")
-
-        # Convertir tipos de datos para el vector de observación
-        for column in feature_df.select_dtypes(include=["datetime", "datetimetz"]).columns:
-            feature_df[column] = feature_df[column].astype("int64")
-        for column in feature_df.select_dtypes(include=["object"]).columns:
-            feature_df[column] = feature_df[column].astype("category").cat.codes
-
-        self.features = feature_df.astype(np.float32).to_numpy(copy=True)
-        if len(self.features) != len(self.prices):
-            raise ValueError("Features and prices must contain the same number of rows")
-
-        self.reward_calculator = self._build_reward_calculator(config)
+        self._prepare_from_payload(force=True)
 
         if config.use_continuous_action:
             self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
@@ -70,12 +69,7 @@ class TradingEnvironment(gym.Env):
             dtype=np.float32,
         )
 
-        self.current_step = 0
-        self.cash = 0.0
-        self.position = 0.0
-        self.position_value = 0.0
-        self.portfolio_value = 0.0
-        self.trades: list[Dict[str, Any]] = []
+        self._reset_portfolio_state()
 
     # ------------------------------------------------------------------
     # Gymnasium API
@@ -87,6 +81,7 @@ class TradingEnvironment(gym.Env):
         """Reinicia el entorno al estado inicial."""
         super().reset(seed=seed)
 
+        self._prepare_from_payload(force=False)
         self.current_step = 0
         self.cash = float(self.config.initial_cash)
         self.position = 0.0
@@ -202,3 +197,84 @@ class TradingEnvironment(gym.Env):
 
     def close(self) -> None:  # pragma: no cover - compatibility hook
         pass
+
+    # ------------------------------------------------------------------
+    # Shared payload helpers
+    # ------------------------------------------------------------------
+    @classmethod
+    def set_shared_payload(
+        cls, key: str, *, data: pd.DataFrame, overrides: Optional[Dict[str, Any]] = None
+    ) -> None:
+        if not key:
+            raise ValueError("Se requiere una clave no vacía para registrar el payload del entorno")
+        if data is None or data.empty:
+            raise ValueError("El payload compartido requiere un DataFrame con información")
+
+        prev = cls._SHARED_PAYLOADS.get(key, {})
+        version = int(prev.get("version", 0)) + 1
+        cls._SHARED_PAYLOADS[key] = {
+            "version": version,
+            "data": data,
+            "overrides": dict(overrides or {}),
+        }
+
+    @classmethod
+    def _get_shared_payload(cls, key: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not key:
+            return None
+        return cls._SHARED_PAYLOADS.get(key)
+
+    def _prepare_from_payload(self, *, force: bool) -> None:
+        payload = self._get_shared_payload(self._shared_payload_key)
+        payload_version = payload.get("version") if payload else None
+        if not force and payload_version == self._payload_version:
+            return
+
+        if payload is not None:
+            data = payload["data"]
+            overrides = payload.get("overrides", {})
+            for field, value in overrides.items():
+                if hasattr(self.config, field) and field not in {"data", "payload_key"}:
+                    setattr(self.config, field, value)
+            self.config.data = data
+            self._payload_version = int(payload_version)
+        elif force:
+            self._payload_version = 0
+        else:
+            return
+
+        if self.config.data is None or self.config.data.empty:
+            raise ValueError("Environment requires a non-empty DataFrame of features")
+        if "close" not in self.config.data.columns:
+            raise KeyError("La columna 'close' es requerida en los datos para precios.")
+
+        # Cache common series
+        data = self.config.data
+        self.dates = data.get("date", pd.RangeIndex(start=0, stop=len(data)))
+        self.prices = data["close"].astype(float).to_numpy(copy=True)
+
+        feature_df = data.drop(columns=["close", "date"], errors="ignore")
+        for column in feature_df.select_dtypes(include=["datetime", "datetimetz"]).columns:
+            feature_df[column] = feature_df[column].astype("int64")
+        for column in feature_df.select_dtypes(include=["object"]).columns:
+            feature_df[column] = feature_df[column].astype("category").cat.codes
+
+        self.features = feature_df.astype(np.float32).to_numpy(copy=True)
+        if len(self.features) != len(self.prices):
+            raise ValueError("Features and prices must contain the same number of rows")
+
+        self.reward_calculator = self._build_reward_calculator(self.config)
+
+    def _reset_portfolio_state(self) -> None:
+        self.current_step = 0
+        self.cash = float(self.config.initial_cash)
+        self.position = 0.0
+        self.position_value = 0.0
+        self.portfolio_value = float(self.config.initial_cash)
+        self.trades.clear()
+
+    def reload_shared_payload(self) -> None:
+        """Permite a los workers actualizar el payload manually."""
+
+        self._prepare_from_payload(force=True)
+        self._reset_portfolio_state()
