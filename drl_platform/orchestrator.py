@@ -122,6 +122,8 @@ class TrainingOrchestrator:
         self._algorithm: Optional[Any] = None
         self._suppress_ray_warnings()
         self._init_tracking()
+        self._env_id = f"drl_platform_env_shared_{uuid4().hex}"
+        self._env_registered = False
 
     # ------------------------ Tracking helpers ---------------------------------
     def _suppress_ray_warnings(self) -> None:
@@ -192,25 +194,29 @@ class TrainingOrchestrator:
             wandb.log(clean, step=step)
 
     # --------------------------- RL helpers ------------------------------------
-    @staticmethod
-    def _make_env_creator(
-        df: pd.DataFrame, env_kwargs: Optional[Dict[str, Any]]
-    ) -> str:
-        """Registra un entorno específico y devuelve su identificador para RLlib."""
+    def _ensure_env_registered(self) -> None:
+        """Registra el entorno compartido una única vez por orquestador."""
 
-        env_id = f"drl_platform_env_{uuid4().hex}"
-        base_kwargs = dict(env_kwargs or {})
+        if self._env_registered:
+            return
+
         valid_fields = {f.name for f in fields(EnvironmentConfig)}
 
-        def _creator(config: Optional[Dict[str, Any]] = None) -> TradingEnvironment:
-            merged: Dict[str, Any] = dict(base_kwargs)
-            if config:
-                merged.update(config)
+        def _creator(
+            config: Optional[Dict[str, Any]] = None,
+            *,
+            _valid_fields: set[str] = valid_fields,
+        ) -> TradingEnvironment:
+            merged: Dict[str, Any] = dict(config or {})
 
-            filtered = {k: v for k, v in merged.items() if k in valid_fields}
-            filtered.setdefault("data", df)
+            filtered = {k: v for k, v in merged.items() if k in _valid_fields}
 
-            unknown = sorted(k for k in merged.keys() if k not in valid_fields)
+            if "data" not in filtered or filtered["data"] is None:
+                raise ValueError(
+                    "Environment config debe incluir una clave 'data' con el DataFrame a entrenar."
+                )
+
+            unknown = sorted(k for k in merged if k not in _valid_fields)
             if unknown:
                 logger.warning(
                     "Omitiendo configuraciones de entorno no soportadas: %s",
@@ -220,8 +226,12 @@ class TrainingOrchestrator:
             cfg = EnvironmentConfig(**filtered)
             return TradingEnvironment(cfg)
 
-        register_env(env_id, _creator)
-        return env_id
+        try:
+            register_env(self._env_id, _creator)
+        except ValueError as exc:  # pragma: no cover - registro duplicado
+            if "already registered" not in str(exc).lower():
+                raise
+        self._env_registered = True
 
     # --------------------------- Auto tuning helpers -------------------------
     @staticmethod
@@ -334,10 +344,11 @@ class TrainingOrchestrator:
                 raise NotImplementedError(f"Algoritmo {training.algorithm} aún no soportado (solo PPO).")
 
             # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
-            env_creator = self._make_env_creator(view, env_kwargs)
-
             algo_config = PPOConfig()
-            algo_config.environment(env=env_creator, env_config=dict(env_kwargs))  # NO reasignar
+            self._ensure_env_registered()
+            env_config = dict(env_kwargs or {})
+            env_config["data"] = view
+            algo_config.environment(env=self._env_id, env_config=env_config)  # NO reasignar
 
             def _configure_env_workers(config: PPOConfig, workers: int) -> None:
                 """Compatibilidad entre APIs antiguas y nuevas de RLlib."""
