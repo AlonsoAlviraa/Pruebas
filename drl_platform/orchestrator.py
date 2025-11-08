@@ -119,6 +119,7 @@ class TrainingOrchestrator:
         self._mlflow_run_active = False
         self._wandb_run_active = False
         self._owns_ray = False
+        self._algorithm: Optional[Any] = None
         self._suppress_ray_warnings()
         self._init_tracking()
 
@@ -325,8 +326,6 @@ class TrainingOrchestrator:
         # Ray: inicializa una vez por proceso para evitar reinicios costosos por ticker
         self._ensure_ray_initialized()
 
-        algorithm: Optional[Any] = None
-
         self._start_tracking_run(ticker)
         try:
             # 1) Selección de algoritmo
@@ -450,7 +449,7 @@ class TrainingOrchestrator:
 
             # 3) Construir algoritmo
             try:
-                algorithm = algo_config.build()
+                algorithm = self._acquire_algorithm(ticker, algo_config)
             except Exception:
                 logger.exception("Error durante la construcción del algoritmo")
                 raise
@@ -525,13 +524,11 @@ class TrainingOrchestrator:
                         ticker, best_reward, last_ckpt_path)
             return last_ckpt_path or checkpoint_dir
 
+        except Exception:
+            # Si el algoritmo queda en un estado inconsistente descartamos la instancia reutilizable
+            self._discard_algorithm()
+            raise
         finally:
-            try:
-                if algorithm is not None:
-                    algorithm.stop()
-            except Exception:
-                logger.debug("Error al detener el algoritmo", exc_info=True)
-
             self._end_tracking_run()
 
     # ------------------------------ Lifecycle ---------------------------------
@@ -542,11 +539,55 @@ class TrainingOrchestrator:
         ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
         self._owns_ray = True
 
+    def _acquire_algorithm(self, ticker: str, algo_config: PPOConfig) -> Any:
+        """Obtiene una instancia de algoritmo lista para entrenar."""
+
+        if self._algorithm is None:
+            logger.info("Creando algoritmo %s inicial para %s", algo_config.__class__.__name__, ticker)
+            self._algorithm = algo_config.build()
+        else:
+            reset_fn = getattr(self._algorithm, "reset_config", None)
+            reused = False
+            if callable(reset_fn):
+                try:
+                    result = reset_fn(algo_config.to_dict())
+                    if result is False:
+                        logger.info("reset_config devolvió False; reconstruyendo algoritmo para %s", ticker)
+                    else:
+                        reused = True
+                except Exception as exc:
+                    logger.warning("No se pudo reutilizar el algoritmo existente para %s: %s", ticker, exc)
+                else:
+                    if reused:
+                        logger.debug("Reutilizando algoritmo existente para %s", ticker)
+                        return self._algorithm
+            else:
+                logger.debug("Algoritmo actual no expone reset_config; se reconstruirá para %s", ticker)
+
+            # Si llega aquí, debemos reconstruir la instancia
+            self._discard_algorithm()
+            logger.info("Reconstruyendo algoritmo %s para %s", algo_config.__class__.__name__, ticker)
+            self._algorithm = algo_config.build()
+        return self._algorithm
+
+    def _discard_algorithm(self) -> None:
+        if self._algorithm is None:
+            return
+        try:
+            self._algorithm.stop()
+        except Exception:
+            logger.debug("Error al detener algoritmo reutilizable", exc_info=True)
+        finally:
+            self._algorithm = None
+
     def close(self) -> None:
         """Libera recursos del orquestador (Ray y tracking)."""
 
         # Asegurar que no quede ningún run abierto en MLflow/W&B
         self._end_tracking_run()
+
+        # Detener algoritmo reutilizable
+        self._discard_algorithm()
 
         if self._owns_ray and ray.is_initialized():
             ray.shutdown()
