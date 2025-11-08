@@ -222,6 +222,78 @@ class TrainingOrchestrator:
         register_env(env_id, _creator)
         return env_id
 
+    # --------------------------- Auto tuning helpers -------------------------
+    @staticmethod
+    def _round_to_multiple(value: int, base: int = 32) -> int:
+        if value <= 0:
+            return base
+        return max(base, int(np.ceil(value / base) * base))
+
+    def _suggest_batch_hyperparams(
+        self,
+        view_length: int,
+        training: TrainingConfig,
+        existing: Dict[str, Any],
+    ) -> Dict[str, int]:
+        """Devuelve hiperparámetros recomendados si el usuario no los fijó."""
+
+        suggestions: Dict[str, int] = {}
+        if "train_batch_size" not in existing:
+            target = min(max(view_length // 2, 256), 1024)
+            suggestions["train_batch_size"] = self._round_to_multiple(target)
+
+        train_batch = existing.get("train_batch_size", suggestions.get("train_batch_size"))
+        if "sgd_minibatch_size" not in existing and train_batch is not None:
+            minibatch = max(32, min(256, int(train_batch) // 2))
+            suggestions["sgd_minibatch_size"] = self._round_to_multiple(minibatch)
+
+        if "num_sgd_iter" not in existing:
+            suggestions["num_sgd_iter"] = 4 if training.num_workers == 0 else 6
+
+        return suggestions
+
+    def _suggest_rollout_fragment(
+        self,
+        view_length: int,
+        training: TrainingConfig,
+        existing: Dict[str, Any],
+    ) -> Optional[int]:
+        if "rollout_fragment_length" in existing:
+            return None
+
+        if view_length <= 0:
+            return None
+
+        denominator = max(1, training.num_workers or 1)
+        train_batch = existing.get("train_batch_size")
+        if isinstance(train_batch, (int, float)):
+            base = int(train_batch)
+        else:
+            base = view_length
+
+        approx = max(32, min(view_length, max(base // denominator, 64)))
+        return self._round_to_multiple(approx, base=16)
+
+    @staticmethod
+    def _apply_rollout_fragment(config: PPOConfig, fragment: int) -> None:
+        setters = []
+        env_runners = getattr(config, "env_runners", None)
+        if callable(env_runners):
+            setters.append((env_runners, {"rollout_fragment_length": fragment}))
+        rollouts = getattr(config, "rollouts", None)
+        if callable(rollouts):
+            setters.append((rollouts, {"rollout_fragment_length": fragment}))
+
+        for setter, kwargs in setters:
+            try:
+                setter(**kwargs)
+                return
+            except TypeError:
+                continue
+            except Exception as exc:
+                logger.debug("Fallo aplicando rollout_fragment_length=%s: %s", fragment, exc)
+                continue
+
     # ------------------------------ Train --------------------------------------
     def train(
         self,
@@ -309,16 +381,29 @@ class TrainingOrchestrator:
 
             _configure_env_workers(algo_config, training.num_workers)
 
-            rllib_cfg = training.rllib_config or {}
+            view_length = int(len(view))
+            rllib_cfg = dict(training.rllib_config or {})
+
+            auto_hparams = self._suggest_batch_hyperparams(view_length, training, rllib_cfg)
+            if auto_hparams:
+                logger.info(
+                    "Aplicando hiperparámetros auto-ajustados para %s: %s",
+                    ticker,
+                    ", ".join(f"{k}={v}" for k, v in auto_hparams.items()),
+                )
+                for key, value in auto_hparams.items():
+                    rllib_cfg.setdefault(key, value)
+
+            rollout_fragment = self._suggest_rollout_fragment(
+                view_length, training, rllib_cfg
+            )
+            if rollout_fragment is not None:
+                self._apply_rollout_fragment(algo_config, rollout_fragment)
+
             rllib_cfg = {
-                "train_batch_size": rllib_cfg.get("train_batch_size", 2048),
-                "sgd_minibatch_size": rllib_cfg.get("sgd_minibatch_size", 1024),
-                "num_sgd_iter": rllib_cfg.get("num_sgd_iter", 10),
                 "gamma": rllib_cfg.get("gamma", 0.99),
                 "lr": rllib_cfg.get("lr", 3e-4),
-                **{k: v for k, v in rllib_cfg.items() if k not in {
-                    "train_batch_size", "sgd_minibatch_size", "num_sgd_iter", "gamma", "lr"
-                }},
+                **{k: v for k, v in rllib_cfg.items() if k not in {"gamma", "lr"}},
             }
 
             def _apply_training_config(config: PPOConfig, params: Dict[str, Any]) -> None:
