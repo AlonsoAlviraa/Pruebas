@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IndicatorConfig:
     """Configuración para indicadores técnicos."""
-    rsi_length: int = 14
+    rsi_window: int = 14
     macd_fast: int = 12
     macd_slow: int = 26
     macd_signal: int = 9
-    bollinger_length: int = 20
+    bollinger_window: int = 20
     bollinger_std: float = 2.0
 
 
@@ -34,6 +34,7 @@ class PipelineConfig:
     date_column: str = "date"
     summary_filename: str = "_summary.json"
     history_filename: str = "_history.csv"
+    fundamentals_filename: Optional[str] = None
     fundamentals_lookback_days: int = 90
     indicators: IndicatorConfig = field(default_factory=IndicatorConfig)
 
@@ -50,7 +51,12 @@ class DataPipeline:
         if not file_path.exists():
             raise FileNotFoundError(f"Price file not found for {ticker}: {file_path}")
 
-        df = pd.read_csv(file_path)
+        try:
+            df = pd.read_csv(file_path)
+        except Exception as e:
+            logger.error("Failed to read CSV %s: %s", file_path, e)
+            return pd.DataFrame()
+
         df[self.config.date_column] = pd.to_datetime(df[self.config.date_column])
         return df.set_index(self.config.date_column).sort_index()
 
@@ -77,6 +83,108 @@ class DataPipeline:
                 flat[new_key] = value
         return flat
 
+    def _load_fundamentals(self, ticker: str, price_df: pd.DataFrame) -> pd.DataFrame:
+        """Carga y alinea los datos fundamentales con el historial de precios."""
+        file_path = self.config.data_root / f"{ticker}{self.config.fundamentals_filename}"
+        date_col = self.config.date_column
+        if not file_path.exists():
+            return price_df
+
+        try:
+            fund_df = pd.read_csv(file_path)
+        except Exception as e:
+            logger.error("Failed to read fundamentals CSV %s: %s", file_path, e)
+            return price_df
+
+        if fund_df.empty or "reportedDate" not in fund_df.columns:
+            return price_df
+
+        # Preparar datos fundamentales
+        fund_df = fund_df.rename(columns={"reportedDate": "available_at"})
+        fund_df["available_at"] = pd.to_datetime(fund_df["available_at"])
+        fund_df = fund_df.drop_duplicates(subset=["available_at"]).set_index("available_at").sort_index()
+
+        # Alinear con el índice de precios
+        price_idx = price_df.index
+        merged = pd.merge_asof(
+            price_df,
+            fund_df,
+            left_index=True,
+            right_index=True,
+            direction="backward",
+            tolerance=pd.Timedelta(days=self.config.fundamentals_lookback_days + 5),
+        )
+        merged = merged.set_index(price_idx)
+
+        # Aplicar el lookback: eliminar fundamentales si son "demasiado viejos"
+        lookback = self.config.fundamentals_lookback_days
+        if lookback > 0 and "available_at" in merged.columns:
+            cutoff = merged[date_col] - pd.Timedelta(days=lookback)
+            mask = merged["available_at"] >= cutoff
+
+            # Obtener columnas de fundamentales (todas excepto las de precio)
+            price_cols = set(price_df.columns)
+            fund_cols = [col for col in merged.columns if col not in price_cols and col != "available_at"]
+
+            # Poner NaN en las columnas fundamentales donde la máscara es Falsa
+            merged.loc[~mask, fund_cols] = np.nan
+
+        merged = merged.drop(columns=["available_at"], errors="ignore")
+        return merged
+
+    def _append_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        cfg = self.config.indicators  # <-- Esta línea era la que fallaba si no había default_factory
+        base = df.copy()
+
+        if "close" not in base.columns:
+            raise KeyError("'close' column is required to append indicators")
+
+        close = base["close"]
+
+        # RSI (versión sin periodo de "calentamiento" artificial). Utilizamos
+        # el suavizado exponencial clásico de Welles Wilder para que exista un
+        # valor desde el primer día sin necesidad de recortar filas.
+        delta = close.diff().fillna(0.0)
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        alpha = 1 / cfg.rsi_window
+        avg_gain = gain.ewm(alpha=alpha, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=alpha, adjust=False).mean()
+        rs = avg_gain / avg_loss.replace(0, np.nan)
+        rsi = 100 - (100 / (1 + rs))
+        rsi = rsi.fillna(50.0)
+
+        # MACD
+        ema_fast = close.ewm(span=cfg.macd_fast, adjust=False).mean()
+        ema_slow = close.ewm(span=cfg.macd_slow, adjust=False).mean()
+        macd = ema_fast - ema_slow
+        signal = macd.ewm(span=cfg.macd_signal, adjust=False).mean()
+        macd_hist = macd - signal
+
+        # Bollinger Bands
+        rolling_mean = close.rolling(cfg.bollinger_window, min_periods=1).mean()
+        rolling_std = close.rolling(cfg.bollinger_window, min_periods=1).std(ddof=0)
+        rolling_std = rolling_std.fillna(0.0)
+        bb_upper = rolling_mean + cfg.bollinger_std * rolling_std
+        bb_lower = rolling_mean - cfg.bollinger_std * rolling_std
+        bb_width = bb_upper - bb_lower
+
+        # >>> Concatenamos las columnas de indicadores en bloque para evitar fragmentación
+        indicators_df = pd.DataFrame(
+            {
+                "rsi": rsi,
+                "macd": macd,
+                "macd_signal": signal,
+                "macd_hist": macd_hist,
+                "bb_upper": bb_upper,
+                "bb_lower": bb_lower,
+                "bb_width": bb_width,
+            },
+            index=base.index,
+        )
+        result = pd.concat([base, indicators_df], axis=1)
+        return result.copy()
+
     def load_feature_view(
         self,
         ticker: str,
@@ -89,22 +197,23 @@ class DataPipeline:
         # 1. Cargar historial de precios
         try:
             merged = self._load_history(ticker)
+            if merged.empty:
+                logger.warning("No price data found for %s", ticker)
+                return pd.DataFrame()
+            merged = merged.reset_index(drop=False)
         except FileNotFoundError as e:
             logger.error("Data loading failed for %s: %s", ticker, e)
             raise
 
-        # 2. (Opcional) Añadir indicadores técnicos
-        if indicators:
-            cfg = self.config.indicators
-            merged.ta.rsi(length=cfg.rsi_length, append=True)
-            merged.ta.macd(fast=cfg.macd_fast, slow=cfg.macd_slow, signal=cfg.macd_signal, append=True)
-            bbands = merged.ta.bbands(length=cfg.bollinger_length, std=cfg.bollinger_std, append=False)
-            if bbands is not None and not bbands.empty:
-                merged["bb_upper"] = bbands[f"BBU_{cfg.bollinger_length}_{cfg.bollinger_std}"]
-                merged["bb_lower"] = bbands[f"BBL_{cfg.bollinger_length}_{cfg.bollinger_std}"]
-                merged["bb_width"] = (merged["bb_upper"] - merged["bb_lower"]) / merged["close"]
+        # 2. (Opcional) Cargar y alinear fundamentales
+        if self.config.fundamentals_filename:
+            merged = self._load_fundamentals(ticker, merged)
 
-        # 3. (Opcional) Cargar y aplanar datos fundamentales/resumen
+        # 3. (Opcional) Añadir indicadores técnicos
+        if indicators:
+            merged = self._append_indicators(merged)
+
+        # 4. (Opcional) Cargar y aplanar datos fundamentales/resumen
         if include_summary:
             summary = self._load_summary(ticker)
             flat_summary = self._flatten_json(summary, "summary")
@@ -147,7 +256,14 @@ class DataPipeline:
             for col in ("open", "high", "low", "close", "volume")
             if col in merged.columns
         ]
-        indicator_cols = []
+        # Solo eliminamos filas con precios nulos. Los indicadores se rellenan
+        # explícitamente para evitar perder histórico en los primeros días del
+        # ticker (que es precisamente lo que originaba la reducción a ~97
+        # filas).
+        dropna_subset = price_cols
+        if dropna_subset:
+            merged = merged.dropna(subset=dropna_subset)
+
         if indicators:
             indicator_cols = [
                 col
@@ -159,13 +275,11 @@ class DataPipeline:
                     "bb_upper",
                     "bb_lower",
                     "bb_width",
-_                )
+                )
                 if col in merged.columns
             ]
-
-        dropna_subset = price_cols + indicator_cols
-        if dropna_subset:
-            merged = merged.dropna(subset=dropna_subset)
+            if indicator_cols:
+                merged.loc[:, indicator_cols] = merged[indicator_cols].ffill().bfill()
         merged = merged.reset_index(drop=False)
 
         # Renombrar la columna 'index' (que era la fecha) de nuevo a 'date'

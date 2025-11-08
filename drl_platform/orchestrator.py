@@ -311,7 +311,7 @@ class TrainingOrchestrator:
 
             rllib_cfg = training.rllib_config or {}
             rllib_cfg = {
-                "train_batch_size": rllib_cfg.get("train_batch_size", 8192),
+                "train_batch_size": rllib_cfg.get("train_batch_size", 2048),
                 "sgd_minibatch_size": rllib_cfg.get("sgd_minibatch_size", 1024),
                 "num_sgd_iter": rllib_cfg.get("num_sgd_iter", 10),
                 "gamma": rllib_cfg.get("gamma", 0.99),
