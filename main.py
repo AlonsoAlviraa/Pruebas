@@ -138,39 +138,38 @@ def run_training(args: argparse.Namespace) -> None:
         use_wandb=args.wandb_project is not None,
         wandb_project=args.wandb_project,
     )
-    orchestrator = TrainingOrchestrator(tracking_config=tracking)
+    with TrainingOrchestrator(tracking=tracking) as orchestrator:
+        for ticker in tickers:
+            logger.info("--- Iniciando entrenamiento para %s ---", ticker)
+            try:
+                # 1. Cargar y preparar datos
+                logger.info("Cargando feature view para %s...", ticker)
+                # El DataPipeline carga precios, fundamentales y resúmenes
+                view = pipeline.load_feature_view(ticker, indicators=True, include_summary=True)
 
-    for ticker in tickers:
-        logger.info("--- Iniciando entrenamiento para %s ---", ticker)
-        try:
-            # 1. Cargar y preparar datos
-            logger.info("Cargando feature view para %s...", ticker)
-            # El DataPipeline carga precios, fundamentales y resúmenes
-            view = pipeline.load_feature_view(ticker, indicators=True, include_summary=True)
-            
-            if view.empty:
-                 logger.warning(f"Feature view para {ticker} está vacía (NaNs?). Saltando ticker.")
-                 continue
+                if view.empty:
+                    logger.warning(f"Feature view para {ticker} está vacía (NaNs?). Saltando ticker.")
+                    continue
 
-            # 2. Configurar entrenamiento
-            training_config = TrainingConfig(
-                total_iterations=args.iterations,
-                num_workers=args.num_workers,
-            )
-            
-            # 3. Configurar entorno
-            env_kwargs = {"reward": args.reward, "use_continuous_action": args.use_continuous}
-            
-            # 4. Entrenar
-            orchestrator.train(ticker, view, env_kwargs=env_kwargs, training=training_config)
-            logger.info("--- Entrenamiento completado para %s ---", ticker)
-            
-        except FileNotFoundError as e:
-            logger.error("Error al cargar datos para %s: %s. Saltando ticker.", ticker, e)
-        except Exception as e:
-            logger.error("Error inesperado durante el entrenamiento de %s: %s", ticker, e)
-            # Imprimir el traceback completo para depuración
-            logger.exception(e)
+                # 2. Configurar entrenamiento
+                training_config = TrainingConfig(
+                    total_iterations=args.iterations,
+                    num_workers=args.num_workers,
+                )
+
+                # 3. Configurar entorno
+                env_kwargs = {"reward": args.reward, "use_continuous_action": args.use_continuous}
+
+                # 4. Entrenar
+                orchestrator.train(ticker, view, env_kwargs=env_kwargs, training=training_config)
+                logger.info("--- Entrenamiento completado para %s ---", ticker)
+
+            except FileNotFoundError as e:
+                logger.error("Error al cargar datos para %s: %s. Saltando ticker.", ticker, e)
+            except Exception as e:
+                logger.error("Error inesperado durante el entrenamiento de %s: %s", ticker, e)
+                # Imprimir el traceback completo para depuración
+                logger.exception(e)
 
 
 def run_backtest(args: argparse.Namespace) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import warnings
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
@@ -101,52 +102,81 @@ class TrackingConfig:
 class TrainingConfig:
     """Configuración del entrenamiento RLlib."""
     algorithm: str = "PPO"
-    total_iterations: int = 100
-    num_workers: int = 4
-    stop_reward: Optional[float] = None
-    rllib_config: Optional[Dict[str, Any]] = field(default_factory=dict)
+    total_iterations: int = 10
+    num_workers: int = 0  # empieza en local
+    rllib_config: Dict[str, Any] = field(default_factory=dict)  # hiperparámetros de PPO
+    stop_reward: Optional[float] = None  # corta si se alcanza esta recompensa media
 
 
 # --------------------------------------------------------------------------------------
-# Orchestrator
+# Orquestador
 # --------------------------------------------------------------------------------------
 class TrainingOrchestrator:
-    """Orquesta el entrenamiento de un solo agente usando RLlib."""
-    def __init__(self, tracking_config: Optional[TrackingConfig] = None):
-        self.tracking = tracking_config or TrackingConfig()
-        if self.tracking.use_mlflow and mlflow is None:  # pragma: no cover
-            logger.warning("use_mlflow=True pero 'mlflow' no está instalado. Desactivando.")
-            self.tracking.use_mlflow = False
-        if self.tracking.use_wandb and wandb is None:  # pragma: no cover
-            logger.warning("use_wandb=True pero 'wandb' no está instalado. Desactivando.")
-            self.tracking.use_wandb = False
-        self.tracking.output_dir.mkdir(parents=True, exist_ok=True)
+    """Coordina ejecuciones de entrenamiento con RLlib y registra métricas."""
 
-    # --------------------------- Tracking helpers --------------------------------
-    def _start_tracking_run(self, ticker: str) -> None:  # pragma: no cover (side effects)
-        run_name = f"{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    def __init__(self, tracking: TrackingConfig):
+        self.tracking = tracking
+        self._mlflow_run_active = False
+        self._wandb_run_active = False
+        self._owns_ray = False
+        self._suppress_ray_warnings()
+        self._init_tracking()
 
+    # ------------------------ Tracking helpers ---------------------------------
+    def _suppress_ray_warnings(self) -> None:
+        """Reduce el ruido de advertencias de Ray para depurar con claridad."""
+
+        warnings.filterwarnings(
+            "ignore",
+            category=DeprecationWarning,
+            module=r"ray(\.|$)",
+        )
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            module=r"ray(\.|$)",
+        )
+
+    def _init_tracking(self) -> None:  # pragma: no cover (side effects)
         if self.tracking.use_mlflow and mlflow is not None:
             if self.tracking.mlflow_tracking_uri:
                 mlflow.set_tracking_uri(self.tracking.mlflow_tracking_uri)
             mlflow.set_experiment(self.tracking.mlflow_experiment)
-            mlflow.start_run(run_name=run_name, tags={"ticker": ticker})
+            logger.info("MLflow inicializado en %s", self.tracking.mlflow_tracking_uri or "<default>")
 
+        if self.tracking.use_wandb and wandb is not None:
+            logger.info(
+                "Weights & Biases configurado (project=%s, entity=%s)",
+                self.tracking.wandb_project,
+                self.tracking.wandb_entity,
+            )
+
+        self.tracking.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _start_tracking_run(self, ticker: str) -> None:  # pragma: no cover (side effects)
+        run_name = f"{ticker}-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        if self.tracking.use_mlflow and mlflow is not None:
+            mlflow.start_run(run_name=run_name)
+            mlflow.log_params({"ticker": ticker})
+            self._mlflow_run_active = True
         if self.tracking.use_wandb and wandb is not None:
             wandb.init(
                 project=self.tracking.wandb_project,
                 entity=self.tracking.wandb_entity,
-                tags=list(self.tracking.wandb_tags) + [ticker],
+                tags=list(self.tracking.wandb_tags),
                 config={"ticker": ticker},
                 name=run_name,
                 reinit=True,
             )
+            self._wandb_run_active = True
 
     def _end_tracking_run(self) -> None:  # pragma: no cover (side effects)
-        if self.tracking.use_mlflow and mlflow is not None:
+        if self._mlflow_run_active and self.tracking.use_mlflow and mlflow is not None:
             mlflow.end_run()
-        if self.tracking.use_wandb and wandb is not None:
+        if self._wandb_run_active and self.tracking.use_wandb and wandb is not None:
             wandb.finish()
+        self._mlflow_run_active = False
+        self._wandb_run_active = False
 
     def _log_metrics(self, metrics: Dict[str, Any], step: int) -> None:  # pragma: no cover
         clean = {
@@ -220,9 +250,8 @@ class TrainingOrchestrator:
         # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
 
-        # Ray: inicializa una vez
-        if not ray.is_initialized():
-            ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
+        # Ray: inicializa una vez por proceso para evitar reinicios costosos por ticker
+        self._ensure_ray_initialized()
 
         algorithm: Optional[Any] = None
 
@@ -419,4 +448,27 @@ class TrainingOrchestrator:
                 logger.debug("Error al detener el algoritmo", exc_info=True)
 
             self._end_tracking_run()
-            ray.shutdown()  # limpiar entre tickers
+
+    # ------------------------------ Lifecycle ---------------------------------
+    def _ensure_ray_initialized(self) -> None:
+        if ray.is_initialized():
+            return
+
+        ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
+        self._owns_ray = True
+
+    def close(self) -> None:
+        """Libera recursos del orquestador (Ray y tracking)."""
+
+        # Asegurar que no quede ningún run abierto en MLflow/W&B
+        self._end_tracking_run()
+
+        if self._owns_ray and ray.is_initialized():
+            ray.shutdown()
+        self._owns_ray = False
+
+    def __enter__(self) -> "TrainingOrchestrator":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
