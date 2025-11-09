@@ -46,8 +46,30 @@ def parse_args() -> argparse.Namespace:
         "--reward", default="sortino", choices=["pnl", "sharpe", "sortino", "calmar"]
     )
     train_parser.add_argument("--iterations", type=int, default=10)
-    train_parser.add_argument("--num-workers", type=int, default=1)
-    train_parser.add_argument("--use-continuous", action="store_true", help="Usar espacio de acciones continuo")
+    train_parser.add_argument("--num-workers", type=int, default=0)
+    train_parser.add_argument(
+        "--time-budget",
+        type=float,
+        default=5.0,
+        help="Máximo de segundos dedicados al entrenamiento de cada ticker (<=0 desactiva)",
+    )
+    train_parser.add_argument(
+        "--min-iterations",
+        type=int,
+        default=1,
+        help="Iteraciones mínimas antes de considerar la parada por tiempo",
+    )
+    train_parser.add_argument(
+        "--max-view-rows",
+        type=int,
+        default=512,
+        help="Límite de filas recientes usadas para entrenar cada ticker (<=0 usa todas)",
+    )
+    train_parser.add_argument(
+        "--use-continuous",
+        action="store_true",
+        help="Usar espacio de acciones continuo",
+    )
     train_parser.add_argument("--mlflow-uri", help="MLflow tracking URI")
     train_parser.add_argument("--wandb-project", help="Weights & Biases project name")
 
@@ -155,6 +177,9 @@ def run_training(args: argparse.Namespace) -> None:
                 training_config = TrainingConfig(
                     total_iterations=args.iterations,
                     num_workers=args.num_workers,
+                    time_budget_seconds=args.time_budget,
+                    min_iterations=args.min_iterations,
+                    max_view_rows=args.max_view_rows,
                 )
 
                 # 3. Configurar entorno

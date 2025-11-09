@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import inspect
+import re
 import logging
+import time
 import warnings
 from dataclasses import dataclass, field, fields
 from datetime import datetime
@@ -106,6 +108,9 @@ class TrainingConfig:
     num_workers: int = 0  # empieza en local
     rllib_config: Dict[str, Any] = field(default_factory=dict)  # hiperparámetros de PPO
     stop_reward: Optional[float] = None  # corta si se alcanza esta recompensa media
+    time_budget_seconds: Optional[float] = 5.0  # Límite de segundos por ticker (None desactiva)
+    min_iterations: int = 1  # Iteraciones mínimas antes de evaluar parada por tiempo
+    max_view_rows: Optional[int] = 512  # Número máximo de filas recientes utilizadas (None = todas)
 
 
 # --------------------------------------------------------------------------------------
@@ -120,7 +125,8 @@ class TrainingOrchestrator:
         self._wandb_run_active = False
         self._owns_ray = False
         self._algorithm: Optional[Any] = None
-        self._last_config_payload: Optional[Dict[str, Any]] = None
+        self._last_algo_signature: Optional[Any] = None
+        self._baseline_checkpoint: Optional[Any] = None
         self._suppress_ray_warnings()
         self._init_tracking()
         self._env_id = f"drl_platform_env_shared_{uuid4().hex}"
@@ -318,7 +324,7 @@ class TrainingOrchestrator:
         """Normaliza el diccionario de configuración para que sea reutilizable."""
 
         normalized = dict(payload)
-        reference = baseline or self._last_config_payload or {}
+        reference = baseline or self._last_algo_signature or {}
 
         simple_value = normalized.get("simple_optimizer")
         if isinstance(simple_value, (int, float)) and simple_value == -1:
@@ -334,7 +340,7 @@ class TrainingOrchestrator:
 
         # Partimos de la última configuración efectiva para preservar los
         # valores ya resueltos por RLlib (p.ej. ``simple_optimizer=False``).
-        base_payload = dict(self._last_config_payload or {})
+        base_payload = dict(self._last_algo_signature or {})
 
         try:
             raw_payload = config.to_dict()
@@ -357,7 +363,7 @@ class TrainingOrchestrator:
 
         algo = self._algorithm
         if algo is None:
-            self._last_config_payload = None
+            self._last_algo_signature = None
             return
 
         payload: Optional[Dict[str, Any]] = None
@@ -377,7 +383,7 @@ class TrainingOrchestrator:
                         payload = self._canonicalize_payload_dict(result, baseline={})
 
         if payload is not None:
-            self._last_config_payload = self._config_signature(payload)
+            self._last_algo_signature = self._config_signature(payload)
 
     def _publish_env_payload(
         self, view: pd.DataFrame, env_kwargs: Dict[str, Any]
@@ -519,6 +525,40 @@ class TrainingOrchestrator:
         if view is None or view.empty:
             raise ValueError("El DataFrame de características `view` está vacío.")
 
+        max_view_rows = training.max_view_rows
+        if max_view_rows is not None:
+            try:
+                max_view_rows = int(max_view_rows)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "max_view_rows=%r no es un entero válido; se ignorará la restricción",
+                    max_view_rows,
+                )
+                max_view_rows = None
+            else:
+                if max_view_rows <= 0:
+                    max_view_rows = None
+
+        if max_view_rows is not None and len(view) > max_view_rows:
+            logger.info(
+                "Reduciendo feature view de %s de %d a %d filas para respetar max_view_rows",
+                ticker,
+                len(view),
+                max_view_rows,
+            )
+            view = view.iloc[-max_view_rows:].copy()
+
+        def _safe_metric(value: Any) -> Optional[float]:
+            if value is None:
+                return None
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return None
+            if not np.isfinite(numeric):
+                return None
+            return numeric
+
         # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
 
@@ -606,6 +646,21 @@ class TrainingOrchestrator:
                 **{k: v for k, v in rllib_cfg.items() if k not in {"gamma", "lr"}},
             }
 
+            # --- INICIO DE LA CORRECCIÓN ---
+            # Resolver 'simple_optimizer' antes de pasarlo a .training()
+            simple_opt = rllib_cfg.get("simple_optimizer", -1)
+            if simple_opt in (-1, None):
+                simple_opt_resolved = (training.num_workers == 0)
+            else:
+                simple_opt_resolved = bool(simple_opt)
+            
+            # Aplicar al objeto config principal, no al diccionario
+            algo_config.simple_optimizer = simple_opt_resolved
+            # Eliminarlo del diccionario para evitar el TypeError
+            if "simple_optimizer" in rllib_cfg:
+                del rllib_cfg["simple_optimizer"]
+            # --- FIN DE LA CORRECCIÓN ---
+
             def _apply_training_config(config: PPOConfig, params: Dict[str, Any]) -> None:
                 method = config.training
                 signature = inspect.signature(method)
@@ -637,25 +692,29 @@ class TrainingOrchestrator:
                 else:
                     filtered = adapted
 
+                while True:
+                    try:
+                        method(**filtered)  # NO reasignar
+                        break
+                    except TypeError as exc:
+                        message = str(exc)
+                        match = re.search(r"unexpected keyword argument '([^']+)'", message)
+                        if not match:
+                            raise
+                        bad_key = match.group(1)
+                        if bad_key not in filtered:
+                            raise
+                        removed[bad_key] = filtered.pop(bad_key)
+                        continue
+
                 if removed:
                     logger.warning(
                         "Omitiendo hiperparámetros RLlib no soportados por esta versión: %s",
                         ", ".join(sorted(removed)),
                     )
 
-                method(**filtered)  # NO reasignar
-
             _apply_training_config(algo_config, rllib_cfg)
             algo_config.framework("torch")  # NO reasignar
-
-            # --- INICIO DE LA CORRECCIÓN ---
-            # Aplicar simple_optimizer al config principal, NO a .training()
-            simple_opt = rllib_cfg.get("simple_optimizer", -1)
-            if simple_opt in (-1, None):
-                algo_config.simple_optimizer = (training.num_workers == 0)
-            elif isinstance(simple_opt, (int, np.integer)):
-                algo_config.simple_optimizer = bool(simple_opt)
-            # --- FIN DE LA CORRECCIÓN ---
 
             # 3) Construir algoritmo
             try:
@@ -665,7 +724,7 @@ class TrainingOrchestrator:
                 raise
 
             # 4) Loop de entrenamiento
-            best_reward = -float("inf")
+            best_reward: Optional[float] = None
             checkpoint_dir = self.tracking.output_dir / ticker
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             checkpoint_dir = checkpoint_dir.resolve()
@@ -699,39 +758,96 @@ class TrainingOrchestrator:
                     raise last_error
                 return None
 
-            for it in range(1, int(training.total_iterations) + 1):
+            total_iterations = max(int(training.total_iterations), 1)
+            min_iterations = max(int(training.min_iterations or 1), 1)
+            if min_iterations > total_iterations:
+                min_iterations = total_iterations
+            time_budget = training.time_budget_seconds
+            if time_budget is not None:
+                try:
+                    time_budget = float(time_budget)
+                except (TypeError, ValueError):
+                    logger.warning(
+                        "time_budget_seconds=%r no es válido; se ignorará la parada por tiempo",
+                        training.time_budget_seconds,
+                    )
+                    time_budget = None
+                else:
+                    if time_budget <= 0:
+                        time_budget = None
+
+            start_time = time.perf_counter()
+            iteration_durations: list[float] = []
+            max_iters = total_iterations
+            it = 0
+            while it < max_iters:
+                it += 1
+                iter_start = time.perf_counter()
                 result = algorithm.train()
+                iter_duration = time.perf_counter() - iter_start
+                iteration_durations.append(iter_duration)
 
                 metrics = {
-                    "episode_reward_mean": result.get("episode_reward_mean"),
-                    "episode_reward_max": result.get("episode_reward_max"),
-                    "episode_reward_min": result.get("episode_reward_min"),
-                    "episode_len_mean": result.get("episode_len_mean"),
+                    "episode_reward_mean": _safe_metric(result.get("episode_reward_mean")),
+                    "episode_reward_max": _safe_metric(result.get("episode_reward_max")),
+                    "episode_reward_min": _safe_metric(result.get("episode_reward_min")),
+                    "episode_len_mean": _safe_metric(result.get("episode_len_mean")),
                     "iteration": it,
+                    "iteration_seconds": iter_duration,
                 }
                 self._log_metrics(metrics, step=it)
 
                 mean_r = metrics.get("episode_reward_mean")
-                if mean_r is not None and mean_r > best_reward:
-                    best_reward = mean_r
+                if mean_r is not None:
+                    if best_reward is None or mean_r > best_reward:
+                        best_reward = mean_r
 
-                # Guardado periódico
-                if it == training.total_iterations:
+                if it == max_iters or it == total_iterations:
                     last_ckpt_path = _save_checkpoint()
                     logger.info("Iter %d: checkpoint guardado en %s", it, last_ckpt_path)
 
-                # Parada temprana
                 if training.stop_reward is not None and mean_r is not None:
                     if mean_r >= training.stop_reward:
-                        logger.info("Parada temprana: reward_mean=%.4f >= objetivo=%.4f",
-                                    mean_r, training.stop_reward)
+                        logger.info(
+                            "Parada temprana: reward_mean=%.4f >= objetivo=%.4f",
+                            mean_r,
+                            training.stop_reward,
+                        )
                         break
+
+                elapsed = time.perf_counter() - start_time
+                if time_budget is not None and elapsed >= time_budget and it >= min_iterations:
+                    logger.info(
+                        "Parada temprana para %s: tiempo transcurrido %.2fs supera el presupuesto de %.2fs",
+                        ticker,
+                        elapsed,
+                        time_budget,
+                    )
+                    break
+
+                if (
+                    time_budget is not None
+                    and it == 1
+                    and max_iters > min_iterations
+                    and iteration_durations[0] > 0
+                ):
+                    estimated = max(iteration_durations[0], 1e-6)
+                    predicted_iters = int(time_budget / estimated)
+                    if predicted_iters <= 0:
+                        predicted_iters = min_iterations
+                    max_iters = max(min_iterations, min(predicted_iters, total_iterations))
+                    if max_iters < it:
+                        max_iters = it
 
             if last_ckpt_path is None:
                 last_ckpt_path = _save_checkpoint()
 
-            logger.info("Entrenamiento de %s finalizado. Mejor reward_mean=%.4f. Checkpoint=%s",
-                        ticker, best_reward, last_ckpt_path)
+            logger.info(
+                "Entrenamiento de %s finalizado. Mejor reward_mean=%.4f. Checkpoint=%s",
+                ticker,
+                best_reward if best_reward is not None else float("nan"),
+                last_ckpt_path,
+            )
             return last_ckpt_path or checkpoint_dir
 
         except Exception:
