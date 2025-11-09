@@ -1196,12 +1196,26 @@ class TrainingOrchestrator:
         if ray.is_initialized():
             return
 
-        ray.init(
+        init_kwargs = dict(
             ignore_reinit_error=True,
             include_dashboard=False,
             log_to_driver=False,
-            metrics_export_port=0,
         )
+
+        # ``metrics_export_port`` solo está disponible en versiones recientes de Ray.
+        # Detectamos dinámicamente el soporte para evitar fallos en instalaciones
+        # anteriores donde el argumento no existe (RuntimeError reportado en ALAR).
+        if "metrics_export_port" in inspect.signature(ray.init).parameters:
+            init_kwargs["metrics_export_port"] = 0
+
+        try:
+            ray.init(**init_kwargs)
+        except TypeError as exc:
+            if "metrics_export_port" in init_kwargs and "metrics_export_port" in str(exc):
+                init_kwargs.pop("metrics_export_port", None)
+                ray.init(**init_kwargs)
+            else:
+                raise
         self._owns_ray = True
 
     def _acquire_algorithm(self, ticker: str, algo_config: PPOConfig) -> Any:
