@@ -148,6 +148,11 @@ class TrainingOrchestrator:
             category=FutureWarning,
             module=r"ray(\.|$)",
         )
+        warnings.filterwarnings(
+            "ignore",
+            category=DeprecationWarning,
+            module=r"deprecation(\.|$)",
+        )
 
     def _init_tracking(self) -> None:  # pragma: no cover (side effects)
         if self.tracking.use_mlflow and mlflow is not None:
@@ -251,6 +256,14 @@ class TrainingOrchestrator:
             return base
         return max(base, int(np.ceil(value / base) * base))
 
+    @staticmethod
+    def _clamp_minibatch(value: int, limit: int) -> int:
+        if limit <= 0:
+            return max(1, value)
+        if value <= 0:
+            return max(1, min(limit, abs(value)))
+        return max(1, min(limit, value))
+
     def _suggest_batch_hyperparams(
         self,
         view_length: int,
@@ -276,12 +289,26 @@ class TrainingOrchestrator:
             suggestions["train_batch_size"] = self._round_to_multiple(target)
 
         train_batch = existing.get("train_batch_size", suggestions.get("train_batch_size"))
-        if "sgd_minibatch_size" not in existing and train_batch is not None:
-            minibatch = max(32, min(192, int(train_batch) // 2))
-            suggestions["sgd_minibatch_size"] = self._round_to_multiple(minibatch)
+        if (
+            train_batch is not None
+            and "minibatch_size" not in existing
+            and "sgd_minibatch_size" not in existing
+        ):
+            try:
+                train_batch_int = int(train_batch)
+            except (TypeError, ValueError):
+                train_batch_int = None
+            if train_batch_int and train_batch_int > 0:
+                midpoint = max(1, train_batch_int // 2)
+                rounded = self._round_to_multiple(midpoint, base=16)
+                minibatch = max(16, min(train_batch_int, rounded))
+                suggestions["minibatch_size"] = minibatch
+                suggestions["sgd_minibatch_size"] = minibatch
 
-        if "num_sgd_iter" not in existing:
-            suggestions["num_sgd_iter"] = 4 if training.num_workers == 0 else 6
+        if "num_epochs" not in existing and "num_sgd_iter" not in existing:
+            epochs = 4 if training.num_workers == 0 else 6
+            suggestions["num_epochs"] = epochs
+            suggestions["num_sgd_iter"] = epochs
 
         return suggestions
 
@@ -381,79 +408,64 @@ class TrainingOrchestrator:
                 logger.debug("Fallo aplicando rollout_fragment_length=%s: %s", fragment, exc)
                 continue
 
-    def _canonicalize_payload_dict(
-        self,
-        payload: Dict[str, Any],
-        *,
-        baseline: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Normaliza el diccionario de configuración para que sea reutilizable."""
+    def _synchronise_minibatches(self, config: PPOConfig) -> None:
+        """Ajusta minibatches para respetar el tamaño efectivo del batch del learner."""
 
-        normalized = dict(payload)
-        reference = baseline or self._last_algo_signature or {}
+        limits: list[int] = []
+        for attr in ("train_batch_size", "train_batch_size_per_learner"):
+            try:
+                value = getattr(config, attr)
+            except Exception:
+                continue
+            try:
+                numeric = int(value)
+            except (TypeError, ValueError):
+                continue
+            if numeric > 0:
+                limits.append(numeric)
 
-        simple_value = normalized.get("simple_optimizer")
-        if isinstance(simple_value, (int, float)) and simple_value == -1:
-            if "simple_optimizer" in reference:
-                normalized["simple_optimizer"] = reference["simple_optimizer"]
-            else:
-                normalized["simple_optimizer"] = False
-
-        return normalized
-
-    def _prepare_reset_payload(self, config: PPOConfig) -> Dict[str, Any]:
-        """Convierte un ``PPOConfig`` a dict listo para ``reset_config``."""
-
-        # Partimos de la última configuración efectiva para preservar los
-        # valores ya resueltos por RLlib (p.ej. ``simple_optimizer=False``).
-        base_payload = dict(self._last_algo_signature or {})
-
-        try:
-            raw_payload = config.to_dict()
-        except Exception:  # pragma: no cover - compatibilidad versiones
-            raw_payload = {}
-
-        normalized = self._canonicalize_payload_dict(
-            raw_payload,
-            baseline=base_payload if base_payload else None,
-        )
-
-        if base_payload:
-            merged = base_payload.copy()
-            merged.update(normalized)
-            return merged
-        return normalized
-
-    def _sync_last_payload_from_algorithm(self) -> None:
-        """Extrae y guarda la configuración efectiva del algoritmo reutilizable."""
-
-        algo = self._algorithm
-        if algo is None:
-            self._last_algo_signature = None
+        if not limits:
             return
 
-        payload: Optional[Dict[str, Any]] = None
+        max_allowed = min(limits)
 
-        config_attr = getattr(algo, "config", None)
-        if isinstance(config_attr, dict):
-            payload = self._canonicalize_payload_dict(config_attr, baseline={})
-        else:
-            getter = getattr(algo, "get_config", None)
-            if callable(getter):
-                try:
-                    result = getter()
-                except Exception:  # pragma: no cover - defensivo
-                    logger.debug("No se pudo obtener la configuración del algoritmo", exc_info=True)
-                else:
-                    if isinstance(result, dict):
-                        payload = self._canonicalize_payload_dict(result, baseline={})
+        for attr in ("minibatch_size", "sgd_minibatch_size"):
+            try:
+                current = getattr(config, attr)
+            except Exception:
+                continue
+            try:
+                current_int = int(current)
+            except (TypeError, ValueError):
+                continue
+            if current_int <= 0 or current_int <= max_allowed:
+                continue
+            new_value = self._clamp_minibatch(current_int, max_allowed)
+            try:
+                setattr(config, attr, new_value)
+            except Exception:
+                continue
+            logger.info(
+                "Ajustando %s de %s a %s para respetar train_batch_size_per_learner=%s",
+                attr,
+                current_int,
+                new_value,
+                max_allowed,
+            )
 
-        if payload is not None:
-            self._last_algo_signature = self._config_signature(payload)
+        if hasattr(config, "minibatch_size") and hasattr(config, "sgd_minibatch_size"):
+            try:
+                mini = int(getattr(config, "minibatch_size"))
+            except (TypeError, ValueError, Exception):
+                return
+            try:
+                setattr(config, "sgd_minibatch_size", mini)
+            except Exception:
+                pass
 
     def _publish_env_payload(
         self, view: pd.DataFrame, env_kwargs: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
         """Actualiza el payload compartido y devuelve la configuración del entorno."""
 
         valid_fields = {f.name for f in fields(EnvironmentConfig)}
@@ -480,7 +492,9 @@ class TrainingOrchestrator:
             overrides=overrides,
         )
 
-        return {"payload_key": self._env_payload_key}
+        env_config = {"payload_key": self._env_payload_key}
+        env_config.update(overrides)
+        return env_config, overrides
 
     def _notify_shared_payload_update(self) -> None:
         """Intenta avisar a los entornos existentes para que recarguen el payload."""
@@ -662,7 +676,7 @@ class TrainingOrchestrator:
             )
 
         # Publicar payload compartido antes de configurar el algoritmo
-        env_config = self._publish_env_payload(view, env_kwargs)
+        env_config, env_overrides = self._publish_env_payload(view, env_kwargs)
 
         # Ray: inicializa una vez por proceso para evitar reinicios costosos por ticker
         self._ensure_ray_initialized()
@@ -745,11 +759,8 @@ class TrainingOrchestrator:
                 **{k: v for k, v in rllib_cfg.items() if k not in {"gamma", "lr"}},
             }
 
-            simple_opt = rllib_cfg.get("simple_optimizer", -1)
-            if simple_opt in (-1, None):
-                rllib_cfg["simple_optimizer"] = training.num_workers == 0
-            elif isinstance(simple_opt, (int, np.integer)):
-                rllib_cfg["simple_optimizer"] = bool(simple_opt)
+            if rllib_cfg.get("simple_optimizer") in (-1, None):
+                rllib_cfg.pop("simple_optimizer", None)
 
             def _apply_training_config(config: PPOConfig, params: Dict[str, Any]) -> None:
                 method = config.training
@@ -760,51 +771,121 @@ class TrainingOrchestrator:
                 valid_param_names = {
                     name
                     for name, param in signature.parameters.items()
-                    if param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                    if param.kind
+                    in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
                 }
 
                 adapted = dict(params)
                 removed: Dict[str, Any] = {}
                 remapped: Dict[str, str] = {}
 
-                if "sgd_minibatch_size" in adapted and "sgd_minibatch_size" not in valid_param_names:
-                    if "minibatch_size" in valid_param_names and "minibatch_size" not in adapted:
-                        adapted["minibatch_size"] = adapted.pop("sgd_minibatch_size")
-                        remapped["sgd_minibatch_size"] = "minibatch_size"
-                    else:
-                        removed["sgd_minibatch_size"] = adapted.pop("sgd_minibatch_size")
+                train_batch_val = adapted.get("train_batch_size")
+                try:
+                    train_batch_int = int(train_batch_val) if train_batch_val is not None else None
+                except (TypeError, ValueError):
+                    train_batch_int = None
 
-                if "num_sgd_iter" in adapted:
-                    if "num_epochs" in valid_param_names and "num_epochs" not in adapted:
-                        adapted["num_epochs"] = adapted.pop("num_sgd_iter")
-                        remapped["num_sgd_iter"] = "num_epochs"
-                    elif "num_sgd_iter" not in valid_param_names and not accepts_kwargs:
-                        removed["num_sgd_iter"] = adapted.pop("num_sgd_iter")
+                if "num_epochs" not in adapted and "num_sgd_iter" in adapted:
+                    adapted["num_epochs"] = adapted["num_sgd_iter"]
+                    remapped.setdefault("num_sgd_iter", "num_epochs")
+
+                if "minibatch_size" not in adapted and "sgd_minibatch_size" in adapted:
+                    adapted["minibatch_size"] = adapted["sgd_minibatch_size"]
+                    remapped.setdefault("sgd_minibatch_size", "minibatch_size")
+
+                if train_batch_int and train_batch_int > 0:
+                    for key in ("minibatch_size", "sgd_minibatch_size"):
+                        if key in adapted:
+                            try:
+                                minibatch_int = int(adapted[key])
+                            except (TypeError, ValueError):
+                                continue
+                            if minibatch_int > train_batch_int:
+                                adapted[key] = self._clamp_minibatch(
+                                    minibatch_int, train_batch_int
+                                )
+
+                leftovers: Dict[str, Any] = {}
+
+                def _assign_attr(attr_name: str, original_key: str, value: Any) -> bool:
+                    target = getattr(config, attr_name, None)
+                    if callable(target):
+                        return False
+                    try:
+                        setattr(config, attr_name, value)
+                    except Exception:
+                        return False
+                    else:
+                        if attr_name != original_key:
+                            remapped.setdefault(original_key, attr_name)
+                        return True
+
+                for key, value in list(adapted.items()):
+                    if key == "simple_optimizer":
+                        if not _assign_attr(key, key, value):
+                            removed[key] = value
+                        adapted.pop(key, None)
+                        continue
+
+                    if key == "sgd_minibatch_size" and hasattr(config, "minibatch_size"):
+                        if _assign_attr("minibatch_size", key, value):
+                            adapted.pop(key, None)
+                            continue
+
+                    if key == "minibatch_size" and not hasattr(config, key):
+                        if hasattr(config, "sgd_minibatch_size") and _assign_attr(
+                            "sgd_minibatch_size", key, value
+                        ):
+                            adapted.pop(key, None)
+                            continue
+
+                    if key == "num_sgd_iter" and hasattr(config, "num_epochs"):
+                        if _assign_attr("num_epochs", key, value):
+                            adapted.pop(key, None)
+                            continue
+
+                    attr = getattr(config, key, None)
+                    if attr is not None and not callable(attr):
+                        if _assign_attr(key, key, value):
+                            adapted.pop(key, None)
+                            continue
+
+                for key, value in adapted.items():
+                    if key == "simple_optimizer":
+                        removed[key] = value
+                        continue
+                    leftovers[key] = value
 
                 if not accepts_kwargs:
                     filtered = {
-                        key: value for key, value in adapted.items() if key in valid_param_names
+                        key: value for key, value in leftovers.items() if key in valid_param_names
                     }
-                    removed.update({
-                        key: value for key, value in adapted.items() if key not in filtered
-                    })
+                    removed.update(
+                        {
+                            key: value
+                            for key, value in leftovers.items()
+                            if key not in filtered
+                        }
+                    )
                 else:
-                    filtered = adapted
+                    filtered = leftovers
 
-                while True:
-                    try:
-                        method(**filtered)  # NO reasignar
-                        break
-                    except TypeError as exc:
-                        message = str(exc)
-                        match = re.search(r"unexpected keyword argument '([^']+)'", message)
-                        if not match:
-                            raise
-                        bad_key = match.group(1)
-                        if bad_key not in filtered:
-                            raise
-                        removed[bad_key] = filtered.pop(bad_key)
-                        continue
+                if filtered:
+                    while True:
+                        try:
+                            method(**filtered)  # NO reasignar
+                            break
+                        except TypeError as exc:
+                            message = str(exc)
+                            match = re.search(r"unexpected keyword argument '([^']+)'", message)
+                            if not match:
+                                raise
+                            bad_key = match.group(1)
+                            if bad_key not in filtered:
+                                raise
+                            removed[bad_key] = filtered.pop(bad_key)
+                            if not filtered:
+                                break
 
                 if removed:
                     logger.warning(
@@ -818,6 +899,7 @@ class TrainingOrchestrator:
                     )
 
             _apply_training_config(algo_config, rllib_cfg)
+            self._synchronise_minibatches(algo_config)
             algo_config.framework("torch")  # NO reasignar
 
             # 3) Construir algoritmo
@@ -884,6 +966,7 @@ class TrainingOrchestrator:
             iteration_durations: list[float] = []
             max_iters = total_iterations
             it = 0
+            saw_valid_reward = False
             while it < max_iters:
                 it += 1
                 iter_start = time.perf_counter()
@@ -913,6 +996,11 @@ class TrainingOrchestrator:
                         logger.info(
                             "Iter %d: reward_mean recuperado desde %s", it, reward_source
                         )
+                else:
+                    saw_valid_reward = True
+
+                if reward_source and reward_source != "forced_zero":
+                    saw_valid_reward = True
 
                 mean_r = metrics.get("episode_reward_mean")
                 if mean_r is not None:
@@ -958,6 +1046,69 @@ class TrainingOrchestrator:
 
             if last_ckpt_path is None:
                 last_ckpt_path = _save_checkpoint()
+
+            if not saw_valid_reward:
+                try:
+                    eval_config = EnvironmentConfig(
+                        data=view.copy(),
+                        **{k: v for k, v in env_overrides.items() if k != "data"},
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.debug(
+                        "No se pudo construir el entorno para evaluación relámpago de %s: %s",
+                        ticker,
+                        exc,
+                    )
+                else:
+                    try:
+                        eval_env = TradingEnvironment(eval_config)
+                    except Exception as exc:
+                        logger.warning(
+                            "No se pudo crear el entorno de evaluación rápida para %s: %s",
+                            ticker,
+                            exc,
+                        )
+                    else:
+                        try:
+                            obs, _info = eval_env.reset()
+                            terminated = False
+                            truncated = False
+                            total_reward = 0.0
+                            steps = 0
+                            while not (terminated or truncated):
+                                action = algorithm.compute_single_action(obs, explore=False)
+                                if isinstance(action, tuple):
+                                    action = action[0]
+                                obs, reward, terminated, truncated, _info = eval_env.step(action)
+                                total_reward += float(reward)
+                                steps += 1
+
+                            if best_reward == float("-inf") or total_reward > best_reward:
+                                best_reward = total_reward
+                            self._log_metrics(
+                                {
+                                    "evaluation_reward_mean": total_reward,
+                                    "evaluation_episode_len": steps,
+                                },
+                                step=it,
+                            )
+                            logger.info(
+                                "Evaluación relámpago completada para %s tras entrenamiento acelerado: reward=%.4f (%d pasos)",
+                                ticker,
+                                total_reward,
+                                steps,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "No se pudo calcular la recompensa mediante evaluación relámpago para %s: %s",
+                                ticker,
+                                exc,
+                            )
+                        finally:
+                            try:
+                                eval_env.close()
+                            except Exception:  # pragma: no cover - cleanup best effort
+                                pass
 
             if best_reward == float("-inf"):
                 best_reward = 0.0
