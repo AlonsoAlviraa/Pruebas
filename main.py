@@ -66,6 +66,12 @@ def parse_args() -> argparse.Namespace:
         help="Límite de filas recientes usadas para entrenar cada ticker (<=0 usa todas)",
     )
     train_parser.add_argument(
+        "--max-episode-steps",
+        type=int,
+        default=0,
+        help="Máximo de pasos simulados por episodio (<=0 deja que la plataforma lo ajuste)",
+    )
+    train_parser.add_argument(
         "--use-continuous",
         action="store_true",
         help="Usar espacio de acciones continuo",
@@ -180,6 +186,9 @@ def run_training(args: argparse.Namespace) -> None:
                     time_budget_seconds=args.time_budget,
                     min_iterations=args.min_iterations,
                     max_view_rows=args.max_view_rows,
+                    max_episode_steps=(
+                        args.max_episode_steps if args.max_episode_steps > 0 else None
+                    ),
                 )
 
                 # 3. Configurar entorno

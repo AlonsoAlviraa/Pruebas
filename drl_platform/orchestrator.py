@@ -111,6 +111,7 @@ class TrainingConfig:
     time_budget_seconds: Optional[float] = 5.0  # Límite de segundos por ticker (None desactiva)
     min_iterations: int = 1  # Iteraciones mínimas antes de evaluar parada por tiempo
     max_view_rows: Optional[int] = 512  # Número máximo de filas recientes utilizadas (None = todas)
+    max_episode_steps: Optional[int] = None  # Límite de pasos por episodio (None = auto)
 
 
 # --------------------------------------------------------------------------------------
@@ -260,12 +261,23 @@ class TrainingOrchestrator:
 
         suggestions: Dict[str, int] = {}
         if "train_batch_size" not in existing:
-            target = min(max(view_length // 2, 256), 1024)
+            time_budget = training.time_budget_seconds
+            if time_budget is not None and time_budget > 0:
+                if time_budget <= 3:
+                    target = max(64, min(view_length, 96))
+                elif time_budget <= 5:
+                    target = max(96, min(view_length, 160))
+                elif time_budget <= 10:
+                    target = max(128, min(view_length, 224))
+                else:
+                    target = min(max(view_length // 2, 256), 1024)
+            else:
+                target = min(max(view_length // 2, 256), 1024)
             suggestions["train_batch_size"] = self._round_to_multiple(target)
 
         train_batch = existing.get("train_batch_size", suggestions.get("train_batch_size"))
         if "sgd_minibatch_size" not in existing and train_batch is not None:
-            minibatch = max(32, min(256, int(train_batch) // 2))
+            minibatch = max(32, min(192, int(train_batch) // 2))
             suggestions["sgd_minibatch_size"] = self._round_to_multiple(minibatch)
 
         if "num_sgd_iter" not in existing:
@@ -294,6 +306,60 @@ class TrainingOrchestrator:
 
         approx = max(32, min(view_length, max(base // denominator, 64)))
         return self._round_to_multiple(approx, base=16)
+
+    def _suggest_episode_limit(
+        self,
+        view_length: int,
+        training: TrainingConfig,
+        env_kwargs: Dict[str, Any],
+    ) -> Optional[int]:
+        if view_length <= 0:
+            return None
+
+        if "max_episode_steps" in env_kwargs:
+            try:
+                user_value = int(env_kwargs["max_episode_steps"])
+            except (TypeError, ValueError):
+                return None
+            else:
+                if user_value > 0:
+                    return min(view_length, user_value)
+                return None
+
+        if training.max_episode_steps is not None:
+            try:
+                limit = int(training.max_episode_steps)
+            except (TypeError, ValueError):
+                limit = None
+            else:
+                if limit <= 0:
+                    limit = None
+            if limit is not None:
+                return min(view_length, max(limit, 1))
+
+        time_budget = training.time_budget_seconds
+        limit: Optional[int] = None
+        if time_budget is not None and time_budget > 0:
+            if time_budget <= 3:
+                limit = min(view_length, 128)
+            elif time_budget <= 5:
+                limit = min(view_length, 192)
+            elif time_budget <= 10:
+                limit = min(view_length, 256)
+
+        if limit is None and training.max_view_rows is not None:
+            try:
+                candidate = int(training.max_view_rows)
+            except (TypeError, ValueError):
+                candidate = None
+            else:
+                if candidate > 0:
+                    limit = min(view_length, candidate)
+
+        if limit is None:
+            return None
+
+        return max(32, limit)
 
     @staticmethod
     def _apply_rollout_fragment(config: PPOConfig, fragment: int) -> None:
@@ -559,8 +625,41 @@ class TrainingOrchestrator:
                 return None
             return numeric
 
+        def _recover_reward_mean(result: Dict[str, Any]) -> tuple[Optional[float], Optional[str]]:
+            direct = _safe_metric(result.get("episode_reward_mean"))
+            if direct is not None:
+                return direct, None
+
+            hist = result.get("hist_stats")
+            if isinstance(hist, dict):
+                for key in ("episode_reward", "episode_reward_mean"):
+                    data = hist.get(key)
+                    if data is None:
+                        continue
+                    arr = np.asarray(data, dtype=float)
+                    arr = arr[np.isfinite(arr)]
+                    if arr.size:
+                        return float(arr.mean()), key
+
+            sampler = result.get("sampler_results")
+            if isinstance(sampler, dict):
+                recovered = _safe_metric(sampler.get("episode_reward_mean"))
+                if recovered is not None:
+                    return recovered, "sampler_results"
+
+            return 0.0, "forced_zero"
+
         # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
+        episode_limit = self._suggest_episode_limit(len(view), training, env_kwargs)
+        if episode_limit is not None and "max_episode_steps" not in env_kwargs:
+            env_kwargs["max_episode_steps"] = episode_limit
+            logger.info(
+                "Limitando episodios de %s a %d pasos para respetar el presupuesto (time_budget=%s)",
+                ticker,
+                episode_limit,
+                training.time_budget_seconds,
+            )
 
         # Publicar payload compartido antes de configurar el algoritmo
         env_config = self._publish_env_payload(view, env_kwargs)
@@ -646,20 +745,11 @@ class TrainingOrchestrator:
                 **{k: v for k, v in rllib_cfg.items() if k not in {"gamma", "lr"}},
             }
 
-            # --- INICIO DE LA CORRECCIÓN ---
-            # Resolver 'simple_optimizer' antes de pasarlo a .training()
             simple_opt = rllib_cfg.get("simple_optimizer", -1)
             if simple_opt in (-1, None):
-                simple_opt_resolved = (training.num_workers == 0)
-            else:
-                simple_opt_resolved = bool(simple_opt)
-            
-            # Aplicar al objeto config principal, no al diccionario
-            algo_config.simple_optimizer = simple_opt_resolved
-            # Eliminarlo del diccionario para evitar el TypeError
-            if "simple_optimizer" in rllib_cfg:
-                del rllib_cfg["simple_optimizer"]
-            # --- FIN DE LA CORRECCIÓN ---
+                rllib_cfg["simple_optimizer"] = training.num_workers == 0
+            elif isinstance(simple_opt, (int, np.integer)):
+                rllib_cfg["simple_optimizer"] = bool(simple_opt)
 
             def _apply_training_config(config: PPOConfig, params: Dict[str, Any]) -> None:
                 method = config.training
@@ -675,12 +765,21 @@ class TrainingOrchestrator:
 
                 adapted = dict(params)
                 removed: Dict[str, Any] = {}
+                remapped: Dict[str, str] = {}
 
                 if "sgd_minibatch_size" in adapted and "sgd_minibatch_size" not in valid_param_names:
                     if "minibatch_size" in valid_param_names and "minibatch_size" not in adapted:
                         adapted["minibatch_size"] = adapted.pop("sgd_minibatch_size")
+                        remapped["sgd_minibatch_size"] = "minibatch_size"
                     else:
                         removed["sgd_minibatch_size"] = adapted.pop("sgd_minibatch_size")
+
+                if "num_sgd_iter" in adapted:
+                    if "num_epochs" in valid_param_names and "num_epochs" not in adapted:
+                        adapted["num_epochs"] = adapted.pop("num_sgd_iter")
+                        remapped["num_sgd_iter"] = "num_epochs"
+                    elif "num_sgd_iter" not in valid_param_names and not accepts_kwargs:
+                        removed["num_sgd_iter"] = adapted.pop("num_sgd_iter")
 
                 if not accepts_kwargs:
                     filtered = {
@@ -712,6 +811,11 @@ class TrainingOrchestrator:
                         "Omitiendo hiperparámetros RLlib no soportados por esta versión: %s",
                         ", ".join(sorted(removed)),
                     )
+                if remapped:
+                    logger.info(
+                        "Adaptando hiperparámetros RLlib a nuevos nombres: %s",
+                        ", ".join(f"{old}->{new}" for old, new in remapped.items()),
+                    )
 
             _apply_training_config(algo_config, rllib_cfg)
             algo_config.framework("torch")  # NO reasignar
@@ -724,7 +828,7 @@ class TrainingOrchestrator:
                 raise
 
             # 4) Loop de entrenamiento
-            best_reward: Optional[float] = None
+            best_reward = float("-inf")
             checkpoint_dir = self.tracking.output_dir / ticker
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             checkpoint_dir = checkpoint_dir.resolve()
@@ -787,8 +891,9 @@ class TrainingOrchestrator:
                 iter_duration = time.perf_counter() - iter_start
                 iteration_durations.append(iter_duration)
 
+                reward_mean, reward_source = _recover_reward_mean(result)
                 metrics = {
-                    "episode_reward_mean": _safe_metric(result.get("episode_reward_mean")),
+                    "episode_reward_mean": reward_mean,
                     "episode_reward_max": _safe_metric(result.get("episode_reward_max")),
                     "episode_reward_min": _safe_metric(result.get("episode_reward_min")),
                     "episode_len_mean": _safe_metric(result.get("episode_len_mean")),
@@ -797,9 +902,21 @@ class TrainingOrchestrator:
                 }
                 self._log_metrics(metrics, step=it)
 
+                if reward_source is not None:
+                    if reward_source == "forced_zero":
+                        logger.warning(
+                            "Iter %d: reward_mean ausente tras %s; usando 0.0 como fallback",
+                            it,
+                            "tiempo insuficiente" if time_budget is not None else "entrenamiento",
+                        )
+                    else:
+                        logger.info(
+                            "Iter %d: reward_mean recuperado desde %s", it, reward_source
+                        )
+
                 mean_r = metrics.get("episode_reward_mean")
                 if mean_r is not None:
-                    if best_reward is None or mean_r > best_reward:
+                    if best_reward == float("-inf") or mean_r > best_reward:
                         best_reward = mean_r
 
                 if it == max_iters or it == total_iterations:
@@ -842,10 +959,13 @@ class TrainingOrchestrator:
             if last_ckpt_path is None:
                 last_ckpt_path = _save_checkpoint()
 
+            if best_reward == float("-inf"):
+                best_reward = 0.0
+
             logger.info(
                 "Entrenamiento de %s finalizado. Mejor reward_mean=%.4f. Checkpoint=%s",
                 ticker,
-                best_reward if best_reward is not None else float("nan"),
+                best_reward,
                 last_ckpt_path,
             )
             return last_ckpt_path or checkpoint_dir

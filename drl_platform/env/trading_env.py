@@ -37,6 +37,7 @@ class EnvironmentConfig:
     slippage: float = 0.0005
     use_continuous_action: bool = False
     reward: str = "pnl"
+    max_episode_steps: Optional[int] = None
 
 
 class TradingEnvironment(gym.Env):
@@ -53,6 +54,8 @@ class TradingEnvironment(gym.Env):
         self.trades: list[Dict[str, Any]] = []
         self._shared_payload_key = config.payload_key
         self._payload_version = -1
+        self._max_episode_steps: Optional[int] = None
+        self._episode_steps: int = 0
 
         self._prepare_from_payload(force=True)
 
@@ -83,6 +86,7 @@ class TradingEnvironment(gym.Env):
 
         self._prepare_from_payload(force=False)
         self.current_step = 0
+        self._episode_steps = 0
         self.cash = float(self.config.initial_cash)
         self.position = 0.0
         self.position_value = 0.0
@@ -137,6 +141,16 @@ class TradingEnvironment(gym.Env):
         next_step = self.current_step + 1
         terminated = next_step >= len(self.prices)
         truncated = False
+        self._episode_steps += 1
+
+        max_steps = self._max_episode_steps
+        if max_steps is not None and max_steps > 0:
+            if self._episode_steps >= max_steps:
+                truncated = not terminated
+                if self._episode_steps > max_steps and not terminated:
+                    # Garantizar consistencia si el límite se excede por rounding
+                    terminated = False
+
         self.current_step = min(next_step, len(self.prices) - 1)
 
         return self._get_observation(), reward, terminated, truncated, info
@@ -263,6 +277,23 @@ class TradingEnvironment(gym.Env):
         if len(self.features) != len(self.prices):
             raise ValueError("Features and prices must contain the same number of rows")
 
+        max_steps = getattr(self.config, "max_episode_steps", None)
+        if max_steps is not None:
+            try:
+                max_steps = int(max_steps)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "max_episode_steps=%r inválido; ignorando límite de episodio",
+                    self.config.max_episode_steps,
+                )
+                max_steps = None
+            else:
+                if max_steps <= 0:
+                    max_steps = None
+                elif max_steps > len(self.prices):
+                    max_steps = len(self.prices)
+        self._max_episode_steps = max_steps
+
         self.reward_calculator = self._build_reward_calculator(self.config)
 
     def _reset_portfolio_state(self) -> None:
@@ -272,9 +303,10 @@ class TradingEnvironment(gym.Env):
         self.position_value = 0.0
         self.portfolio_value = float(self.config.initial_cash)
         self.trades.clear()
+        self._episode_steps = 0
 
     def reload_shared_payload(self) -> None:
-        """Permite a los workers actualizar el payload manually."""
+        """Permite a los workers actualizar el payload manualmente."""
 
         self._prepare_from_payload(force=True)
         self._reset_portfolio_state()
