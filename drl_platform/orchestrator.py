@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 import re
 import logging
 import time
@@ -10,7 +11,7 @@ import warnings
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Callable
 from uuid import uuid4
 
 import numpy as np
@@ -29,6 +30,8 @@ except Exception:  # pragma: no cover
 
 # Ray / RLlib
 try:
+    # Evitar warning de Ray solicitando GPUtil al no estar disponible.
+    os.environ.setdefault("RAY_DISABLE_GPUTIL_WARNING", "1")
     import ray
     from ray.rllib.algorithms.ppo import PPOConfig
     from ray.tune.registry import register_env
@@ -248,6 +251,44 @@ class TrainingOrchestrator:
             if "already registered" not in str(exc).lower():
                 raise
         self._env_registered = True
+
+    def _resolve_action_computer(self, algorithm: Any) -> Callable[[Any], Any]:
+        """Obtiene una función para calcular acciones deterministas del algoritmo."""
+
+        compute_single = getattr(algorithm, "compute_single_action", None)
+        if callable(compute_single):
+
+            def _from_algorithm(observation: Any) -> Any:
+                action = compute_single(observation, explore=False)
+                if isinstance(action, tuple):
+                    return action[0]
+                return action
+
+            return _from_algorithm
+
+        for getter_name in ("get_policy", "get_default_policy"):
+            getter = getattr(algorithm, getter_name, None)
+            if not callable(getter):
+                continue
+            try:
+                policy = getter()
+            except Exception:
+                continue
+            if policy is None:
+                continue
+            compute_from_policy = getattr(policy, "compute_single_action", None)
+            if not callable(compute_from_policy):
+                continue
+
+            def _from_policy(observation: Any, _policy_compute=compute_from_policy) -> Any:
+                result = _policy_compute(observation, explore=False)
+                if isinstance(result, tuple):
+                    return result[0]
+                return result
+
+            return _from_policy
+
+        raise AttributeError("El algoritmo actual no expone una API para calcular acciones deterministas")
 
     # --------------------------- Auto tuning helpers -------------------------
     @staticmethod
@@ -661,6 +702,17 @@ class TrainingOrchestrator:
                 if recovered is not None:
                     return recovered, "sampler_results"
 
+            env_runners = result.get("env_runners")
+            if isinstance(env_runners, dict):
+                for scope_name in ("rollout", "evaluation"):
+                    scope = env_runners.get(scope_name)
+                    if not isinstance(scope, dict):
+                        continue
+                    for key in ("episode_return_mean", "episode_reward_mean"):
+                        recovered = _safe_metric(scope.get(key))
+                        if recovered is not None:
+                            return recovered, f"env_runners.{scope_name}"
+
             return 0.0, "forced_zero"
 
         # Normalizar kwargs del entorno
@@ -689,7 +741,7 @@ class TrainingOrchestrator:
                 raise NotImplementedError(f"Algoritmo {training.algorithm} aún no soportado (solo PPO).")
 
             # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
-            algo_config = PPOConfig()
+            algo_config = PPOConfig().api_stack("old")
             self._ensure_env_registered()
             algo_config.environment(env=self._env_id, env_config=env_config)  # NO reasignar
 
@@ -733,6 +785,10 @@ class TrainingOrchestrator:
                 )
 
             _configure_env_workers(algo_config, training.num_workers)
+            try:
+                algo_config.rollouts(batch_mode="truncate_episodes")
+            except Exception:
+                logger.debug("No se pudo forzar truncate_episodes en rollouts", exc_info=True)
 
             view_length = int(len(view))
             rllib_cfg = dict(training.rllib_config or {})
@@ -1070,40 +1126,47 @@ class TrainingOrchestrator:
                         )
                     else:
                         try:
-                            obs, _info = eval_env.reset()
-                            terminated = False
-                            truncated = False
-                            total_reward = 0.0
-                            steps = 0
-                            while not (terminated or truncated):
-                                action = algorithm.compute_single_action(obs, explore=False)
-                                if isinstance(action, tuple):
-                                    action = action[0]
-                                obs, reward, terminated, truncated, _info = eval_env.step(action)
-                                total_reward += float(reward)
-                                steps += 1
-
-                            if best_reward == float("-inf") or total_reward > best_reward:
-                                best_reward = total_reward
-                            self._log_metrics(
-                                {
-                                    "evaluation_reward_mean": total_reward,
-                                    "evaluation_episode_len": steps,
-                                },
-                                step=it,
-                            )
-                            logger.info(
-                                "Evaluación relámpago completada para %s tras entrenamiento acelerado: reward=%.4f (%d pasos)",
-                                ticker,
-                                total_reward,
-                                steps,
-                            )
+                            compute_action = self._resolve_action_computer(algorithm)
                         except Exception as exc:
                             logger.warning(
-                                "No se pudo calcular la recompensa mediante evaluación relámpago para %s: %s",
+                                "No se pudo preparar la política para evaluación relámpago de %s: %s",
                                 ticker,
                                 exc,
                             )
+                        else:
+                            try:
+                                obs, _info = eval_env.reset()
+                                terminated = False
+                                truncated = False
+                                total_reward = 0.0
+                                steps = 0
+                                while not (terminated or truncated):
+                                    action = compute_action(obs)
+                                    obs, reward, terminated, truncated, _info = eval_env.step(action)
+                                    total_reward += float(reward)
+                                    steps += 1
+
+                                if best_reward == float("-inf") or total_reward > best_reward:
+                                    best_reward = total_reward
+                                self._log_metrics(
+                                    {
+                                        "evaluation_reward_mean": total_reward,
+                                        "evaluation_episode_len": steps,
+                                    },
+                                    step=it,
+                                )
+                                logger.info(
+                                    "Evaluación relámpago completada para %s tras entrenamiento acelerado: reward=%.4f (%d pasos)",
+                                    ticker,
+                                    total_reward,
+                                    steps,
+                                )
+                            except Exception as exc:
+                                logger.warning(
+                                    "No se pudo calcular la recompensa mediante evaluación relámpago para %s: %s",
+                                    ticker,
+                                    exc,
+                                )
                         finally:
                             try:
                                 eval_env.close()
@@ -1133,7 +1196,12 @@ class TrainingOrchestrator:
         if ray.is_initialized():
             return
 
-        ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
+        ray.init(
+            ignore_reinit_error=True,
+            include_dashboard=False,
+            log_to_driver=False,
+            metrics_export_port=0,
+        )
         self._owns_ray = True
 
     def _acquire_algorithm(self, ticker: str, algo_config: PPOConfig) -> Any:
@@ -1164,7 +1232,11 @@ class TrainingOrchestrator:
             logger.info("Reconstruyendo algoritmo %s para %s", algo_config.__class__.__name__, ticker)
             self._discard_algorithm()
 
-        self._algorithm = algo_config.build()
+        build_algo = getattr(algo_config, "build_algo", None)
+        if callable(build_algo):
+            self._algorithm = build_algo()
+        else:
+            self._algorithm = algo_config.build()
         self._last_algo_signature = desired_signature
 
         try:
