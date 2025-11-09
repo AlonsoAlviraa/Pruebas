@@ -120,6 +120,7 @@ class TrainingOrchestrator:
         self._wandb_run_active = False
         self._owns_ray = False
         self._algorithm: Optional[Any] = None
+        self._last_config_payload: Optional[Dict[str, Any]] = None
         self._suppress_ray_warnings()
         self._init_tracking()
         self._env_id = f"drl_platform_env_shared_{uuid4().hex}"
@@ -308,6 +309,76 @@ class TrainingOrchestrator:
                 logger.debug("Fallo aplicando rollout_fragment_length=%s: %s", fragment, exc)
                 continue
 
+    def _canonicalize_payload_dict(
+        self,
+        payload: Dict[str, Any],
+        *,
+        baseline: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Normaliza el diccionario de configuración para que sea reutilizable."""
+
+        normalized = dict(payload)
+        reference = baseline or self._last_config_payload or {}
+
+        simple_value = normalized.get("simple_optimizer")
+        if isinstance(simple_value, (int, float)) and simple_value == -1:
+            if "simple_optimizer" in reference:
+                normalized["simple_optimizer"] = reference["simple_optimizer"]
+            else:
+                normalized["simple_optimizer"] = False
+
+        return normalized
+
+    def _prepare_reset_payload(self, config: PPOConfig) -> Dict[str, Any]:
+        """Convierte un ``PPOConfig`` a dict listo para ``reset_config``."""
+
+        # Partimos de la última configuración efectiva para preservar los
+        # valores ya resueltos por RLlib (p.ej. ``simple_optimizer=False``).
+        base_payload = dict(self._last_config_payload or {})
+
+        try:
+            raw_payload = config.to_dict()
+        except Exception:  # pragma: no cover - compatibilidad versiones
+            raw_payload = {}
+
+        normalized = self._canonicalize_payload_dict(
+            raw_payload,
+            baseline=base_payload if base_payload else None,
+        )
+
+        if base_payload:
+            merged = base_payload.copy()
+            merged.update(normalized)
+            return merged
+        return normalized
+
+    def _sync_last_payload_from_algorithm(self) -> None:
+        """Extrae y guarda la configuración efectiva del algoritmo reutilizable."""
+
+        algo = self._algorithm
+        if algo is None:
+            self._last_config_payload = None
+            return
+
+        payload: Optional[Dict[str, Any]] = None
+
+        config_attr = getattr(algo, "config", None)
+        if isinstance(config_attr, dict):
+            payload = self._canonicalize_payload_dict(config_attr, baseline={})
+        else:
+            getter = getattr(algo, "get_config", None)
+            if callable(getter):
+                try:
+                    result = getter()
+                except Exception:  # pragma: no cover - defensivo
+                    logger.debug("No se pudo obtener la configuración del algoritmo", exc_info=True)
+                else:
+                    if isinstance(result, dict):
+                        payload = self._canonicalize_payload_dict(result, baseline={})
+
+        if payload is not None:
+            self._last_config_payload = self._config_signature(payload)
+
     def _publish_env_payload(
         self, view: pd.DataFrame, env_kwargs: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -394,6 +465,34 @@ class TrainingOrchestrator:
             logger.debug(
                 "No se encontró un mecanismo para notificar la actualización del payload compartido"
             )
+
+    @staticmethod
+    def _config_signature(raw_config: Dict[str, Any]) -> Any:
+        """Genera una firma estable para detectar cambios reales en la configuración."""
+
+        def _normalise(value: Any) -> Any:
+            if isinstance(value, dict):
+                items = []
+                for key in sorted(value):
+                    if key.startswith("_"):
+                        continue
+                    items.append((key, _normalise(value[key])))
+                return tuple(items)
+            if isinstance(value, (list, tuple)):
+                return tuple(_normalise(item) for item in value)
+            if isinstance(value, set):
+                return tuple(sorted(_normalise(item) for item in value))
+            if isinstance(value, Path):
+                return ("Path", str(value))
+            if isinstance(value, np.ndarray):
+                return ("ndarray", tuple(np.asarray(value).tolist()))
+            if isinstance(value, (np.generic,)):
+                return value.item()
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                return value
+            return (type(value).__name__, repr(value))
+
+        return _normalise(raw_config)
 
     # ------------------------------ Train --------------------------------------
     def train(
@@ -549,6 +648,15 @@ class TrainingOrchestrator:
             _apply_training_config(algo_config, rllib_cfg)
             algo_config.framework("torch")  # NO reasignar
 
+            # --- INICIO DE LA CORRECCIÓN ---
+            # Aplicar simple_optimizer al config principal, NO a .training()
+            simple_opt = rllib_cfg.get("simple_optimizer", -1)
+            if simple_opt in (-1, None):
+                algo_config.simple_optimizer = (training.num_workers == 0)
+            elif isinstance(simple_opt, (int, np.integer)):
+                algo_config.simple_optimizer = bool(simple_opt)
+            # --- FIN DE LA CORRECCIÓN ---
+
             # 3) Construir algoritmo
             try:
                 algorithm = self._acquire_algorithm(ticker, algo_config)
@@ -608,7 +716,7 @@ class TrainingOrchestrator:
                     best_reward = mean_r
 
                 # Guardado periódico
-                if it % 5 == 0 or it == training.total_iterations:
+                if it == training.total_iterations:
                     last_ckpt_path = _save_checkpoint()
                     logger.info("Iter %d: checkpoint guardado en %s", it, last_ckpt_path)
 
@@ -644,35 +752,43 @@ class TrainingOrchestrator:
     def _acquire_algorithm(self, ticker: str, algo_config: PPOConfig) -> Any:
         """Obtiene una instancia de algoritmo lista para entrenar."""
 
+        desired_signature = self._config_signature(algo_config.to_dict())
+
+        if self._algorithm is not None and self._last_algo_signature == desired_signature:
+            if self._baseline_checkpoint is not None:
+                try:
+                    self._algorithm.restore_from_object(self._baseline_checkpoint)
+                except Exception as exc:
+                    logger.warning(
+                        "Fallo restaurando el estado base del algoritmo para %s: %s. Se reconstruirá.",
+                        ticker,
+                        exc,
+                    )
+                else:
+                    logger.debug("Reutilizando algoritmo existente para %s", ticker)
+                    self._notify_shared_payload_update()
+                    return self._algorithm
+            else:
+                logger.debug("No hay checkpoint base disponible; se reconstruirá algoritmo para %s", ticker)
+
         if self._algorithm is None:
             logger.info("Creando algoritmo %s inicial para %s", algo_config.__class__.__name__, ticker)
-            self._algorithm = algo_config.build()
-            self._notify_shared_payload_update()
         else:
-            reset_fn = getattr(self._algorithm, "reset_config", None)
-            reused = False
-            if callable(reset_fn):
-                try:
-                    result = reset_fn(algo_config.to_dict())
-                    if result is False:
-                        logger.info("reset_config devolvió False; reconstruyendo algoritmo para %s", ticker)
-                    else:
-                        reused = True
-                except Exception as exc:
-                    logger.warning("No se pudo reutilizar el algoritmo existente para %s: %s", ticker, exc)
-                else:
-                    if reused:
-                        logger.debug("Reutilizando algoritmo existente para %s", ticker)
-                        self._notify_shared_payload_update()
-                        return self._algorithm
-            else:
-                logger.debug("Algoritmo actual no expone reset_config; se reconstruirá para %s", ticker)
-
-            # Si llega aquí, debemos reconstruir la instancia
-            self._discard_algorithm()
             logger.info("Reconstruyendo algoritmo %s para %s", algo_config.__class__.__name__, ticker)
-            self._algorithm = algo_config.build()
-            self._notify_shared_payload_update()
+            self._discard_algorithm()
+
+        self._algorithm = algo_config.build()
+        self._last_algo_signature = desired_signature
+
+        try:
+            checkpoint_blob = self._algorithm.save_to_object()
+        except Exception:
+            logger.debug("No se pudo capturar el checkpoint base del algoritmo", exc_info=True)
+            self._baseline_checkpoint = None
+        else:
+            self._baseline_checkpoint = checkpoint_blob
+
+        self._notify_shared_payload_update()
         return self._algorithm
 
     def _discard_algorithm(self) -> None:
@@ -684,6 +800,8 @@ class TrainingOrchestrator:
             logger.debug("Error al detener algoritmo reutilizable", exc_info=True)
         finally:
             self._algorithm = None
+            self._baseline_checkpoint = None
+            self._last_algo_signature = None
 
     def close(self) -> None:
         """Libera recursos del orquestador (Ray y tracking)."""

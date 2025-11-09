@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reward calculation utilities for advanced trading environments."""
+"""Calculadores de recompensa para el entorno de trading."""
 from __future__ import annotations
 
 import abc
@@ -31,14 +31,21 @@ class RewardCalculator(abc.ABC):
         """Actualiza el estado con el nuevo capital y calcula la recompensa."""
         curve = self.state.equity_curve
         ret_series = self.state.returns
-        
+
         prev_equity = curve[-1] if curve else new_equity
         curve.append(new_equity)
-        
+
         portfolio_return = (new_equity - prev_equity) / prev_equity if prev_equity != 0 else 0.0
         ret_series.append(portfolio_return)
-        
-        return self._compute_reward(curve, ret_series)
+
+        raw_reward = self._compute_reward(curve, ret_series)
+        safe_array = np.nan_to_num(np.asarray(raw_reward, dtype=float), nan=0.0, posinf=1e6, neginf=-1e6)
+        if safe_array.size == 0:
+            return 0.0
+        safe_value = float(safe_array.reshape(-1)[0])
+        if not np.isfinite(safe_value):
+            safe_value = 0.0
+        return safe_value
 
     @abc.abstractmethod
     def _compute_reward(self, equity_curve: List[float], returns: List[float]) -> float:
@@ -72,24 +79,29 @@ class SharpeReward(RewardCalculator):
     def _compute_reward(self, equity_curve: List[float], returns: List[float]) -> float:
         if len(returns) < 2:
             return 0.0
-            
-        excess_returns = np.array(returns) - self.risk_free_rate / self.annualization_factor
-        mean = excess_returns.mean()
-        std = excess_returns.std(ddof=1)
-        
-        current_sharpe = (mean / std) * np.sqrt(self.annualization_factor) if std > 0 else 0.0
-        
+
+        returns_arr = np.asarray(returns)
+        mean_ret = np.mean(returns_arr)
+        std_ret = np.std(returns_arr)
+
+        if std_ret == 0:
+            # Si no hay volatilidad, sharpe es 0 (o infinito si mean_ret > 0)
+            current_sharpe = 0.0
+        else:
+            daily_sharpe = (mean_ret - self.risk_free_rate) / std_ret
+            current_sharpe = daily_sharpe * (self.annualization_factor ** 0.5)
+
         reward = current_sharpe - self._prev_sharpe
         self._prev_sharpe = current_sharpe
         return reward
 
 
 class SortinoReward(RewardCalculator):
-    """Reward derived from incremental Sortino ratio."""
+    """Reward based on incremental Sortino ratio."""
 
-    def __init__(self, target_return: float = 0.0, annualization_factor: float = 252):
+    def __init__(self, risk_free_rate: float = 0.0, annualization_factor: float = 252):
         super().__init__()
-        self.target_return_daily = target_return / annualization_factor
+        self.risk_free_rate = risk_free_rate
         self.annualization_factor = annualization_factor
         self._prev_sortino = 0.0
 
@@ -100,24 +112,30 @@ class SortinoReward(RewardCalculator):
     def _compute_reward(self, equity_curve: List[float], returns: List[float]) -> float:
         if len(returns) < 2:
             return 0.0
-            
-        returns_np = np.array(returns)
-        excess_returns = returns_np - self.target_return_daily
-        
-        downside_returns = excess_returns[excess_returns < 0]
-        downside_std = downside_returns.std(ddof=1)
-        
-        mean = excess_returns.mean()
-        
-        current_sortino = (mean / downside_std) * np.sqrt(self.annualization_factor) if downside_std > 0 else 0.0
-        
+
+        returns_arr = np.asarray(returns)
+        mean_ret = np.mean(returns_arr)
+
+        # Calcular downside deviation
+        downside_returns = returns_arr[returns_arr < self.risk_free_rate]
+        if downside_returns.size == 0:
+            downside_std = 0.0
+        else:
+            downside_std = np.std(downside_returns)
+
+        if downside_std == 0:
+            current_sortino = 0.0
+        else:
+            daily_sortino = (mean_ret - self.risk_free_rate) / downside_std
+            current_sortino = daily_sortino * (self.annualization_factor ** 0.5)
+
         reward = current_sortino - self._prev_sortino
         self._prev_sortino = current_sortino
         return reward
 
 
 class CalmarReward(RewardCalculator):
-    """Reward derived from incremental Calmar ratio."""
+    """Reward based on incremental Calmar ratio."""
 
     def __init__(self, annualization_factor: float = 252):
         super().__init__()
@@ -132,30 +150,28 @@ class CalmarReward(RewardCalculator):
         if len(returns) < 2:
             return 0.0
 
-        equity_curve_np = np.array(equity_curve)
-        drawdown = self._max_drawdown(equity_curve_np)
-        
-        total_return = (equity_curve_np[-1] / equity_curve_np[0]) - 1 if equity_curve_np[0] != 0 else 0.0
-        years = max(len(returns) / self.annualization_factor, 1e-9)
-        annual_return = (1 + total_return) ** (1 / years) - 1
-        
-        current_calmar = annual_return / drawdown if drawdown > 0 else 0.0
-        
+        # Calcular annualized return
+        returns_arr = np.asarray(returns)
+        mean_ret = np.mean(returns_arr)
+        annualized_return = (1 + mean_ret) ** self.annualization_factor - 1
+
+        # Calcular max drawdown
+        equity_arr = np.asarray(equity_curve)
+        peak = np.maximum.accumulate(equity_arr)
+        drawdown = (equity_arr - peak) / peak
+        max_drawdown = np.min(drawdown)
+
+        if max_drawdown == 0:
+            current_calmar = 0.0
+        else:
+            current_calmar = annualized_return / abs(max_drawdown)
+
         reward = current_calmar - self._prev_calmar
         self._prev_calmar = current_calmar
         return reward
 
-    @staticmethod
-    def _max_drawdown(curve: np.ndarray) -> float:
-        """Calcula el Max Drawdown (como un valor positivo)."""
-        running_max = np.maximum.accumulate(curve)
-        # Asegurarse de que running_max no sea cero para evitar división por cero
-        running_max[running_max == 0] = 1 
-        drawdowns = (running_max - curve) / running_max
-        max_dd = np.nanmax(drawdowns)
-        return float(max_dd) if np.isfinite(max_dd) else 0.0
 
-
+# Registro de calculadores de recompensa
 REWARD_REGISTRY = {
     "pnl": PnLReward,
     "sharpe": SharpeReward,
