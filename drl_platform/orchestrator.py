@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 import re
 import logging
 import time
@@ -10,7 +11,7 @@ import warnings
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Callable
 from uuid import uuid4
 
 import numpy as np
@@ -29,8 +30,11 @@ except Exception:  # pragma: no cover
 
 # Ray / RLlib
 try:
+    # Evitar warning de Ray solicitando GPUtil al no estar disponible.
+    os.environ.setdefault("RAY_DISABLE_GPUTIL_WARNING", "1")
     import ray
     from ray.rllib.algorithms.ppo import PPOConfig
+    from ray.rllib.algorithms.callbacks import DefaultCallbacks
     from ray.tune.registry import register_env
 except Exception as e:  # pragma: no cover
     raise RuntimeError("No se pudo importar Ray/RLlib. Asegúrate de tenerlos instalados.") from e
@@ -117,6 +121,19 @@ class TrainingConfig:
 # --------------------------------------------------------------------------------------
 # Orquestador
 # --------------------------------------------------------------------------------------
+class PortfolioRewardCallbacks(DefaultCallbacks):
+    """Captures per-episode portfolio rewards for robust logging."""
+
+    def on_episode_end(self, *, episode, **kwargs) -> None:  # type: ignore[override]
+        total_reward = float(getattr(episode, "total_reward", 0.0) or 0.0)
+        if not np.isfinite(total_reward):
+            total_reward = 0.0
+        episode.custom_metrics["portfolio_reward"] = total_reward
+        length = getattr(episode, "length", None)
+        if isinstance(length, (int, float)) and length > 0:
+            episode.custom_metrics["portfolio_episode_len"] = float(length)
+
+
 class TrainingOrchestrator:
     """Coordina ejecuciones de entrenamiento con RLlib y registra métricas."""
 
@@ -243,6 +260,73 @@ class TrainingOrchestrator:
             if "already registered" not in str(exc).lower():
                 raise
         self._env_registered = True
+
+    @staticmethod
+    def _apply_api_stack(config: PPOConfig) -> PPOConfig:
+        """Solicita la API antigua cuando existe soporte en la instalación."""
+
+        api_stack = getattr(config, "api_stack", None)
+        if callable(api_stack):
+            try:
+                # Intento 1: API moderna (RLlib >= 2.6)
+                return config.api_stack(
+                    enable_rl_module_and_learner=False,
+                    enable_env_runner_and_connector_v2=False
+                )
+            except Exception:
+                pass
+            
+            try:
+                # Intento 2: API intermedia (RLlib ~2.2)
+                return api_stack("old")
+            except Exception:
+                pass
+
+        training = getattr(config, "training", None)
+        if callable(training):
+            try:
+                # Intento 3: API antigua (RLlib < 2.0)
+                training(_enable_rl_module_api=False, _enable_learner_api=False)
+            except TypeError:
+                pass
+        return config
+
+    def _resolve_action_computer(self, algorithm: Any) -> Callable[[Any], Any]:
+        """Obtiene una función para calcular acciones deterministas del algoritmo."""
+
+        compute_single = getattr(algorithm, "compute_single_action", None)
+        if callable(compute_single):
+
+            def _from_algorithm(observation: Any) -> Any:
+                action = compute_single(observation, explore=False)
+                if isinstance(action, tuple):
+                    return action[0]
+                return action
+
+            return _from_algorithm
+
+        for getter_name in ("get_policy", "get_default_policy"):
+            getter = getattr(algorithm, getter_name, None)
+            if not callable(getter):
+                continue
+            try:
+                policy = getter()
+            except Exception:
+                continue
+            if policy is None:
+                continue
+            compute_from_policy = getattr(policy, "compute_single_action", None)
+            if callable(compute_from_policy):
+
+                def _from_policy(observation: Any) -> Any:
+                    action = compute_from_policy(observation, explore=False)
+                    if isinstance(action, tuple):
+                        return action[0]
+                    return action
+
+                return _from_policy
+
+        raise RuntimeError(f"No se pudo resolver un método 'compute_single_action' para {algorithm}")
 
     # --------------------------- Auto tuning helpers -------------------------
     @staticmethod
@@ -371,10 +455,9 @@ class TrainingOrchestrator:
                     limit = min(view_length, candidate)
 
         if limit is None:
-            limit = 256
-            return max(32, min(view_length, limit))
+            limit = 256  # Fallback por defecto
 
-        return max(32, limit)
+        return max(32, min(view_length, limit))
 
     @staticmethod
     def _apply_rollout_fragment(config: PPOConfig, fragment: int) -> None:
@@ -689,7 +772,29 @@ class TrainingOrchestrator:
         def _recover_reward_mean(result: Dict[str, Any]) -> tuple[Optional[float], Optional[str]]:
             direct = _safe_metric(result.get("episode_reward_mean"))
             if direct is not None:
-                return direct, None
+                return direct, "episode_reward_mean"
+
+            custom = result.get("custom_metrics")
+            if isinstance(custom, dict):
+                for key in (
+                    "portfolio_reward_mean",
+                    "portfolio_reward",
+                    "reward_mean",
+                    "episode_reward_mean",
+                ):
+                    recovered = _safe_metric(custom.get(key))
+                    if recovered is not None:
+                        return recovered, f"custom_metrics.{key}"
+
+            policy_means = result.get("policy_reward_mean")
+            if isinstance(policy_means, dict):
+                values = []
+                for value in policy_means.values():
+                    numeric = _safe_metric(value)
+                    if numeric is not None:
+                        values.append(numeric)
+                if values:
+                    return float(np.mean(values)), "policy_reward_mean"
 
             hist = result.get("hist_stats")
             if isinstance(hist, dict):
@@ -700,7 +805,7 @@ class TrainingOrchestrator:
                     arr = np.asarray(data, dtype=float)
                     arr = arr[np.isfinite(arr)]
                     if arr.size:
-                        return float(arr.mean()), key
+                        return float(arr.mean()), f"hist_stats.{key}"
 
             sampler = result.get("sampler_results")
             if isinstance(sampler, dict):
@@ -747,11 +852,10 @@ class TrainingOrchestrator:
                 raise NotImplementedError(f"Algoritmo {training.algorithm} aún no soportado (solo PPO).")
 
             # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
-            algo_config = PPOConfig().api_stack(
-                enable_rl_module_and_learner=False,
-                enable_env_runner_and_connector_v2=False
-            )
+            algo_config = PPOConfig()
+            algo_config = self._apply_api_stack(algo_config)
             self._ensure_env_registered()
+            algo_config.callbacks(PortfolioRewardCallbacks)
             algo_config.environment(env=self._env_id, env_config=env_config)  # NO reasignar
 
             def _configure_env_workers(config: PPOConfig, workers: int) -> None:
@@ -925,6 +1029,18 @@ class TrainingOrchestrator:
                     )
 
             _apply_training_config(algo_config, rllib_cfg)
+
+            # --- INICIO DE LA CORRECCIÓN ---
+            # Aplicar 'simple_optimizer' directamente al config, no a .training()
+            # Esto evita que _apply_training_config lo omita y asegura que
+            # usemos el bucle de entrenamiento estándar que reporta métricas.
+            if "simple_optimizer" in rllib_cfg:
+                algo_config.simple_optimizer = bool(rllib_cfg["simple_optimizer"])
+            else:
+                 # Por si acaso, forzamos False si no está en el diccionario
+                algo_config.simple_optimizer = False
+            # --- FIN DE LA CORRECCIÓN ---
+
             algo_config.framework("torch")  # NO reasignar
 
             # 3) Construir algoritmo
@@ -1216,23 +1332,3 @@ class TrainingOrchestrator:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
-
-    def _resolve_action_computer(self, algorithm: Any) -> Any:
-        """Devuelve una función compute_single_action compatible."""
-        fn = getattr(algorithm, "compute_single_action", None)
-        if callable(fn):
-            return fn
-        
-        policy = getattr(algorithm, "policy", None)
-        if policy is not None:
-            fn = getattr(policy, "compute_single_action", None)
-            if callable(fn):
-                return fn
-
-        policy = getattr(algorithm, "get_policy", None)
-        if callable(policy):
-            fn = getattr(policy(), "compute_single_action", None)
-            if callable(fn):
-                return fn
-
-        raise RuntimeError("No se pudo encontrar un método compute_single_action")

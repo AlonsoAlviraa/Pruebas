@@ -43,7 +43,13 @@ def parse_args() -> argparse.Namespace:
     
     train_parser.add_argument("--data-root", default="data", help="Directory with cached datasets")
     train_parser.add_argument(
-        "--reward", default="sortino", choices=["pnl", "sharpe", "sortino", "calmar"]
+        "--reward",
+        default="pnl",
+        choices=["pnl", "sharpe", "sortino", "calmar"],
+        help=(
+            "Tipo de recompensa a optimizar. 'pnl' es el valor por defecto recomendado para"
+            " validar la arquitectura de cartera y evitar NaNs en métricas tempranas."
+        ),
     )
     train_parser.add_argument("--iterations", type=int, default=10)
     train_parser.add_argument("--num-workers", type=int, default=0)
@@ -228,6 +234,13 @@ def run_training(args: argparse.Namespace) -> None:
                 "Forzando espacio de acción continuo para permitir vectores de pesos en cartera."
             )
 
+        if args.reward.lower() != "pnl":
+            logger.warning(
+                "Recompensa '%s' seleccionada. Si observas reward_mean ausente/NaN, "
+                "vuelve a ejecutar con --reward pnl para validar el pipeline.",
+                args.reward,
+            )
+
         env_kwargs = {"reward": args.reward, "use_continuous_action": use_continuous}
 
         try:
@@ -320,3 +333,4 @@ def main() -> None:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entrypoint
     main()
+    
