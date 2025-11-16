@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import inspect
-import os
 import re
 import logging
 import time
@@ -11,7 +10,7 @@ import warnings
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Any, Callable
+from typing import Dict, Optional, Any
 from uuid import uuid4
 
 import numpy as np
@@ -30,8 +29,6 @@ except Exception:  # pragma: no cover
 
 # Ray / RLlib
 try:
-    # Evitar warning de Ray solicitando GPUtil al no estar disponible.
-    os.environ.setdefault("RAY_DISABLE_GPUTIL_WARNING", "1")
     import ray
     from ray.rllib.algorithms.ppo import PPOConfig
     from ray.tune.registry import register_env
@@ -151,11 +148,6 @@ class TrainingOrchestrator:
             category=FutureWarning,
             module=r"ray(\.|$)",
         )
-        warnings.filterwarnings(
-            "ignore",
-            category=DeprecationWarning,
-            module=r"deprecation(\.|$)",
-        )
 
     def _init_tracking(self) -> None:  # pragma: no cover (side effects)
         if self.tracking.use_mlflow and mlflow is not None:
@@ -252,58 +244,12 @@ class TrainingOrchestrator:
                 raise
         self._env_registered = True
 
-    def _resolve_action_computer(self, algorithm: Any) -> Callable[[Any], Any]:
-        """Obtiene una función para calcular acciones deterministas del algoritmo."""
-
-        compute_single = getattr(algorithm, "compute_single_action", None)
-        if callable(compute_single):
-
-            def _from_algorithm(observation: Any) -> Any:
-                action = compute_single(observation, explore=False)
-                if isinstance(action, tuple):
-                    return action[0]
-                return action
-
-            return _from_algorithm
-
-        for getter_name in ("get_policy", "get_default_policy"):
-            getter = getattr(algorithm, getter_name, None)
-            if not callable(getter):
-                continue
-            try:
-                policy = getter()
-            except Exception:
-                continue
-            if policy is None:
-                continue
-            compute_from_policy = getattr(policy, "compute_single_action", None)
-            if not callable(compute_from_policy):
-                continue
-
-            def _from_policy(observation: Any, _policy_compute=compute_from_policy) -> Any:
-                result = _policy_compute(observation, explore=False)
-                if isinstance(result, tuple):
-                    return result[0]
-                return result
-
-            return _from_policy
-
-        raise AttributeError("El algoritmo actual no expone una API para calcular acciones deterministas")
-
     # --------------------------- Auto tuning helpers -------------------------
     @staticmethod
     def _round_to_multiple(value: int, base: int = 32) -> int:
         if value <= 0:
             return base
         return max(base, int(np.ceil(value / base) * base))
-
-    @staticmethod
-    def _clamp_minibatch(value: int, limit: int) -> int:
-        if limit <= 0:
-            return max(1, value)
-        if value <= 0:
-            return max(1, min(limit, abs(value)))
-        return max(1, min(limit, value))
 
     def _suggest_batch_hyperparams(
         self,
@@ -449,36 +395,33 @@ class TrainingOrchestrator:
                 logger.debug("Fallo aplicando rollout_fragment_length=%s: %s", fragment, exc)
                 continue
 
-    def _synchronise_minibatches(self, config: PPOConfig) -> None:
-        """Ajusta minibatches para respetar el tamaño efectivo del batch del learner."""
+    @staticmethod
+    def _clamp_minibatch(value: int, max_allowed: int) -> int:
+        if value <= max_allowed:
+            return value
+        return max(16, int(2 ** np.floor(np.log2(max_allowed))))
 
-        limits: list[int] = []
-        for attr in ("train_batch_size", "train_batch_size_per_learner"):
-            try:
-                value = getattr(config, attr)
-            except Exception:
-                continue
-            try:
-                numeric = int(value)
-            except (TypeError, ValueError):
-                continue
-            if numeric > 0:
-                limits.append(numeric)
+    def _apply_minibatch_constraints(self, config: PPOConfig) -> None:
+        """Garantiza que sgd_minibatch_size y minibatch_size sean coherentes y válidos."""
 
-        if not limits:
+        max_allowed: Optional[int] = None
+        try:
+            max_allowed = int(config.train_batch_size)
+        except (TypeError, ValueError, Exception):
+            logger.debug("No se pudo obtener train_batch_size para validar minibatch")
             return
 
-        max_allowed = min(limits)
+        if max_allowed is None or max_allowed <= 0:
+            return
 
         for attr in ("minibatch_size", "sgd_minibatch_size"):
-            try:
-                current = getattr(config, attr)
-            except Exception:
+            if not hasattr(config, attr):
                 continue
             try:
-                current_int = int(current)
-            except (TypeError, ValueError):
+                current_int = int(getattr(config, attr))
+            except (TypeError, ValueError, Exception):
                 continue
+
             if current_int <= 0 or current_int <= max_allowed:
                 continue
             new_value = self._clamp_minibatch(current_int, max_allowed)
@@ -504,8 +447,51 @@ class TrainingOrchestrator:
             except Exception:
                 pass
 
+    def _normalise_portfolio_dataset(
+        self, raw: pd.DataFrame | Dict[str, pd.DataFrame]
+    ) -> Dict[str, pd.DataFrame]:
+        """Valida y normaliza la colección de DataFrames usada por el entorno."""
+
+        if isinstance(raw, dict):
+            cleaned: Dict[str, pd.DataFrame] = {}
+            for key, df in raw.items():
+                if not isinstance(df, pd.DataFrame):
+                    raise TypeError(
+                        "Cada entrada del dataset de cartera debe ser un DataFrame"
+                    )
+                if df.empty:
+                    continue
+                cleaned[key] = df
+            if not cleaned:
+                raise ValueError("El dataset de cartera está vacío tras filtrar entradas vacías")
+            return cleaned
+
+        if isinstance(raw, pd.DataFrame):
+            if raw.empty:
+                raise ValueError("El DataFrame proporcionado no contiene filas")
+            return {"asset": raw}
+
+        raise TypeError(
+            "La vista de entrenamiento debe ser un DataFrame o un diccionario de DataFrames"
+        )
+
+    @staticmethod
+    def _apply_max_view_rows(
+        dataset: Dict[str, pd.DataFrame], max_rows: Optional[int]
+    ) -> Dict[str, pd.DataFrame]:
+        if max_rows is None:
+            return dataset
+
+        limited: Dict[str, pd.DataFrame] = {}
+        for ticker, df in dataset.items():
+            if len(df) > max_rows:
+                limited[ticker] = df.iloc[-max_rows:].copy()
+            else:
+                limited[ticker] = df
+        return limited
+
     def _publish_env_payload(
-        self, view: pd.DataFrame, env_kwargs: Dict[str, Any]
+        self, dataset: Dict[str, pd.DataFrame], env_kwargs: Dict[str, Any]
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
         """Actualiza el payload compartido y devuelve la configuración del entorno."""
 
@@ -529,7 +515,7 @@ class TrainingOrchestrator:
 
         TradingEnvironment.set_shared_payload(
             self._env_payload_key,
-            data=view,
+            data=dataset,
             overrides=overrides,
         )
 
@@ -561,6 +547,7 @@ class TrainingOrchestrator:
             fn = getattr(env_runner_group, "foreach_env_runner", None)
             if callable(fn):
                 try:
+
                     def _apply_runner(runner: Any) -> None:
                         for attr in ("env", "_env", "env_ref", "env_handler"):
                             target = getattr(runner, attr, None)
@@ -625,17 +612,28 @@ class TrainingOrchestrator:
     def train(
         self,
         ticker: str,
-        view: pd.DataFrame,
+        view: pd.DataFrame | Dict[str, pd.DataFrame],
         env_kwargs: Optional[Dict[str, Any]],
         training: TrainingConfig,
     ) -> Path:
-        """Entrena un agente RLlib y conserva compatibilidad binaria."""
+        """Entrena un agente RLlib (compatibilidad legado)."""
         return self._run_training(ticker, view, env_kwargs, training)
+
+    def train_portfolio(
+        self,
+        portfolio_id: str,
+        views: Dict[str, pd.DataFrame],
+        env_kwargs: Optional[Dict[str, Any]],
+        training: TrainingConfig,
+    ) -> Path:
+        """Entrena un único agente que observa múltiples tickers a la vez."""
+
+        return self._run_training(portfolio_id, views, env_kwargs, training)
 
     def _run_training(
         self,
         ticker: str,
-        view: pd.DataFrame,
+        view: pd.DataFrame | Dict[str, pd.DataFrame],
         env_kwargs: Optional[Dict[str, Any]],
         training: TrainingConfig,
     ) -> Path:
@@ -643,8 +641,7 @@ class TrainingOrchestrator:
 
         Devuelve la ruta del último checkpoint generado para el ``ticker``.
         """
-        if view is None or view.empty:
-            raise ValueError("El DataFrame de características `view` está vacío.")
+        dataset = self._normalise_portfolio_dataset(view)
 
         max_view_rows = training.max_view_rows
         if max_view_rows is not None:
@@ -660,14 +657,22 @@ class TrainingOrchestrator:
                 if max_view_rows <= 0:
                     max_view_rows = None
 
-        if max_view_rows is not None and len(view) > max_view_rows:
-            logger.info(
-                "Reduciendo feature view de %s de %d a %d filas para respetar max_view_rows",
-                ticker,
-                len(view),
-                max_view_rows,
+        if max_view_rows is not None:
+            before_lengths = {key: len(df) for key, df in dataset.items()}
+            dataset = self._apply_max_view_rows(dataset, max_view_rows)
+            after_lengths = {key: len(df) for key, df in dataset.items()}
+            if any(after_lengths[key] < before_lengths.get(key, 0) for key in dataset):
+                logger.info(
+                    "Reduciendo feature views de %s para respetar max_view_rows=%d",
+                    ticker,
+                    max_view_rows,
+                )
+
+        view_length = min(len(df) for df in dataset.values())
+        if view_length <= 1:
+            raise ValueError(
+                "Se requieren al menos dos filas por ticker tras normalizar el dataset de cartera"
             )
-            view = view.iloc[-max_view_rows:].copy()
 
         def _safe_metric(value: Any) -> Optional[float]:
             if value is None:
@@ -717,7 +722,7 @@ class TrainingOrchestrator:
 
         # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
-        episode_limit = self._suggest_episode_limit(len(view), training, env_kwargs)
+        episode_limit = self._suggest_episode_limit(view_length, training, env_kwargs)
         if episode_limit is not None and "max_episode_steps" not in env_kwargs:
             env_kwargs["max_episode_steps"] = episode_limit
             logger.info(
@@ -728,7 +733,7 @@ class TrainingOrchestrator:
             )
 
         # Publicar payload compartido antes de configurar el algoritmo
-        env_config, env_overrides = self._publish_env_payload(view, env_kwargs)
+        env_config, env_overrides = self._publish_env_payload(dataset, env_kwargs)
 
         # Ray: inicializa una vez por proceso para evitar reinicios costosos por ticker
         self._ensure_ray_initialized()
@@ -790,7 +795,7 @@ class TrainingOrchestrator:
             except Exception:
                 logger.debug("No se pudo forzar truncate_episodes en rollouts", exc_info=True)
 
-            view_length = int(len(view))
+            view_length = int(view_length)
             rllib_cfg = dict(training.rllib_config or {})
 
             auto_hparams = self._suggest_batch_hyperparams(view_length, training, rllib_cfg)
@@ -827,8 +832,7 @@ class TrainingOrchestrator:
                 valid_param_names = {
                     name
                     for name, param in signature.parameters.items()
-                    if param.kind
-                    in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                    if param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
                 }
 
                 adapted = dict(params)
@@ -857,91 +861,53 @@ class TrainingOrchestrator:
                             except (TypeError, ValueError):
                                 continue
                             if minibatch_int > train_batch_int:
-                                adapted[key] = self._clamp_minibatch(
-                                    minibatch_int, train_batch_int
-                                )
+                                adjusted = max(1, train_batch_int // 2)
+                                adjusted = self._round_to_multiple(adjusted, base=16)
+                                adapted[key] = max(1, min(train_batch_int, adjusted))
 
-                leftovers: Dict[str, Any] = {}
-
-                def _assign_attr(attr_name: str, original_key: str, value: Any) -> bool:
-                    target = getattr(config, attr_name, None)
-                    if callable(target):
-                        return False
-                    try:
-                        setattr(config, attr_name, value)
-                    except Exception:
-                        return False
+                if "sgd_minibatch_size" in adapted and "sgd_minibatch_size" not in valid_param_names:
+                    value = adapted.pop("sgd_minibatch_size")
+                    if "minibatch_size" in valid_param_names:
+                        adapted.setdefault("minibatch_size", value)
+                        remapped["sgd_minibatch_size"] = "minibatch_size"
                     else:
-                        if attr_name != original_key:
-                            remapped.setdefault(original_key, attr_name)
-                        return True
+                        removed["sgd_minibatch_size"] = value
 
-                for key, value in list(adapted.items()):
-                    if key == "simple_optimizer":
-                        if not _assign_attr(key, key, value):
-                            removed[key] = value
-                        adapted.pop(key, None)
-                        continue
+                if "num_sgd_iter" in adapted:
+                    if "num_epochs" in valid_param_names:
+                        value = adapted.pop("num_sgd_iter")
+                        adapted.setdefault("num_epochs", value)
+                        remapped["num_sgd_iter"] = "num_epochs"
+                    elif "num_sgd_iter" not in valid_param_names and not accepts_kwargs:
+                        removed["num_sgd_iter"] = adapted.pop("num_sgd_iter")
 
-                    if key == "sgd_minibatch_size" and hasattr(config, "minibatch_size"):
-                        if _assign_attr("minibatch_size", key, value):
-                            adapted.pop(key, None)
-                            continue
-
-                    if key == "minibatch_size" and not hasattr(config, key):
-                        if hasattr(config, "sgd_minibatch_size") and _assign_attr(
-                            "sgd_minibatch_size", key, value
-                        ):
-                            adapted.pop(key, None)
-                            continue
-
-                    if key == "num_sgd_iter" and hasattr(config, "num_epochs"):
-                        if _assign_attr("num_epochs", key, value):
-                            adapted.pop(key, None)
-                            continue
-
-                    attr = getattr(config, key, None)
-                    if attr is not None and not callable(attr):
-                        if _assign_attr(key, key, value):
-                            adapted.pop(key, None)
-                            continue
-
-                for key, value in adapted.items():
-                    if key == "simple_optimizer":
-                        removed[key] = value
-                        continue
-                    leftovers[key] = value
+                if "simple_optimizer" in adapted and "simple_optimizer" not in valid_param_names:
+                    removed["simple_optimizer"] = adapted.pop("simple_optimizer")
 
                 if not accepts_kwargs:
                     filtered = {
-                        key: value for key, value in leftovers.items() if key in valid_param_names
+                        key: value for key, value in adapted.items() if key in valid_param_names
                     }
-                    removed.update(
-                        {
-                            key: value
-                            for key, value in leftovers.items()
-                            if key not in filtered
-                        }
-                    )
+                    removed.update({
+                        key: value for key, value in adapted.items() if key not in filtered
+                    })
                 else:
-                    filtered = leftovers
+                    filtered = adapted
 
-                if filtered:
-                    while True:
-                        try:
-                            method(**filtered)  # NO reasignar
-                            break
-                        except TypeError as exc:
-                            message = str(exc)
-                            match = re.search(r"unexpected keyword argument '([^']+)'", message)
-                            if not match:
-                                raise
-                            bad_key = match.group(1)
-                            if bad_key not in filtered:
-                                raise
-                            removed[bad_key] = filtered.pop(bad_key)
-                            if not filtered:
-                                break
+                while True:
+                    try:
+                        method(**filtered)  # NO reasignar
+                        break
+                    except TypeError as exc:
+                        message = str(exc)
+                        match = re.search(r"unexpected keyword argument '([^']+)'", message)
+                        if not match:
+                            raise
+                        bad_key = match.group(1)
+                        if bad_key not in filtered:
+                            raise
+                        removed[bad_key] = filtered.pop(bad_key)
+                        continue
 
                 if removed:
                     logger.warning(
@@ -955,7 +921,6 @@ class TrainingOrchestrator:
                     )
 
             _apply_training_config(algo_config, rllib_cfg)
-            self._synchronise_minibatches(algo_config)
             algo_config.framework("torch")  # NO reasignar
 
             # 3) Construir algoritmo
@@ -967,6 +932,7 @@ class TrainingOrchestrator:
 
             # 4) Loop de entrenamiento
             best_reward = float("-inf")
+            saw_valid_reward = False
             checkpoint_dir = self.tracking.output_dir / ticker
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             checkpoint_dir = checkpoint_dir.resolve()
@@ -1022,7 +988,6 @@ class TrainingOrchestrator:
             iteration_durations: list[float] = []
             max_iters = total_iterations
             it = 0
-            saw_valid_reward = False
             while it < max_iters:
                 it += 1
                 iter_start = time.perf_counter()
@@ -1052,14 +1017,10 @@ class TrainingOrchestrator:
                         logger.info(
                             "Iter %d: reward_mean recuperado desde %s", it, reward_source
                         )
-                else:
-                    saw_valid_reward = True
-
-                if reward_source and reward_source != "forced_zero":
-                    saw_valid_reward = True
 
                 mean_r = metrics.get("episode_reward_mean")
                 if mean_r is not None:
+                    saw_valid_reward = True
                     if best_reward == float("-inf") or mean_r > best_reward:
                         best_reward = mean_r
 
@@ -1106,7 +1067,7 @@ class TrainingOrchestrator:
             if not saw_valid_reward:
                 try:
                     eval_config = EnvironmentConfig(
-                        data=view.copy(),
+                        data={key: df.copy() for key, df in dataset.items()},
                         **{k: v for k, v in env_overrides.items() if k != "data"},
                     )
                 except Exception as exc:  # pragma: no cover - defensive
@@ -1135,43 +1096,23 @@ class TrainingOrchestrator:
                             )
                         else:
                             try:
-                                obs, _info = eval_env.reset()
-                                terminated = False
-                                truncated = False
-                                total_reward = 0.0
-                                steps = 0
-                                while not (terminated or truncated):
+                                obs, info = eval_env.reset()
+                                done = False
+                                while not done:
                                     action = compute_action(obs)
-                                    obs, reward, terminated, truncated, _info = eval_env.step(action)
-                                    total_reward += float(reward)
-                                    steps += 1
-
-                                if best_reward == float("-inf") or total_reward > best_reward:
-                                    best_reward = total_reward
-                                self._log_metrics(
-                                    {
-                                        "evaluation_reward_mean": total_reward,
-                                        "evaluation_episode_len": steps,
-                                    },
-                                    step=it,
-                                )
+                                    obs, _, term, trunc, info = eval_env.step(action)
+                                    done = term or trunc
+                                best_reward = max(best_reward, eval_env.portfolio_value - eval_env.config.initial_cash)
                                 logger.info(
-                                    "Evaluación relámpago completada para %s tras entrenamiento acelerado: reward=%.4f (%d pasos)",
-                                    ticker,
-                                    total_reward,
-                                    steps,
+                                    "Evaluación relámpago finalizada. PnL final: %.4f",
+                                    best_reward,
                                 )
                             except Exception as exc:
                                 logger.warning(
-                                    "No se pudo calcular la recompensa mediante evaluación relámpago para %s: %s",
+                                    "Falló la evaluación relámpago para %s: %s",
                                     ticker,
                                     exc,
                                 )
-                        finally:
-                            try:
-                                eval_env.close()
-                            except Exception:  # pragma: no cover - cleanup best effort
-                                pass
 
             if best_reward == float("-inf"):
                 best_reward = 0.0
@@ -1196,26 +1137,7 @@ class TrainingOrchestrator:
         if ray.is_initialized():
             return
 
-        init_kwargs = dict(
-            ignore_reinit_error=True,
-            include_dashboard=False,
-            log_to_driver=False,
-        )
-
-        # ``metrics_export_port`` solo está disponible en versiones recientes de Ray.
-        # Detectamos dinámicamente el soporte para evitar fallos en instalaciones
-        # anteriores donde el argumento no existe (RuntimeError reportado en ALAR).
-        if "metrics_export_port" in inspect.signature(ray.init).parameters:
-            init_kwargs["metrics_export_port"] = 0
-
-        try:
-            ray.init(**init_kwargs)
-        except TypeError as exc:
-            if "metrics_export_port" in init_kwargs and "metrics_export_port" in str(exc):
-                init_kwargs.pop("metrics_export_port", None)
-                ray.init(**init_kwargs)
-            else:
-                raise
+        ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
         self._owns_ray = True
 
     def _acquire_algorithm(self, ticker: str, algo_config: PPOConfig) -> Any:
@@ -1246,11 +1168,7 @@ class TrainingOrchestrator:
             logger.info("Reconstruyendo algoritmo %s para %s", algo_config.__class__.__name__, ticker)
             self._discard_algorithm()
 
-        build_algo = getattr(algo_config, "build_algo", None)
-        if callable(build_algo):
-            self._algorithm = build_algo()
-        else:
-            self._algorithm = algo_config.build()
+        self._algorithm = algo_config.build()
         self._last_algo_signature = desired_signature
 
         try:
@@ -1294,3 +1212,23 @@ class TrainingOrchestrator:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
+
+    def _resolve_action_computer(self, algorithm: Any) -> Any:
+        """Devuelve una función compute_single_action compatible."""
+        fn = getattr(algorithm, "compute_single_action", None)
+        if callable(fn):
+            return fn
+        
+        policy = getattr(algorithm, "policy", None)
+        if policy is not None:
+            fn = getattr(policy, "compute_single_action", None)
+            if callable(fn):
+                return fn
+
+        policy = getattr(algorithm, "get_policy", None)
+        if callable(policy):
+            fn = getattr(policy(), "compute_single_action", None)
+            if callable(fn):
+                return fn
+
+        raise RuntimeError("No se pudo encontrar un método compute_single_action")

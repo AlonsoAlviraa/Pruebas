@@ -149,6 +149,21 @@ def get_tickers_from_args(args: argparse.Namespace) -> list[str]:
     return cleaned
 
 
+def _build_portfolio_id(tickers: list[str]) -> str:
+    """Genera un identificador compacto para el conjunto de tickers."""
+
+    if not tickers:
+        return "portfolio_empty"
+
+    ordered = sorted(tickers)
+    head = ordered[:3]
+    suffix = ""
+    if len(ordered) > 3:
+        suffix = f"_plus{len(ordered) - 3}"
+    slug = "_".join(head)
+    return f"portfolio_{slug}{suffix}"
+
+
 def run_training(args: argparse.Namespace) -> None:
     """Ejecuta el pipeline de entrenamiento."""
     try:
@@ -167,43 +182,72 @@ def run_training(args: argparse.Namespace) -> None:
         wandb_project=args.wandb_project,
     )
     with TrainingOrchestrator(tracking=tracking) as orchestrator:
-        for ticker in tickers:
-            logger.info("--- Iniciando entrenamiento para %s ---", ticker)
-            try:
-                # 1. Cargar y preparar datos
-                logger.info("Cargando feature view para %s...", ticker)
-                # El DataPipeline carga precios, fundamentales y resúmenes
-                view = pipeline.load_feature_view(ticker, indicators=True, include_summary=True)
+        logger.info("Cargando feature views para %d tickers...", len(tickers))
+        feature_views = pipeline.load_feature_views(
+            tickers, indicators=True, include_summary=True
+        )
 
-                if view.empty:
-                    logger.warning(f"Feature view para {ticker} está vacía (NaNs?). Saltando ticker.")
-                    continue
+        usable_views = {tk: df for tk, df in feature_views.items() if not df.empty}
+        missing = sorted(set(tickers) - set(usable_views))
+        for ticker in missing:
+            logger.warning(
+                "Feature view para %s está vacía o no se pudo cargar correctamente. Se omite del entrenamiento de cartera.",
+                ticker,
+            )
 
-                # 2. Configurar entrenamiento
-                training_config = TrainingConfig(
-                    total_iterations=args.iterations,
-                    num_workers=args.num_workers,
-                    time_budget_seconds=args.time_budget,
-                    min_iterations=args.min_iterations,
-                    max_view_rows=args.max_view_rows,
-                    max_episode_steps=(
-                        args.max_episode_steps if args.max_episode_steps > 0 else None
-                    ),
-                )
+        if not usable_views:
+            logger.error("Ningún ticker dispone de datos válidos para entrenar la cartera.")
+            return
 
-                # 3. Configurar entorno
-                env_kwargs = {"reward": args.reward, "use_continuous_action": args.use_continuous}
+        if len(usable_views) < 2:
+            logger.warning(
+                "Solo %d ticker(s) con datos válidos. El agente central funcionará, pero no aprovechará la diversificación esperada.",
+                len(usable_views),
+            )
 
-                # 4. Entrenar
-                orchestrator.train(ticker, view, env_kwargs=env_kwargs, training=training_config)
-                logger.info("--- Entrenamiento completado para %s ---", ticker)
+        portfolio_id = _build_portfolio_id(list(usable_views))
+        logger.info(
+            "Entrenando agente central %s con %d tickers: %s",
+            portfolio_id,
+            len(usable_views),
+            ", ".join(sorted(usable_views)[:10]),
+        )
 
-            except FileNotFoundError as e:
-                logger.error("Error al cargar datos para %s: %s. Saltando ticker.", ticker, e)
-            except Exception as e:
-                logger.error("Error inesperado durante el entrenamiento de %s: %s", ticker, e)
-                # Imprimir el traceback completo para depuración
-                logger.exception(e)
+        training_config = TrainingConfig(
+            total_iterations=args.iterations,
+            num_workers=args.num_workers,
+            time_budget_seconds=args.time_budget,
+            min_iterations=args.min_iterations,
+            max_view_rows=args.max_view_rows,
+            max_episode_steps=(args.max_episode_steps if args.max_episode_steps > 0 else None),
+        )
+
+        use_continuous = args.use_continuous or len(usable_views) > 1
+        if len(usable_views) > 1 and not args.use_continuous:
+            logger.info(
+                "Forzando espacio de acción continuo para permitir vectores de pesos en cartera."
+            )
+
+        env_kwargs = {"reward": args.reward, "use_continuous_action": use_continuous}
+
+        try:
+            orchestrator.train_portfolio(
+                portfolio_id, usable_views, env_kwargs=env_kwargs, training=training_config
+            )
+            logger.info("--- Entrenamiento completado para %s ---", portfolio_id)
+        except FileNotFoundError as e:
+            logger.error(
+                "Error al cargar datos para la cartera %s: %s. Deteniendo entrenamiento.",
+                portfolio_id,
+                e,
+            )
+        except Exception as e:
+            logger.error(
+                "Error inesperado durante el entrenamiento de la cartera %s: %s",
+                portfolio_id,
+                e,
+            )
+            logger.exception(e)
 
 
 def run_backtest(args: argparse.Namespace) -> None:
