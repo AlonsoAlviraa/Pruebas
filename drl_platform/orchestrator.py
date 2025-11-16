@@ -840,6 +840,48 @@ class TrainingOrchestrator:
 
             return 0.0, "forced_zero"
         
+        def _recover_episode_stat(
+            result: Dict[str, Any],
+            keys: tuple[str, ...],
+        ) -> tuple[Optional[float], Optional[str]]:
+            """Busca estadísticas de episodios en los scopes modernos de RLlib."""
+
+            def _probe(scope: Any, scope_name: str) -> tuple[Optional[float], Optional[str]]:
+                if not isinstance(scope, dict):
+                    return None, None
+                for key in keys:
+                    candidate = _safe_metric(scope.get(key))
+                    if candidate is not None:
+                        return candidate, f"{scope_name}.{key}" if scope_name else key
+                return None, None
+
+            # 1) Búsqueda directa en el resultado plano
+            value, source = _probe(result, "")
+            if value is not None:
+                return value, source
+
+            # 2) Scopes comunes de la API moderna
+            for scope_name in ("metrics", "custom_metrics", "sampler_results"):
+                scope_value, scope_source = _probe(result.get(scope_name), scope_name)
+                if scope_value is not None:
+                    return scope_value, scope_source
+
+            # 3) env_runners (plano + sub-scopes rollout/evaluation)
+            env_runners = result.get("env_runners")
+            if isinstance(env_runners, dict):
+                scope_value, scope_source = _probe(env_runners, "env_runners")
+                if scope_value is not None:
+                    return scope_value, scope_source
+                for scope_name in ("rollout", "evaluation"):
+                    nested = env_runners.get(scope_name)
+                    scope_value, scope_source = _probe(
+                        nested, f"env_runners.{scope_name}"
+                    )
+                    if scope_value is not None:
+                        return scope_value, scope_source
+
+            return None, None
+        
         def _summarize_reward_sources(result: Dict[str, Any]) -> str:
             def _keys(obj: Any) -> str:
                 if isinstance(obj, dict):
@@ -1063,7 +1105,7 @@ class TrainingOrchestrator:
                     )
 
             _apply_training_config(algo_config, rllib_cfg)
-            
+
             # --- INICIO DE LA CORRECCIÓN ---
             # Aplicar 'simple_optimizer' directamente al config, no a .training()
             # Esto evita que _apply_training_config lo omita y asegura que
@@ -1151,11 +1193,23 @@ class TrainingOrchestrator:
                 iteration_durations.append(iter_duration)
 
                 reward_mean, reward_source = _recover_reward_mean(result)
+                reward_max, _reward_max_source = _recover_episode_stat(
+                    result,
+                    ("episode_reward_max", "episode_return_max"),
+                )
+                reward_min, _reward_min_source = _recover_episode_stat(
+                    result,
+                    ("episode_reward_min", "episode_return_min"),
+                )
+                episode_len_mean, _len_source = _recover_episode_stat(
+                    result,
+                    ("episode_len_mean", "portfolio_episode_len"),
+                )
                 metrics = {
                     "episode_reward_mean": reward_mean,
-                    "episode_reward_max": _safe_metric(result.get("episode_reward_max")),
-                    "episode_reward_min": _safe_metric(result.get("episode_reward_min")),
-                    "episode_len_mean": _safe_metric(result.get("episode_len_mean")),
+                    "episode_reward_max": reward_max,
+                    "episode_reward_min": reward_min,
+                    "episode_len_mean": episode_len_mean,
                     "iteration": it,
                     "iteration_seconds": iter_duration,
                 }
