@@ -796,6 +796,13 @@ class TrainingOrchestrator:
                 if values:
                     return float(np.mean(values)), "policy_reward_mean"
 
+            metrics_scope = result.get("metrics")
+            if isinstance(metrics_scope, dict):
+                for key in ("episode_reward_mean", "reward_mean", "episode_return_mean"):
+                    recovered = _safe_metric(metrics_scope.get(key))
+                    if recovered is not None:
+                        return recovered, f"metrics.{key}"
+
             hist = result.get("hist_stats")
             if isinstance(hist, dict):
                 for key in ("episode_reward", "episode_reward_mean"):
@@ -815,6 +822,13 @@ class TrainingOrchestrator:
 
             env_runners = result.get("env_runners")
             if isinstance(env_runners, dict):
+                # API nueva: métricas directamente en la raíz de env_runners.
+                for key in ("episode_reward_mean", "episode_return_mean"):
+                    recovered = _safe_metric(env_runners.get(key))
+                    if recovered is not None:
+                        return recovered, f"env_runners.{key}"
+
+                # API clásica: métricas dentro de scopes rollout/evaluation.
                 for scope_name in ("rollout", "evaluation"):
                     scope = env_runners.get(scope_name)
                     if not isinstance(scope, dict):
@@ -825,6 +839,26 @@ class TrainingOrchestrator:
                             return recovered, f"env_runners.{scope_name}"
 
             return 0.0, "forced_zero"
+        
+        def _summarize_reward_sources(result: Dict[str, Any]) -> str:
+            def _keys(obj: Any) -> str:
+                if isinstance(obj, dict):
+                    keys = sorted(str(key) for key in obj.keys())
+                    return ", ".join(keys) if keys else "<sin claves>"
+                if obj is None:
+                    return "<ninguno>"
+                return f"<{type(obj).__name__}>"
+
+            summary = {
+                "resultado": _keys(result),
+                "custom_metrics": _keys(result.get("custom_metrics")),
+                "metrics": _keys(result.get("metrics")),
+                "hist_stats": _keys(result.get("hist_stats")),
+                "sampler_results": _keys(result.get("sampler_results")),
+                "policy_reward_mean": _keys(result.get("policy_reward_mean")),
+                "env_runners": _keys(result.get("env_runners")),
+            }
+            return "; ".join(f"{name}={value}" for name, value in summary.items())
 
         # Normalizar kwargs del entorno
         env_kwargs = dict(env_kwargs or {})
@@ -1029,7 +1063,7 @@ class TrainingOrchestrator:
                     )
 
             _apply_training_config(algo_config, rllib_cfg)
-
+            
             # --- INICIO DE LA CORRECCIÓN ---
             # Aplicar 'simple_optimizer' directamente al config, no a .training()
             # Esto evita que _apply_training_config lo omita y asegura que
@@ -1108,6 +1142,7 @@ class TrainingOrchestrator:
             iteration_durations: list[float] = []
             max_iters = total_iterations
             it = 0
+            logged_reward_snapshot = False
             while it < max_iters:
                 it += 1
                 iter_start = time.perf_counter()
@@ -1133,14 +1168,25 @@ class TrainingOrchestrator:
                             it,
                             "tiempo insuficiente" if time_budget is not None else "entrenamiento",
                         )
+                        if not logged_reward_snapshot:
+                            logger.warning(
+                                "Iter %d: fuentes de métricas disponibles -> %s",
+                                it,
+                                _summarize_reward_sources(result),
+                            )
+                            logged_reward_snapshot = True
                     else:
                         logger.info(
                             "Iter %d: reward_mean recuperado desde %s", it, reward_source
                         )
+                else:
+                    saw_valid_reward = True
+
+                if reward_source and reward_source != "forced_zero":
+                    saw_valid_reward = True
 
                 mean_r = metrics.get("episode_reward_mean")
                 if mean_r is not None:
-                    saw_valid_reward = True
                     if best_reward == float("-inf") or mean_r > best_reward:
                         best_reward = mean_r
 
@@ -1210,7 +1256,7 @@ class TrainingOrchestrator:
                             compute_action = self._resolve_action_computer(algorithm)
                         except Exception as exc:
                             logger.warning(
-                                "No se pudo preparar la política para evaluación relámpago de %s: %s",
+                                "No se pudo preparar la política para evaluación relámpgago de %s: %s",
                                 ticker,
                                 exc,
                             )
