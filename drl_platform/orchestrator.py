@@ -371,7 +371,8 @@ class TrainingOrchestrator:
                     limit = min(view_length, candidate)
 
         if limit is None:
-            return None
+            limit = 256
+            return max(32, min(view_length, limit))
 
         return max(32, limit)
 
@@ -746,7 +747,10 @@ class TrainingOrchestrator:
                 raise NotImplementedError(f"Algoritmo {training.algorithm} aún no soportado (solo PPO).")
 
             # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
-            algo_config = PPOConfig().api_stack("old")
+            algo_config = PPOConfig().api_stack(
+                enable_rl_module_and_learner=False,
+                enable_env_runner_and_connector_v2=False
+            )
             self._ensure_env_registered()
             algo_config.environment(env=self._env_id, env_config=env_config)  # NO reasignar
 

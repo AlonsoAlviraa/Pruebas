@@ -175,7 +175,7 @@ class TradingEnvironment(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.num_tickers, obs_features),
+            shape=(self.num_tickers * obs_features,),
             dtype=np.float32,
         )
 
@@ -225,7 +225,7 @@ class TradingEnvironment(gym.Env):
         )
         cash_column = np.full((self.num_tickers, 1), cash_ratio, dtype=np.float32)
         obs = np.concatenate([feature_matrix, weights, cash_column], axis=1)
-        return obs.astype(np.float32, copy=False)
+        return obs.astype(np.float32, copy=False).flatten()
 
     def _get_info(self) -> Dict[str, Any]:
         date_value: Any
