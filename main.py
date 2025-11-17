@@ -193,7 +193,7 @@ def run_training(args: argparse.Namespace) -> None:
             tickers, indicators=True, include_summary=True
         )
 
-        usable_views = {tk: df for tk, df in feature_views.items() if not df.empty}
+        usable_views = {tk: df for tk, df in feature_views.items() if len(df) >= 2}
         missing = sorted(set(tickers) - set(usable_views))
         for ticker in missing:
             logger.warning(
