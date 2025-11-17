@@ -173,16 +173,16 @@ class TradingEnvironment(gym.Env):
 
         obs_features = self.features.shape[-1] + 2  # pesos y ratio de efectivo
         
-        # --- CAMBIO DE "flatten()" ---
-        # El espacio de observación se aplana a 1D para ser compatible con las MLP por defecto de RLlib.
-        flat_obs_shape = (self.num_tickers * obs_features,)
+        # --- INICIO DE LA CORRECCIÓN ---
+        # Volver al espacio 2D (N_Tickers, N_Features)
+        # El nuevo 'PortfolioSpatialModel' está diseñado para manejar esto.
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=flat_obs_shape, # (N_tickers * N_features)
+            shape=(self.num_tickers, obs_features),
             dtype=np.float32,
         )
-        # --- FIN DE CAMBIO ---
+        # --- FIN DE LA CORRECCIÓN ---
 
         if self.config.use_continuous_action:
             self.action_space = gym.spaces.Box(
@@ -231,10 +231,10 @@ class TradingEnvironment(gym.Env):
         cash_column = np.full((self.num_tickers, 1), cash_ratio, dtype=np.float32)
         obs = np.concatenate([feature_matrix, weights, cash_column], axis=1)
         
-        # --- CAMBIO DE "flatten()" ---
-        # Aplanar la matriz 2D (N_tickers, N_features) a un vector 1D
-        return obs.astype(np.float32, copy=False).flatten()
-        # --- FIN DE CAMBIO ---
+        # --- INICIO DE LA CORRECCIÓN ---
+        # Eliminar el .flatten() para devolver la observación 2D
+        return obs.astype(np.float32, copy=False)
+        # --- FIN DE LA CORRECCIÓN ---
 
     def _get_info(self) -> Dict[str, Any]:
         date_value: Any
@@ -386,7 +386,6 @@ class TradingEnvironment(gym.Env):
             for ticker, frame in prepared.items()
         }
 
-        # --- INICIO DE LA CORRECCIÓN (Alineación Robusta) ---
         active = dict(index_map)
         dropped: list[str] = []
         common_index: Optional[pd.DatetimeIndex] = None
@@ -453,7 +452,6 @@ class TradingEnvironment(gym.Env):
 
         tickers = sorted(prepared)
         common_index = pd.DatetimeIndex(sorted(common_index))
-        # --- FIN DE LA CORRECCIÓN ---
 
         feature_columns = sorted(
             {

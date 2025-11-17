@@ -83,6 +83,14 @@ except Exception:
                 EnvironmentConfig = getattr(mod, "EnvironmentConfig")
                 TradingEnvironment = getattr(mod, "TradingEnvironment")
 
+try:  # pragma: no cover - import resolution
+    from .models import ensure_portfolio_model_registered  # type: ignore
+except Exception:
+    try:  # pragma: no cover
+        from drl_platform.models import ensure_portfolio_model_registered  # type: ignore
+    except Exception as exc:  # pragma: no cover
+        raise ImportError("No se pudo importar drl_platform.models") from exc
+
 logger = logging.getLogger(__name__)
 
 
@@ -128,10 +136,27 @@ class PortfolioRewardCallbacks(DefaultCallbacks):
         total_reward = float(getattr(episode, "total_reward", 0.0) or 0.0)
         if not np.isfinite(total_reward):
             total_reward = 0.0
-        episode.custom_metrics["portfolio_reward"] = total_reward
+        
+        # --- INICIO DE LA CORRECCIÓN (Nueva API vs Antigua API) ---
+        add_metric_fn = getattr(episode, "add_metric", None)
+        if callable(add_metric_fn):
+            # Nueva API Stack (ej. 'SingleAgentEpisode')
+            add_metric_fn("portfolio_reward", total_reward)
+        else:
+            # API Antigua (fallback, por si acaso)
+            custom_metrics = getattr(episode, "custom_metrics", None)
+            if isinstance(custom_metrics, dict):
+                custom_metrics["portfolio_reward"] = total_reward
+        # --- FIN DE LA CORRECCIÓN ---
+
         length = getattr(episode, "length", None)
         if isinstance(length, (int, float)) and length > 0:
-            episode.custom_metrics["portfolio_episode_len"] = float(length)
+            if callable(add_metric_fn):
+                add_metric_fn("portfolio_episode_len", float(length))
+            else:
+                custom_metrics = getattr(episode, "custom_metrics", None)
+                if isinstance(custom_metrics, dict):
+                    custom_metrics["portfolio_episode_len"] = float(length)
 
 
 class TrainingOrchestrator:
@@ -149,6 +174,7 @@ class TrainingOrchestrator:
         self._init_tracking()
         self._env_id = f"drl_platform_env_shared_{uuid4().hex}"
         self._env_registered = False
+        self._model_registered = False
         self._env_payload_key = f"drl_platform_payload_{uuid4().hex}"
 
     # ------------------------ Tracking helpers ---------------------------------
@@ -164,6 +190,11 @@ class TrainingOrchestrator:
             "ignore",
             category=FutureWarning,
             module=r"ray(\.|$)",
+        )
+        warnings.filterwarnings(
+            "ignore",
+            category=DeprecationWarning,
+            module=r"deprecation(\.|$)",
         )
 
     def _init_tracking(self) -> None:  # pragma: no cover (side effects)
@@ -260,6 +291,52 @@ class TrainingOrchestrator:
             if "already registered" not in str(exc).lower():
                 raise
         self._env_registered = True
+
+    def _ensure_model_registered(self) -> None:
+        """Registra el modelo personalizado solo una vez."""
+
+        if self._model_registered:
+            return
+        ensure_portfolio_model_registered()
+        self._model_registered = True
+
+    def _suggest_per_ticker_width(self, dataset: Dict[str, pd.DataFrame]) -> int:
+        tickers = max(len(dataset or {}), 1)
+        base = tickers * 16
+        return int(np.clip(base, 32, 256))
+
+    def _build_model_config(
+        self, dataset: Dict[str, pd.DataFrame], overrides: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        per_ticker_dim = self._suggest_per_ticker_width(dataset)
+        base_config: Dict[str, Any] = {
+            "custom_model": "portfolio_spatial_model",
+            "custom_model_config": {
+                "per_ticker_dim": per_ticker_dim,
+                "global_dim": int(max(128, per_ticker_dim * 2)),
+                "dropout": 0.0,
+            },
+        }
+
+        if overrides and isinstance(overrides, dict):
+            user_cfg = dict(overrides)
+            custom_cfg = user_cfg.pop("custom_model_config", None)
+            base_config.update(user_cfg)
+            if isinstance(custom_cfg, dict):
+                merged = dict(base_config.get("custom_model_config", {}))
+                merged.update(custom_cfg)
+                base_config["custom_model_config"] = merged
+
+        return base_config
+
+    def _apply_model_config(
+        self,
+        algo_config: PPOConfig,
+        dataset: Dict[str, pd.DataFrame],
+        overrides: Optional[Dict[str, Any]],
+    ) -> None:
+        model_cfg = self._build_model_config(dataset, overrides)
+        algo_config.model(model_cfg)
 
     @staticmethod
     def _apply_api_stack(config: PPOConfig) -> PPOConfig:
@@ -931,6 +1008,7 @@ class TrainingOrchestrator:
             algo_config = PPOConfig()
             algo_config = self._apply_api_stack(algo_config)
             self._ensure_env_registered()
+            self._ensure_model_registered() # Registrar el modelo personalizado
             algo_config.callbacks(PortfolioRewardCallbacks)
             algo_config.environment(env=self._env_id, env_config=env_config)  # NO reasignar
 
@@ -981,6 +1059,13 @@ class TrainingOrchestrator:
 
             view_length = int(view_length)
             rllib_cfg = dict(training.rllib_config or {})
+
+            # --- INICIO DE LA CORRECCIÓN DE MODELO ---
+            # Extraer 'model' de rllib_config ANTES de que se limpien los HPs
+            model_overrides = rllib_cfg.pop("model", {}) if "model" in rllib_cfg else {}
+            # Aplicar la configuración del modelo personalizado (PortfolioSpatialModel)
+            self._apply_model_config(algo_config, dataset, model_overrides)
+            # --- FIN DE LA CORRECCIÓN DE MODELO ---
 
             auto_hparams = self._suggest_batch_hyperparams(view_length, training, rllib_cfg)
             if auto_hparams:
@@ -1105,8 +1190,8 @@ class TrainingOrchestrator:
                     )
 
             _apply_training_config(algo_config, rllib_cfg)
-
-            # --- INICIO DE LA CORRECCIÓN ---
+            
+            # --- INICIO DE LA CORRECCIÓN 'simple_optimizer' ---
             # Aplicar 'simple_optimizer' directamente al config, no a .training()
             # Esto evita que _apply_training_config lo omita y asegura que
             # usemos el bucle de entrenamiento estándar que reporta métricas.
