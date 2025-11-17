@@ -172,12 +172,17 @@ class TradingEnvironment(gym.Env):
             raise ValueError("El entorno requiere datos para inicializar los espacios")
 
         obs_features = self.features.shape[-1] + 2  # pesos y ratio de efectivo
+        
+        # --- CAMBIO DE "flatten()" ---
+        # El espacio de observación se aplana a 1D para ser compatible con las MLP por defecto de RLlib.
+        flat_obs_shape = (self.num_tickers * obs_features,)
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.num_tickers * obs_features,),
+            shape=flat_obs_shape, # (N_tickers * N_features)
             dtype=np.float32,
         )
+        # --- FIN DE CAMBIO ---
 
         if self.config.use_continuous_action:
             self.action_space = gym.spaces.Box(
@@ -225,7 +230,11 @@ class TradingEnvironment(gym.Env):
         )
         cash_column = np.full((self.num_tickers, 1), cash_ratio, dtype=np.float32)
         obs = np.concatenate([feature_matrix, weights, cash_column], axis=1)
+        
+        # --- CAMBIO DE "flatten()" ---
+        # Aplanar la matriz 2D (N_tickers, N_features) a un vector 1D
         return obs.astype(np.float32, copy=False).flatten()
+        # --- FIN DE CAMBIO ---
 
     def _get_info(self) -> Dict[str, Any]:
         date_value: Any
@@ -324,6 +333,7 @@ class TradingEnvironment(gym.Env):
     def _prepare_from_payload(self, *, force: bool) -> None:
         payload = self._get_shared_payload(self._shared_payload_key)
         payload_version = payload.get("version") if payload else None
+
         if not force and payload_version == self._payload_version:
             return
 
@@ -371,16 +381,79 @@ class TradingEnvironment(gym.Env):
         if not prepared:
             raise ValueError("El dataset de cartera no contiene filas utilizables")
 
+        index_map: Dict[str, pd.DatetimeIndex] = {
+            ticker: pd.DatetimeIndex(frame["date"])
+            for ticker, frame in prepared.items()
+        }
+
+        # --- INICIO DE LA CORRECCIÓN (Alineación Robusta) ---
+        active = dict(index_map)
+        dropped: list[str] = []
         common_index: Optional[pd.DatetimeIndex] = None
-        for frame in prepared.values():
-            idx = pd.DatetimeIndex(frame["date"])
-            common_index = idx if common_index is None else common_index.intersection(idx)
+
+        while active:
+            for ticker, idx in list(active.items()):
+                if idx.empty:
+                    dropped.append(ticker)
+                    active.pop(ticker)
+            if not active:
+                break
+
+            intersection: Optional[pd.DatetimeIndex] = None
+            for idx in active.values():
+                intersection = idx if intersection is None else intersection.intersection(idx)
+
+            if intersection is not None and not intersection.empty:
+                common_index = intersection
+                break
+
+            if len(active) == 1:
+                # No existe intersección pero al menos queda un ticker; usamos su rango completo.
+                only_ticker, idx = next(iter(active.items()))
+                common_index = idx
+                break
+
+            stats = []
+            for ticker, idx in active.items():
+                stats.append((ticker, idx[0], idx[-1], len(idx)))
+
+            max_start = max(item[1] for item in stats)
+            min_end = min(item[2] for item in stats)
+
+            drop_ticker: Optional[str] = None
+            if min_end < max_start:
+                # Eliminamos el ticker cuyo rango termina antes del inicio común.
+                earliest = [item for item in stats if item[2] == min_end]
+                if earliest:
+                    drop_ticker = earliest[0][0]
+            if drop_ticker is None:
+                latest = [item for item in stats if item[1] == max_start]
+                if latest:
+                    drop_ticker = latest[0][0]
+            if drop_ticker is None and stats:
+                drop_ticker = stats[0][0]
+
+            if drop_ticker is None:
+                break
+
+            dropped.append(drop_ticker)
+            active.pop(drop_ticker, None)
 
         if common_index is None or common_index.empty:
             raise ValueError("Los tickers no comparten fechas en común para entrenar la cartera")
 
-        common_index = pd.DatetimeIndex(sorted(common_index))
+        if dropped:
+            logger.warning(
+                "Descartando %s tickers sin solapamiento de fechas: %s",
+                len(dropped),
+                ", ".join(sorted(dropped)),
+            )
+            for ticker in dropped:
+                prepared.pop(ticker, None)
+
         tickers = sorted(prepared)
+        common_index = pd.DatetimeIndex(sorted(common_index))
+        # --- FIN DE LA CORRECCIÓN ---
 
         feature_columns = sorted(
             {
