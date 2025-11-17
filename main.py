@@ -20,6 +20,7 @@ from ray.tune.registry import register_env
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
 from drl_platform.env.trading_env import EnvironmentConfig, TradingEnvironment
 from drl_platform.orchestrator import TrainingConfig, TrainingOrchestrator, TrackingConfig
+from drl_platform.models import ensure_portfolio_model_registered
 from drl_platform.validation import PurgedKFoldConfig, PurgedKFoldValidator
 
 # Configurar logging básico
@@ -661,6 +662,7 @@ def run_backtest(args: argparse.Namespace) -> None:
     if not ray.is_initialized():
         ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
 
+    ensure_portfolio_model_registered()
     algorithm: Algorithm | None = None
     try:
         algorithm = Algorithm.from_checkpoint(str(checkpoint_path))
