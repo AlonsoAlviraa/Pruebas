@@ -301,9 +301,26 @@ class TrainingOrchestrator:
         self._model_registered = True
 
     def _suggest_per_ticker_width(self, dataset: Dict[str, pd.DataFrame]) -> int:
-        tickers = self._count_valid_tickers(dataset)
-        base = tickers * 16
-        return int(np.clip(base, 32, 256))
+        """Estimate a per-ticker embedding width that won't explode memory."""
+
+        tickers = max(self._count_valid_tickers(dataset), 1)
+
+        # Buscamos mantener el vector plano resultante por debajo de ~65k valores para
+        # evitar 'layer_norm' gigantes que en Windows terminan provocando access
+        # violations dentro del backend de Torch.
+        max_flat_units = 65_536
+        dynamic = max_flat_units // tickers
+
+        # Limites suaves para arquitecturas compactas pero expresivas.
+        dynamic = int(np.clip(dynamic, 16, 192))
+
+        # En carteras pequeñas podemos permitir algo más de capacidad.
+        if tickers <= 32:
+            dynamic = max(dynamic, 128)
+        elif tickers <= 128:
+            dynamic = max(dynamic, 96)
+
+        return dynamic
 
     @staticmethod
     def _count_valid_tickers(dataset: Dict[str, pd.DataFrame]) -> int:
@@ -364,18 +381,23 @@ class TrainingOrchestrator:
     ) -> None:
         model_cfg = self._build_model_config(dataset, overrides)
 
+        # --- INICIO DE LA CORRECCIÓN (API de Modelo) ---
+        # Maneja PPOConfig.model como un método (API > 2.6) o un dict (API < 2.6)
         builder = getattr(algo_config, "model", None)
         if callable(builder):
             try:
+                # Intento 1: API de builder (ej. .model(config_dict))
                 builder(model_cfg)
                 return
             except TypeError:
                 try:
+                    # Intento 2: API de builder con kwargs (ej. .model(**config_dict))
                     builder(**model_cfg)
                     return
                 except TypeError:
-                    pass
+                    pass # Falla, vuelve al merge de diccionarios
 
+        # Fallback: Tratar PPOConfig.model como un diccionario (API < 2.6)
         existing_model = getattr(algo_config, "model", None)
         if isinstance(existing_model, dict):
             merged = dict(existing_model)
@@ -383,6 +405,8 @@ class TrainingOrchestrator:
             algo_config.model = merged
         else:
             algo_config.model = model_cfg
+        # --- FIN DE LA CORRECCIÓN ---
+
 
     @staticmethod
     def _apply_api_stack(config: PPOConfig) -> PPOConfig:

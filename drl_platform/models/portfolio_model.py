@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+import torch
 import torch.nn as nn
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
@@ -51,7 +52,12 @@ class PortfolioSpatialModel(TorchModelV2, nn.Module):
             nn.GELU(),
         )
 
-        aggregated = cfg.per_ticker_dim * self.ticker_dim
+        # --- INICIO DE LA CORRECCIÓN (Global Pooling) ---
+        # La dimensión agregada ya no es (N_Tickers * Emb_Dim), 
+        # sino solo (Emb_Dim) porque usaremos Global Average Pooling.
+        aggregated = cfg.per_ticker_dim
+        # --- FIN DE LA CORRECCIÓN ---
+        
         head_layers = [nn.LayerNorm(aggregated), nn.Linear(aggregated, cfg.global_dim), nn.GELU()]
         if cfg.dropout > 0:
             head_layers.append(nn.Dropout(cfg.dropout))
@@ -132,7 +138,14 @@ class PortfolioSpatialModel(TorchModelV2, nn.Module):
         obs = input_dict["obs"].float()
         obs = self._restore_observation_shape(obs)
         per_ticker = self.embed(obs)
-        flat = per_ticker.reshape(per_ticker.shape[0], -1)
+        
+        # --- INICIO DE LA CORRECCIÓN (Global Pooling) ---
+        # En lugar de aplanar (N, Tickers, Feats) -> (N, Tickers * Feats),
+        # agregamos los tickers calculando la media.
+        # (N, Tickers, Feats) -> (N, Feats)
+        flat = torch.mean(per_ticker, dim=1)
+        # --- FIN DE LA CORRECCIÓN ---
+        
         self._last_features = flat
         logits = self.policy_head(flat)
         return logits, state
@@ -146,10 +159,17 @@ class PortfolioSpatialModel(TorchModelV2, nn.Module):
     def _restore_observation_shape(self, obs: TensorType) -> TensorType:
         if obs.dim() == 3 and obs.shape[1] == self.ticker_dim and obs.shape[2] == self.feature_dim:
             return obs
+        # Esta lógica maneja si RLlib aplana la observación 2D a 1D
         if obs.dim() == 2 and obs.shape[1] == self.ticker_dim * self.feature_dim:
             return obs.view(obs.shape[0], self.ticker_dim, self.feature_dim)
         if obs.dim() > 3:
-            return obs.view(obs.shape[0], self.ticker_dim, self.feature_dim)
+             # Caso de borde: si hay una dimensión de tiempo, tomar el último paso
+            if obs.shape[1] > 100: # Asumir que [0] es el batch
+                 return obs[:,-1,:,:].view(obs.shape[0], self.ticker_dim, self.feature_dim)
+            else:
+                 return obs.view(obs.shape[0], self.ticker_dim, self.feature_dim)
+        
+        # Fallback
         return obs.view(obs.shape[0], self.ticker_dim, self.feature_dim)
 
 
