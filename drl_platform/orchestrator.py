@@ -807,7 +807,7 @@ class TrainingOrchestrator:
                     items.append((key, _normalise(value[key])))
                 return tuple(items)
             if isinstance(value, (list, tuple)):
-                return tuple(_normalawefise(item) for item in value)
+                return tuple(_normalise(item) for item in value)
             if isinstance(value, set):
                 return tuple(sorted(_normalise(item) for item in value))
             if isinstance(value, Path):
@@ -1113,12 +1113,12 @@ class TrainingOrchestrator:
             view_length = int(view_length)
             rllib_cfg = dict(training.rllib_config or {})
 
-            # --- INICIO DE LA CORRECCIÓN DE MODELO (MOVER AQUÍ) ---
+            # --- INICIO DE LA CORRECCIÓN (Mover este bloque ANTES de auto_hparams) ---
             # Extraer 'model' de rllib_config ANTES de que se limpien los HPs
             model_overrides = rllib_cfg.pop("model", {}) if "model" in rllib_cfg else {}
             # Aplicar la configuración del modelo personalizado (PortfolioSpatialModel)
             self._apply_model_config(algo_config, dataset, model_overrides)
-            # --- FIN DE LA CORRECCIÓN DE MODELO ---
+            # --- FIN DE LA CORRECCIÓN ---
 
             auto_hparams = self._suggest_batch_hyperparams(view_length, training, rllib_cfg)
             if auto_hparams:
@@ -1246,11 +1246,27 @@ class TrainingOrchestrator:
             
             # --- INICIO DE LA CORRECCIÓN 'simple_optimizer' ---
             # Aplicar 'simple_optimizer' directamente al config, no a .training()
-            if "simple_optimizer" in rllib_cfg:
-                algo_config.simple_optimizer = bool(rllib_cfg["simple_optimizer"])
+            simple_flag = rllib_cfg.get("simple_optimizer")
+            if simple_flag is None:
+                num_gpus_raw = rllib_cfg.get("num_gpus", 0)
+                try:
+                    num_gpus_val = float(num_gpus_raw)
+                except (TypeError, ValueError):
+                    num_gpus_val = 0.0
+                use_simple = num_gpus_val <= 1
+                if use_simple:
+                    logger.info(
+                        "Activando simple_optimizer por defecto (num_gpus=%s)",
+                        num_gpus_raw,
+                    )
+                else:
+                    logger.info(
+                        "Optimizador multi-GPU habilitado explícitamente (num_gpus=%s)",
+                        num_gpus_raw,
+                    )
             else:
-                 # Por si acaso, forzamos False si no está en el diccionario
-                algo_config.simple_optimizer = False
+                use_simple = bool(simple_flag)
+            algo_config.simple_optimizer = use_simple
             # --- FIN DE LA CORRECCIÓN ---
 
             algo_config.framework("torch")  # NO reasignar
