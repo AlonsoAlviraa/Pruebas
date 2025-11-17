@@ -364,23 +364,18 @@ class TrainingOrchestrator:
     ) -> None:
         model_cfg = self._build_model_config(dataset, overrides)
 
-        # --- INICIO DE LA CORRECCIÓN (API de Modelo) ---
-        # Maneja PPOConfig.model como un método (API > 2.6) o un dict (API < 2.6)
         builder = getattr(algo_config, "model", None)
         if callable(builder):
             try:
-                # Intento 1: API de builder (ej. .model(config_dict))
                 builder(model_cfg)
                 return
             except TypeError:
                 try:
-                    # Intento 2: API de builder con kwargs (ej. .model(**config_dict))
                     builder(**model_cfg)
                     return
                 except TypeError:
-                    pass # Falla, vuelve al merge de diccionarios
+                    pass
 
-        # Fallback: Tratar PPOConfig.model como un diccionario (API < 2.6)
         existing_model = getattr(algo_config, "model", None)
         if isinstance(existing_model, dict):
             merged = dict(existing_model)
@@ -388,8 +383,6 @@ class TrainingOrchestrator:
             algo_config.model = merged
         else:
             algo_config.model = model_cfg
-        # --- FIN DE LA CORRECCIÓN ---
-
 
     @staticmethod
     def _apply_api_stack(config: PPOConfig) -> PPOConfig:
@@ -1113,12 +1106,12 @@ class TrainingOrchestrator:
             view_length = int(view_length)
             rllib_cfg = dict(training.rllib_config or {})
 
-            # --- INICIO DE LA CORRECCIÓN (Mover este bloque ANTES de auto_hparams) ---
+            # --- INICIO DE LA CORRECCIÓN DE MODELO (MOVER AQUÍ) ---
             # Extraer 'model' de rllib_config ANTES de que se limpien los HPs
             model_overrides = rllib_cfg.pop("model", {}) if "model" in rllib_cfg else {}
             # Aplicar la configuración del modelo personalizado (PortfolioSpatialModel)
             self._apply_model_config(algo_config, dataset, model_overrides)
-            # --- FIN DE LA CORRECCIÓN ---
+            # --- FIN DE LA CORRECCIÓN DE MODELO ---
 
             auto_hparams = self._suggest_batch_hyperparams(view_length, training, rllib_cfg)
             if auto_hparams:
@@ -1266,7 +1259,26 @@ class TrainingOrchestrator:
                     )
             else:
                 use_simple = bool(simple_flag)
-            algo_config.simple_optimizer = use_simple
+
+            def _enforce_simple_optimizer(config: PPOConfig, enabled: bool) -> None:
+                """Forzar el flag incluso si la API legacy cambia."""
+
+                try:
+                    config.training(simple_optimizer=enabled)
+                    return
+                except TypeError:
+                    logger.debug(
+                        "La API training() no acepta simple_optimizer; usando asignación directa"
+                    )
+                except Exception:
+                    logger.warning(
+                        "Fallo configurando simple_optimizer via training(); se fuerza por atributo",
+                        exc_info=True,
+                    )
+
+                setattr(config, "simple_optimizer", enabled)
+
+            _enforce_simple_optimizer(algo_config, use_simple)
             # --- FIN DE LA CORRECCIÓN ---
 
             algo_config.framework("torch")  # NO reasignar
