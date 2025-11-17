@@ -336,7 +336,33 @@ class TrainingOrchestrator:
         overrides: Optional[Dict[str, Any]],
     ) -> None:
         model_cfg = self._build_model_config(dataset, overrides)
-        algo_config.model(model_cfg)
+
+        # --- INICIO DE LA CORRECCIÓN (API de Modelo) ---
+        # Maneja PPOConfig.model como un método (API > 2.6) o un dict (API < 2.6)
+        builder = getattr(algo_config, "model", None)
+        if callable(builder):
+            try:
+                # Intento 1: API de builder (ej. .model(config_dict))
+                builder(model_cfg)
+                return
+            except TypeError:
+                try:
+                    # Intento 2: API de builder con kwargs (ej. .model(**config_dict))
+                    builder(**model_cfg)
+                    return
+                except TypeError:
+                    pass # Falla, vuelve al merge de diccionarios
+
+        # Fallback: Tratar PPOConfig.model como un diccionario (API < 2.6)
+        existing_model = getattr(algo_config, "model", None)
+        if isinstance(existing_model, dict):
+            merged = dict(existing_model)
+            merged.update(model_cfg)
+            algo_config.model = merged
+        else:
+            algo_config.model = model_cfg
+        # --- FIN DE LA CORRECCIÓN ---
+
 
     @staticmethod
     def _apply_api_stack(config: PPOConfig) -> PPOConfig:
@@ -1006,7 +1032,7 @@ class TrainingOrchestrator:
 
             # 2) Builder de configuración (⚠️ métodos mutan in-place; NO reasignar)
             algo_config = PPOConfig()
-            algo_config = self._apply_api_stack(algo_config)
+            algo_config = self._apply_api_stack(algo_config) # Forzar API Antigua
             self._ensure_env_registered()
             self._ensure_model_registered() # Registrar el modelo personalizado
             algo_config.callbacks(PortfolioRewardCallbacks)
@@ -1193,12 +1219,10 @@ class TrainingOrchestrator:
             
             # --- INICIO DE LA CORRECCIÓN 'simple_optimizer' ---
             # Aplicar 'simple_optimizer' directamente al config, no a .training()
-            # Esto evita que _apply_training_config lo omita y asegura que
-            # usemos el bucle de entrenamiento estándar que reporta métricas.
             if "simple_optimizer" in rllib_cfg:
                 algo_config.simple_optimizer = bool(rllib_cfg["simple_optimizer"])
             else:
-                 # Por si acaso, forzamos False si no está en el diccionario
+                 # Forzamos False si no está en el diccionario
                 algo_config.simple_optimizer = False
             # --- FIN DE LA CORRECCIÓN ---
 
