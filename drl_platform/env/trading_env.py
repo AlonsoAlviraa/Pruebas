@@ -173,9 +173,8 @@ class TradingEnvironment(gym.Env):
 
         obs_features = self.features.shape[-1] + 2  # pesos y ratio de efectivo
         
-        # --- INICIO DE LA CORRECCIÓN ---
-        # Volver al espacio 2D (N_Tickers, N_Features)
-        # El nuevo 'PortfolioSpatialModel' está diseñado para manejar esto.
+        # --- REVERTIR A 2D ---
+        # El nuevo 'PortfolioSpatialModel' espera (N_Tickers, N_Features)
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
@@ -231,7 +230,7 @@ class TradingEnvironment(gym.Env):
         cash_column = np.full((self.num_tickers, 1), cash_ratio, dtype=np.float32)
         obs = np.concatenate([feature_matrix, weights, cash_column], axis=1)
         
-        # --- INICIO DE LA CORRECCIÓN ---
+        # --- REVERTIR A 2D ---
         # Eliminar el .flatten() para devolver la observación 2D
         return obs.astype(np.float32, copy=False)
         # --- FIN DE LA CORRECCIÓN ---
@@ -372,7 +371,11 @@ class TradingEnvironment(gym.Env):
             if "close" not in df.columns:
                 raise KeyError(f"La columna 'close' es requerida para el ticker {ticker}")
 
-            working = df.copy()
+            # --- INICIO DE LA CORRECCIÓN (MemoryError) ---
+            # Evitar deep-copying (copia profunda) en dataframes anchos
+            working = df.copy(deep=False)
+            # --- FIN DE LA CORRECCIÓN ---
+            
             working["date"] = pd.to_datetime(working["date"])
             working = working.dropna(subset=["close"]).sort_values("date")
             working = working.drop_duplicates(subset=["date"], keep="last")

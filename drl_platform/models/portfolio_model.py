@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch.nn as nn
 from ray.rllib.models import ModelCatalog
@@ -17,6 +17,8 @@ class PortfolioModelConfig:
     per_ticker_dim: int = 64
     global_dim: int = 256
     dropout: float = 0.0
+    num_tickers: Optional[int] = None
+    feature_dim: Optional[int] = None
 
 
 class PortfolioSpatialModel(TorchModelV2, nn.Module):
@@ -29,18 +31,17 @@ class PortfolioSpatialModel(TorchModelV2, nn.Module):
         num_outputs,
         model_config: ModelConfigDict,
         name: str,
+        **model_kwargs,
     ) -> None:
         TorchModelV2.__init__(self, obs_space, action_space, num_outputs, model_config, name)
         nn.Module.__init__(self)
 
-        if len(obs_space.shape) != 2:
-            raise ValueError(
-                "PortfolioSpatialModel espera observaciones 2D (tickers, features)."
-            )
+        raw_cfg = dict(model_config.get("custom_model_config", {}))
+        if model_kwargs:
+            raw_cfg.update(model_kwargs)
+        cfg = self._coerce_config(raw_cfg)
 
-        self.ticker_dim = int(obs_space.shape[0])
-        self.feature_dim = int(obs_space.shape[1])
-        cfg = self._coerce_config(model_config.get("custom_model_config", {}))
+        self.ticker_dim, self.feature_dim = self._resolve_dimensions(obs_space, cfg)
 
         self.embed = nn.Sequential(
             nn.LayerNorm(self.feature_dim),
@@ -77,7 +78,55 @@ class PortfolioSpatialModel(TorchModelV2, nn.Module):
             config.global_dim = max(32, int(raw["global_dim"]))
         if "dropout" in raw:
             config.dropout = float(raw["dropout"])
+        if "num_tickers" in raw:
+            try:
+                config.num_tickers = max(1, int(raw["num_tickers"]))
+            except (TypeError, ValueError):
+                config.num_tickers = None
+        if "feature_dim" in raw:
+            try:
+                config.feature_dim = max(1, int(raw["feature_dim"]))
+            except (TypeError, ValueError):
+                config.feature_dim = None
         return config
+
+    @staticmethod
+    def _resolve_dimensions(obs_space, cfg: PortfolioModelConfig) -> tuple[int, int]:
+        shape = tuple(int(dim) for dim in getattr(obs_space, "shape", ()) if dim is not None)
+        if len(shape) == 2:
+            return shape[0], shape[1]
+
+        total = 1
+        if not shape:
+            raise ValueError("PortfolioSpatialModel requiere un espacio de observación válido")
+        for dim in shape:
+            total *= max(1, dim)
+
+        tickers = cfg.num_tickers or 0
+        features = cfg.feature_dim or 0
+        if tickers > 0 and features > 0:
+            product = tickers * features
+            if product != total:
+                if total % tickers == 0:
+                    features = total // tickers
+                elif total % features == 0:
+                    tickers = total // features
+                else:
+                    tickers, features = 1, total
+        elif tickers > 0:
+            if total % tickers == 0:
+                features = total // tickers
+            else:
+                tickers, features = 1, total
+        elif features > 0:
+            if total % features == 0:
+                tickers = total // features
+            else:
+                tickers, features = 1, total
+        else:
+            tickers, features = 1, total
+
+        return int(tickers), int(features)
 
     def forward(self, input_dict: Dict[str, TensorType], state, seq_lens):
         obs = input_dict["obs"].float()

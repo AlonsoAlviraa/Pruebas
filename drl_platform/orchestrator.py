@@ -301,20 +301,47 @@ class TrainingOrchestrator:
         self._model_registered = True
 
     def _suggest_per_ticker_width(self, dataset: Dict[str, pd.DataFrame]) -> int:
-        tickers = max(len(dataset or {}), 1)
+        tickers = self._count_valid_tickers(dataset)
         base = tickers * 16
         return int(np.clip(base, 32, 256))
+
+    @staticmethod
+    def _count_valid_tickers(dataset: Dict[str, pd.DataFrame]) -> int:
+        count = 0
+        for frame in dataset.values():
+            if isinstance(frame, pd.DataFrame) and not frame.empty:
+                count += 1
+        return max(count, 1)
+
+    @staticmethod
+    def _estimate_observation_width(dataset: Dict[str, pd.DataFrame]) -> int:
+        feature_columns: set[str] = set()
+        for frame in dataset.values():
+            if not isinstance(frame, pd.DataFrame):
+                continue
+            feature_columns.update(
+                col for col in frame.columns if col not in {"date", "close"}
+            )
+
+        base_features = 1 + len(feature_columns - {"return_1d"})
+        # Añadimos los pesos actuales y ratio de efectivo añadidos por el entorno.
+        obs_features = base_features + 2
+        return max(obs_features, 3)
 
     def _build_model_config(
         self, dataset: Dict[str, pd.DataFrame], overrides: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
         per_ticker_dim = self._suggest_per_ticker_width(dataset)
+        num_tickers = self._count_valid_tickers(dataset)
+        feature_dim = self._estimate_observation_width(dataset)
         base_config: Dict[str, Any] = {
             "custom_model": "portfolio_spatial_model",
             "custom_model_config": {
                 "per_ticker_dim": per_ticker_dim,
                 "global_dim": int(max(128, per_ticker_dim * 2)),
                 "dropout": 0.0,
+                "num_tickers": num_tickers,
+                "feature_dim": feature_dim,
             },
         }
 
@@ -780,7 +807,7 @@ class TrainingOrchestrator:
                     items.append((key, _normalise(value[key])))
                 return tuple(items)
             if isinstance(value, (list, tuple)):
-                return tuple(_normalise(item) for item in value)
+                return tuple(_normalawefise(item) for item in value)
             if isinstance(value, set):
                 return tuple(sorted(_normalise(item) for item in value))
             if isinstance(value, Path):
@@ -1086,7 +1113,7 @@ class TrainingOrchestrator:
             view_length = int(view_length)
             rllib_cfg = dict(training.rllib_config or {})
 
-            # --- INICIO DE LA CORRECCIÓN DE MODELO ---
+            # --- INICIO DE LA CORRECCIÓN DE MODELO (MOVER AQUÍ) ---
             # Extraer 'model' de rllib_config ANTES de que se limpien los HPs
             model_overrides = rllib_cfg.pop("model", {}) if "model" in rllib_cfg else {}
             # Aplicar la configuración del modelo personalizado (PortfolioSpatialModel)
@@ -1222,7 +1249,7 @@ class TrainingOrchestrator:
             if "simple_optimizer" in rllib_cfg:
                 algo_config.simple_optimizer = bool(rllib_cfg["simple_optimizer"])
             else:
-                 # Forzamos False si no está en el diccionario
+                 # Por si acaso, forzamos False si no está en el diccionario
                 algo_config.simple_optimizer = False
             # --- FIN DE LA CORRECCIÓN ---
 
