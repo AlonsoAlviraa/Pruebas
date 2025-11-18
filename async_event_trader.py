@@ -90,12 +90,77 @@ class ProbabilisticSignalModel:
     ) -> None:
         self._estimator = estimator
         self._explicit_classes = [label.upper() for label in class_order] if class_order else None
-        self._score_threshold = score_threshold
+        inferred = getattr(estimator, "classes_", None)
+        self._inferred_classes = [str(label).upper() for label in inferred] if inferred is not None else None
+        self._score_threshold = float(score_threshold)
 
-        classes_attr = getattr(estimator, "classes_", None)
-        if classes_attr is not None:
-            inferred = [str(label).upper() for label in classes_attr]
+    def _resolve_labels(self, count: int) -> List[str]:
+        if self._explicit_classes:
+            labels = list(self._explicit_classes)
+        elif self._inferred_classes:
+            labels = list(self._inferred_classes)
+        else:
+            labels = []
+
+        if len(labels) < count:
+            labels = labels + [f"CLASS_{idx}" for idx in range(len(labels), count)]
+        return labels[:count]
+
+    def _score_to_probs(self, scores: np.ndarray) -> np.ndarray:
+        if scores.size == 1:
+            return np.array([1.0], dtype=float)
+        shifted = scores - np.max(scores)
+        exp_scores = np.exp(shifted)
+        denom = np.sum(exp_scores)
+        return exp_scores / denom if denom != 0 else np.full_like(exp_scores, 1.0 / len(exp_scores))
+
+    def decide(self, vector: FeatureVector) -> ModelDecision:
+        estimator = self._estimator
+        input_vector = vector.values.reshape(1, -1)
+
+        if hasattr(estimator, "predict_proba"):
+            probabilities = np.asarray(estimator.predict_proba(input_vector)[0], dtype=float)
+            labels = self._resolve_labels(len(probabilities))
+            best_idx = int(np.argmax(probabilities))
+            confidence = float(probabilities[best_idx])
+            scores = dict(zip(labels, probabilities))
+        elif hasattr(estimator, "decision_function"):
+            raw_scores = np.asarray(estimator.decision_function(input_vector))
+            raw_scores = raw_scores.ravel()
+            labels = self._resolve_labels(len(raw_scores))
+            probabilities = self._score_to_probs(raw_scores)
+            best_idx = int(np.argmax(probabilities))
+            confidence = float(probabilities[best_idx])
+            scores = dict(zip(labels, probabilities))
+        else:
+            prediction = estimator.predict(input_vector)
+            predicted_label = str(prediction[0]).upper()
+            labels = [predicted_label]
+            confidence = 1.0
+            scores = {predicted_label: 1.0}
+            best_idx = 0
+
+        action = labels[best_idx]
+        if self._score_threshold and confidence < self._score_threshold:
+            hold_label = "HOLD" if "HOLD" in labels else action
+            action = hold_label
+            confidence = 0.0
+
+        return ModelDecision(
+            ticker=vector.ticker,
+            timestamp=vector.timestamp,
+            action=action,
+            confidence=float(confidence),
+            feature_names=vector.feature_names,
+            scores=scores,
+        )
+
+
+def _default_execute(decision: ModelDecision) -> None:
+    logger.info(
+        "Executing %s for %s (confidence %.2f)",
         decision.action,
+        decision.ticker,
         decision.confidence,
     )
 
@@ -222,7 +287,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-confidence", type=float, default=0.65, help="Confidence threshold required to trigger trades")
     parser.add_argument("--max-concurrency", type=int, default=32, help="Maximum number of concurrent ticker evaluations")
     parser.add_argument("--class-order", default="HOLD,BUY,SHORT", help="Expected order of the model outputs")
-    parser.add_argument("--score-threshold", type=float, default=0.0, help="Threshold applied when the estimator lacks predict_proba")
+    parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=0.0,
+        help="Threshold applied when the estimator lacks predict_proba()",
+    )
     parser.add_argument("--include-summary", action="store_true", help="Append cached fundamentals to the feature vector")
     parser.add_argument("--no-indicators", action="store_true", help="Disable indicator engineering for faster scans")
     parser.add_argument("--output-csv", type=Path, help="Optional CSV path with the evaluation summary")
