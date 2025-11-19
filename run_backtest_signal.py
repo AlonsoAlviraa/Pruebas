@@ -7,15 +7,15 @@ import argparse
 import logging
 import pickle
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import joblib
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
 from drl_platform.model_factory import BUY_CLASS
-
 
 # Configurar logging
 logging.basicConfig(
@@ -36,38 +36,64 @@ def load_model(model_path: Path) -> Any:
 
 def calculate_trade_result(
     prices: np.ndarray,
+    dates: np.ndarray,
     t: int,
     horizon: int,
     take_profit: float,
     stop_loss: float,
-) -> float:
-    """
-    Calcula el retorno de una operación iniciada en t+1 (Open) hasta el cierre.
-    """
+) -> Dict[str, Any]:
+    """Calcula métricas detalladas de una operación iniciada en t."""
+
     entry_price = prices[t]
-    
+    entry_date = dates[t]
+
     upper = entry_price * (1 + take_profit)
     lower = entry_price * (1 + stop_loss)
-    
+
     end_idx = min(t + 1 + horizon, len(prices))
-    window = prices[t + 1 : end_idx]
-    
-    if len(window) == 0:
-        return 0.0
-        
-    hit_upper = window >= upper
-    hit_lower = window <= lower
-    
-    idx_upper = np.argmax(hit_upper) if hit_upper.any() else len(window) + 1
-    idx_lower = np.argmax(hit_lower) if hit_lower.any() else len(window) + 1
-    
+    window_prices = prices[t + 1 : end_idx]
+    window_dates = dates[t + 1 : end_idx]
+
+    if len(window_prices) == 0:
+        return {
+            "entry_price": entry_price,
+            "entry_date": entry_date,
+            "exit_price": entry_price,
+            "exit_date": entry_date,
+            "gross_return": 0.0,
+            "bars_held": 0,
+            "exit_reason": "no_data",
+        }
+
+    hit_upper = np.where(window_prices >= upper)[0]
+    hit_lower = np.where(window_prices <= lower)[0]
+
+    idx_upper = hit_upper[0] if hit_upper.size else len(window_prices) + 1
+    idx_lower = hit_lower[0] if hit_lower.size else len(window_prices) + 1
+
     if idx_upper < idx_lower:
-        return take_profit
+        exit_idx = idx_upper
+        exit_reason = "take_profit"
     elif idx_lower < idx_upper:
-        return stop_loss
+        exit_idx = idx_lower
+        exit_reason = "stop_loss"
     else:
-        exit_price = window[-1]
-        return (exit_price - entry_price) / entry_price
+        exit_idx = len(window_prices) - 1
+        exit_reason = "horizon"
+
+    exit_price = window_prices[exit_idx]
+    exit_date = window_dates[exit_idx]
+    gross_return = (exit_price - entry_price) / entry_price
+
+    return {
+        "entry_price": entry_price,
+        "entry_date": entry_date,
+        "exit_price": exit_price,
+        "exit_date": exit_date,
+        "gross_return": gross_return,
+        "bars_held": int(exit_idx + 1),
+        "exit_reason": exit_reason,
+    }
 
 
 def _align_features(frame: pd.DataFrame, model: Any) -> pd.DataFrame:
@@ -103,6 +129,33 @@ def _filter_date_window(df: pd.DataFrame, start: Optional[pd.Timestamp], end: Op
     return df.loc[mask].copy()
 
 
+def _inverse_volatility_weights(
+    pipeline: DataPipeline, tickers: List[str], lookback: int = 60
+) -> Dict[str, float]:
+    vols: Dict[str, float] = {}
+    for ticker in tickers:
+        try:
+            frame = pipeline.load_feature_view(ticker, indicators=False)
+        except Exception as exc:
+            logger.warning("No se pudo calcular la volatilidad de %s: %s", ticker, exc)
+            continue
+        closes = frame.get("close")
+        if closes is None:
+            continue
+        returns = pd.Series(closes).pct_change().dropna()
+        if returns.empty:
+            continue
+        vol = float(returns.tail(lookback).std())
+        if vol and not np.isnan(vol):
+            vols[ticker] = max(vol, 1e-6)
+    if not vols:
+        weight = 1.0 / max(len(tickers), 1)
+        return {ticker: weight for ticker in tickers}
+    inv_vol = {ticker: 1.0 / vol for ticker, vol in vols.items()}
+    total = sum(inv_vol.values())
+    return {ticker: inv_vol.get(ticker, 0.0) / total for ticker in tickers}
+
+
 def run_backtest(
     tickers: List[str],
     data_root: Path,
@@ -111,12 +164,15 @@ def run_backtest(
     horizon: int,
     take_profit: float,
     stop_loss: float,
+    commission_pct: float,
+    slippage_pct: float,
     start_date: Optional[pd.Timestamp],
     end_date: Optional[pd.Timestamp],
 ) -> pd.DataFrame:
-    
+
     pipeline = DataPipeline(PipelineConfig(data_root=data_root))
     trades = []
+    weights = _inverse_volatility_weights(pipeline, tickers)
     
     logger.info(f"Iniciando backtest para {len(tickers)} tickers...")
     
@@ -147,24 +203,43 @@ def run_backtest(
             else:
                 preds = model.predict(features)
                 signals = preds == BUY_CLASS
-
                 
             prices = df["close"].values
             dates = pd.to_datetime(df["date"]).values
-            
+
             buy_indices = np.where(signals)[0]
-            
+
             t = 0
             while t < len(prices) - 1:
                 if t in buy_indices:
-                    ret = calculate_trade_result(prices, t, horizon, take_profit, stop_loss)
-                    
-                    trades.append({
-                        "ticker": ticker,
-                        "entry_date": dates[t],
-                        "return": ret
-                    })
-                    
+                    trade = calculate_trade_result(
+                        prices,
+                        dates,
+                        t,
+                        horizon,
+                        take_profit,
+                        stop_loss,
+                    )
+                    gross = trade["gross_return"]
+                    net = gross - commission_pct - slippage_pct
+
+                    trades.append(
+                        {
+                            "ticker": ticker,
+                            "entry_date": trade["entry_date"],
+                            "exit_date": trade["exit_date"],
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "gross_return": gross,
+                            "net_return": net,
+                            "bars_held": trade["bars_held"],
+                            "exit_reason": trade["exit_reason"],
+                            "weight": weights.get(ticker, 0.0),
+                            "commission_pct": commission_pct,
+                            "slippage_pct": slippage_pct,
+                        }
+                    )
+
                     t += horizon
                 else:
                     t += 1
@@ -174,6 +249,29 @@ def run_backtest(
             continue
             
     return pd.DataFrame(trades)
+
+
+def _plot_equity_curve(results: pd.DataFrame, plot_path: Path) -> None:
+    plot_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.figure(figsize=(12, 6))
+    plt.plot(results["entry_date"], results["equity"], label="Equity")
+    plt.fill_between(
+        results["entry_date"],
+        results["equity"].cummax(),
+        results["equity"],
+        color="red",
+        alpha=0.15,
+        label="Drawdown",
+    )
+    plt.title("Curva de Equidad del Backtest")
+    plt.xlabel("Fecha")
+    plt.ylabel("Capital")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(plot_path, dpi=150)
+    plt.close()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Backtester Event-Driven")
@@ -186,8 +284,22 @@ def main():
     parser.add_argument("--take-profit", type=float, default=0.05)
     parser.add_argument("--stop-loss", type=float, default=-0.03)
     parser.add_argument("--initial-capital", type=float, default=10000.0)
+    parser.add_argument("--commission-pct", type=float, default=0.0)
+    parser.add_argument("--slippage-pct", type=float, default=0.0)
     parser.add_argument("--start-date", help="YYYY-MM-DD start date for the evaluation")
     parser.add_argument("--end-date", help="YYYY-MM-DD end date for the evaluation")
+    parser.add_argument(
+        "--results-csv",
+        type=Path,
+        default=Path("backtest_signal_trades.csv"),
+        help="Ruta para guardar el detalle de operaciones",
+    )
+    parser.add_argument(
+        "--equity-plot",
+        type=Path,
+        default=Path("backtest_signal_equity.png"),
+        help="Ruta del gráfico de la curva de equidad",
+    )
     
     args = parser.parse_args()
     
@@ -214,6 +326,8 @@ def main():
         args.horizon,
         args.take_profit,
         args.stop_loss,
+        args.commission_pct,
+        args.slippage_pct,
         start_date,
         end_date,
     )
@@ -223,17 +337,43 @@ def main():
         return
         
     results["entry_date"] = pd.to_datetime(results["entry_date"])
-    results = results.sort_values("entry_date")
-    
-    results["cum_return"] = results["return"].cumsum()
-    results["equity"] = args.initial_capital * (1 + results["cum_return"])
-    
+    results = results.sort_values("entry_date").reset_index(drop=True)
+
+    equity = args.initial_capital
+    peak = equity
+    equities = []
+    drawdowns = []
+    portfolio_returns = []
+    for _, row in results.iterrows():
+        weight = row["weight"] if row["weight"] > 0 else 1.0 / len(tickers)
+        equity *= 1 + (weight * row["net_return"])
+        peak = max(peak, equity)
+        equities.append(equity)
+        drawdown = (equity / peak) - 1
+        drawdowns.append(drawdown)
+        portfolio_returns.append((equity / args.initial_capital) - 1)
+
+    results["equity"] = equities
+    results["portfolio_return"] = portfolio_returns
+    results["drawdown"] = drawdowns
+
     total_trades = len(results)
-    win_rate = (results["return"] > 0).mean()
-    
+    win_rate = (results["net_return"] > 0).mean()
+    expectancy = results["net_return"].mean()
+    max_drawdown = results["drawdown"].min()
+
     logger.info("-" * 40)
     logger.info(f"RESULTADOS DEL BACKTEST ({total_trades} operaciones)")
     logger.info(f"Win Rate: {win_rate:.2%}")
+    logger.info(f"Expectancy por trade: {expectancy:.4f}")
+    logger.info(f"Max Drawdown: {max_drawdown:.2%}")
+
+    args.results_csv.parent.mkdir(parents=True, exist_ok=True)
+    results.to_csv(args.results_csv, index=False)
+    logger.info("Detalle de operaciones guardado en %s", args.results_csv)
+
+    _plot_equity_curve(results, args.equity_plot)
+    logger.info("Curva de equidad guardada en %s", args.equity_plot)
 
 if __name__ == "__main__":
     main()

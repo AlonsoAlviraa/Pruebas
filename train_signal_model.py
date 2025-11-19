@@ -6,13 +6,14 @@ import argparse
 import json
 import logging
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import joblib
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 from sklearn.metrics import classification_report, f1_score
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
@@ -56,6 +57,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--class-weighted", action="store_true")
     parser.add_argument("--random-state", type=int, default=42)
     parser.add_argument("--min-confidence", type=float, default=0.6)
+    parser.add_argument("--shap-report-dir", type=Path, help="Directorio para guardar gráficos y tablas SHAP")
+    parser.add_argument("--shap-threshold", type=float, default=0.01, help="Impacto normalizado mínimo para conservar una feature")
     return parser.parse_args()
 
 
@@ -196,7 +199,7 @@ def _save_metadata(
     else:
         cv_mean = cv_std = 0.0
     metadata = {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "model_path": str(output_path.resolve()),
         "tickers": list(tickers),
         "train_rows": int(len(master)),
@@ -220,6 +223,95 @@ def _save_metadata(
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path.write_text(json.dumps(cleaned, indent=2), encoding="utf-8")
     return metadata_path
+
+
+def _generate_shap_report(
+    model: Any,
+    master: pd.DataFrame,
+    feature_names: Sequence[str],
+    report_dir: Path,
+    threshold: float,
+) -> None:
+    try:
+        import shap
+    except ImportError as exc:
+        raise RuntimeError(
+            "No se pudo importar SHAP. Instala la dependencia con 'pip install shap'"
+        ) from exc
+
+    if not feature_names:
+        raise ValueError("El modelo no tiene columnas de features registradas")
+
+    X = _feature_matrix(master)
+    X = X.reindex(columns=feature_names).fillna(0.0)
+    if X.empty:
+        raise ValueError("No hay datos para calcular valores SHAP")
+
+    sample_size = min(len(X), 5000)
+    sample = X.sample(n=sample_size, random_state=42) if len(X) > sample_size else X
+
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(sample)
+
+    # --- LOGICA ROBUSTA DE EXTRACCION SHAP ---
+    shap_buy = None
+    buy_idx = 2 # Default a la clase 2 si no se encuentra
+
+    # Intentar detectar indice de BUY_CLASS
+    if hasattr(model, "classes_"):
+        matches = np.where(model.classes_ == BUY_CLASS)[0]
+        if len(matches):
+            buy_idx = int(matches[0])
+
+    if isinstance(shap_values, list):
+        # Caso 1: Lista de arrays [stop, hold, buy]
+        # Proteccion contra indices fuera de rango
+        safe_idx = buy_idx if buy_idx < len(shap_values) else -1
+        shap_buy = shap_values[safe_idx]
+    
+    elif isinstance(shap_values, np.ndarray):
+        # Caso 2: Array numpy
+        if len(shap_values.shape) == 3: # (Samples, Features, Classes)
+            safe_idx = buy_idx if buy_idx < shap_values.shape[2] else -1
+            shap_buy = shap_values[:, :, safe_idx]
+        else:
+            # Caso Binario (Samples, Features) - Asumimos que es la clase positiva
+            shap_buy = shap_values
+    else:
+         raise TypeError(f"Formato de shap_values no reconocido: {type(shap_values)}")
+    # -----------------------------------------
+
+    mean_abs = np.abs(shap_buy).mean(axis=0)
+    importance = pd.DataFrame({
+        "feature": sample.columns,
+        "mean_abs_shap": mean_abs,
+    })
+    importance = importance.sort_values("mean_abs_shap", ascending=False)
+    max_val = importance["mean_abs_shap"].max()
+    if not max_val or np.isnan(max_val):
+        max_val = 1.0
+    importance["normalized_importance"] = importance["mean_abs_shap"] / max_val
+
+    filtered = importance[importance["normalized_importance"] >= threshold]
+    low_impact = importance[importance["normalized_importance"] < threshold]
+
+    report_dir.mkdir(parents=True, exist_ok=True)
+    importance.to_csv(report_dir / "shap_feature_importance.csv", index=False)
+    filtered.to_csv(report_dir / "shap_feature_importance_filtered.csv", index=False)
+    low_impact[["feature"]].to_csv(report_dir / "low_impact_features.csv", index=False)
+
+    plt.figure(figsize=(10, 6))
+    plt.barh(filtered["feature"][::-1], filtered["mean_abs_shap"][::-1])
+    plt.xlabel("|SHAP|")
+    plt.title("Top Features - Clase BUY")
+    plt.tight_layout()
+    plt.savefig(report_dir / "shap_bar_buy.png", dpi=150)
+    plt.close()
+
+    shap.summary_plot(shap_buy, sample, show=False, plot_type="dot")
+    plt.tight_layout()
+    plt.savefig(report_dir / "shap_summary_buy.png", dpi=150)
+    plt.close()
 
 
 def main() -> None:
@@ -282,6 +374,13 @@ def main() -> None:
     }
     metadata_path = _save_metadata(output_path, tickers, master, params, cv_results, feature_names, pipeline, strategy_cfg)
     logger.info("Metadata saved to %s", metadata_path)
+
+    if args.shap_report_dir:
+        try:
+            _generate_shap_report(model, master, feature_names, args.shap_report_dir, args.shap_threshold)
+            logger.info("SHAP report saved to %s", args.shap_report_dir)
+        except Exception as exc:  # pragma: no cover - plotting heavy
+            logger.warning("No se pudo generar el reporte SHAP: %s", exc)
 
 
 if __name__ == "__main__":
