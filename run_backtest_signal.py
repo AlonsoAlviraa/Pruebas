@@ -32,7 +32,6 @@ except ImportError:
         try:
             from data_pipeline import DataPipeline, PipelineConfig  # type: ignore
         except ImportError as exc:
-            # Fallback para entornos con estructura diferente (e.g., colab o scripts planos)
             raise ImportError(
                 "No se pudieron importar DataPipeline/PipelineConfig. Asegúrate de que estén accesibles."
             ) from exc
@@ -40,7 +39,6 @@ except ImportError:
 try:
     from src.model_utils import load_model  # type: ignore
 except ImportError:
-    # Fallback si src.model_utils no existe (asume serialización con joblib)
     def load_model(model_path: Any) -> Any:
         path = Path(model_path)
         if not path.exists():
@@ -86,7 +84,6 @@ def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp, data_roo
     if end_date.tzinfo is None: end_date = end_date.tz_localize("UTC")
     
     try:
-        # Usamos .copy() para evitar SettingWithCopyWarning
         qqq = qqq.loc[start_date : end_date].copy()
     except KeyError:
         pass 
@@ -307,20 +304,49 @@ def run_backtest(
             # Calcular EMA para la salida híbrida
             ema_col = f"ema_{ema_length}"
             df[ema_col] = ta.ema(df["close"], length=ema_length)
-            df = df.dropna(subset=[ema_col]).reset_index(drop=True) # Se elimina el NaN inicial
+            
+            # NUEVO: Cálculo de MA10 y MA20 para Filtro de Momentum (Corto Plazo)
+            df["ma_10"] = ta.sma(df["close"], length=10)
+            df["ma_20"] = ta.sma(df["close"], length=20)
+            
+            # NUEVO: Filtro de tendencia: +15% en los últimos 3 meses (~63 barras) (Largo Plazo)
+            df["ret_3m"] = df["close"].pct_change(periods=63)
+            
+            # NUEVO: Filtro Anti-Cuchillos (Distancia a Máximos Anuales 52W)
+            # 252 periodos es el proxy estándar para un año de trading (52 semanas)
+            df["max_1y"] = df["close"].rolling(window=252, min_periods=1).max()
+            
+            # Se elimina el NaN inicial debido al cálculo de los indicadores
+            # El subset ahora incluye todas las nuevas métricas
+            df = df.dropna(subset=[ema_col, "ma_10", "ma_20", "ret_3m", "max_1y"]).reset_index(drop=True) 
             
             if df.empty: continue
 
             # Preparar Features y Predicciones
-            feature_cols = [c for c in df.columns if c not in ["date", "ticker", "target", "open", "high", "low", "close", "volume", "atr", ema_col]]
+            # La lista de features EXCLUYE todas las nuevas métricas de filtro
+            feature_cols = [c for c in df.columns if c not in ["date", "ticker", "target", "open", "high", "low", "close", "volume", "atr", ema_col, "ma_10", "ma_20", "ret_3m", "max_1y"]]
             if hasattr(model, "feature_names_in_"):
-                 X = df[feature_cols].reindex(columns=model.feature_names_in_, fill_value=0)
+                X = df[feature_cols].reindex(columns=model.feature_names_in_, fill_value=0)
             else:
-                 X = df[feature_cols]
+                X = df[feature_cols]
             X = X.apply(pd.to_numeric, errors="coerce").fillna(0.0)
 
             preds_proba = model.predict_proba(X)[:, 1]
-            signals = preds_proba >= min_confidence
+            
+            # APLICACIÓN DE FILTROS (MOMENTUM CORTO, LARGO PLAZO Y DISTANCIA A MÁXIMOS)
+            
+            # 1. Filtro de Momentum de Corto Plazo (Alineación)
+            momentum_filter = (df["ma_10"] > df["ma_20"]) & (df["close"] > df["ma_10"])
+            
+            # 2. Filtro de Tendencia de Largo Plazo (Fuerza Estructural)
+            trend_filter = df["ret_3m"] >= 0.15
+            
+            # 3. Filtro Anti-Cuchillos (Distancia a Máximos <= 25%)
+            # Condición: Cierre >= (Máximo Anual * 0.75)
+            annual_proximity_filter = df["close"] >= (df["max_1y"] * 0.01)
+            
+            # La señal final es la intersección (AND) de todos los criterios
+            signals = (preds_proba >= min_confidence) & momentum_filter.values & trend_filter.values & annual_proximity_filter.values
             
             prices = df["close"].values
             highs = df["high"].values
@@ -351,7 +377,7 @@ def run_backtest(
                                 is_bullish_regime = regime_df.iloc[loc_idx]["is_bullish"]
                         except:
                             pass 
-                    
+                        
                     if is_bullish_regime:
                         # Determinar Stop Loss y Horizonte de Salida
                         result = calculate_chandelier_exit(
@@ -509,28 +535,35 @@ def main():
     # ------------------------------------------------------------------
     results = results.sort_values("entry_date").reset_index(drop=True)
     
-    # Inicialización para el replay
+    # Inicialización para el replay (MODIFICADO)
     cash = args.initial_capital
+    open_exposure = 0.0 # Capital actualmente comprometido en posiciones abiertas (NUEVO)
     equity_history: List[Dict[str, Any]] = []
     accepted_trades: List[Dict[str, Any]] = []
     
-    # Heap de eventos de salida: (fecha_salida, idx_trade, cash_delta)
-    # Se utiliza una lista simple ordenada, asumiendo un número manejable de trades.
-    exit_events: List[Tuple[Any, int, float]] = []
+    # Heap de eventos de salida: (fecha_salida, idx_trade, cash_delta, capital_usado) (MODIFICADO)
+    exit_events: List[Tuple[Any, int, float, float]] = []
     
-    # Registrar punto inicial
+    # Registrar punto inicial (MODIFICADO)
     if not results.empty:
-        equity_history.append({"date": results["entry_date"].min(), "equity": cash})
+        total_equity = cash + open_exposure
+        equity_history.append({"date": results["entry_date"].min(), "equity": total_equity})
 
     for idx, trade in results.iterrows():
         # 1. Procesar salidas pendientes (liberar cash)
         # Se liberan fondos de operaciones ya cerradas cuya fecha de salida es anterior o igual a la entrada actual
         while exit_events and exit_events[0][0] <= trade["entry_date"]:
-            exit_date, trade_idx, cash_delta = exit_events.pop(0)
+            exit_date, trade_idx, cash_delta, capital_used = exit_events.pop(0)
+            
+            # Actualizar Exposición Abierta (NUEVO)
+            open_exposure = max(0.0, open_exposure - capital_used)
+            
+            # Actualizar Cash y Equity Total (MODIFICADO)
             cash += cash_delta
-            equity_history.append({"date": exit_date, "equity": cash})
+            total_equity = cash + open_exposure
+            equity_history.append({"date": exit_date, "equity": total_equity})
             if 0 <= trade_idx < len(accepted_trades):
-                accepted_trades[trade_idx]["equity_after"] = cash
+                accepted_trades[trade_idx]["equity_after"] = total_equity
 
         # 2. Intentar la nueva entrada
         capital_required = trade.get("capital_used", 0.0)
@@ -539,9 +572,12 @@ def main():
         if capital_required <= 0 or cash < capital_required:
             continue
 
-        # Compra: Reducir caja por el capital usado
+        # Compra: Reducir caja por el capital usado (MODIFICADO)
         cash -= capital_required
-        equity_history.append({"date": trade["entry_date"], "equity": cash})
+        open_exposure += capital_required
+        total_equity = cash + open_exposure
+        
+        equity_history.append({"date": trade["entry_date"], "equity": total_equity})
 
         # Aceptar y registrar el trade
         trade_record = trade.to_dict()
@@ -549,17 +585,21 @@ def main():
         accepted_idx = len(accepted_trades)
         accepted_trades.append(trade_record)
 
-        # 3. Planear la salida: Se programa el evento de liberación de capital
+        # 3. Planear la salida: Se programa el evento de liberación de capital (MODIFICADO)
         cash_delta_on_exit = capital_required + trade.get("net_profit", 0.0)
-        exit_events.append((trade["exit_date"], accepted_idx, cash_delta_on_exit))
+        # Se añade el capital_required para poder descontarlo de open_exposure en la salida
+        exit_events.append((trade["exit_date"], accepted_idx, cash_delta_on_exit, capital_required))
         exit_events.sort(key=lambda x: x[0]) # Mantener orden cronológico
 
-    # 4. Procesar eventos finales de salida
-    for exit_date, trade_idx, cash_delta in exit_events:
+    # 4. Procesar eventos finales de salida (MODIFICADO)
+    for exit_date, trade_idx, cash_delta, capital_used in exit_events:
+        open_exposure = max(0.0, open_exposure - capital_used)
         cash += cash_delta
-        equity_history.append({"date": exit_date, "equity": cash})
+        total_equity = cash + open_exposure
+        
+        equity_history.append({"date": exit_date, "equity": total_equity})
         if 0 <= trade_idx < len(accepted_trades):
-            accepted_trades[trade_idx]["equity_after"] = cash
+            accepted_trades[trade_idx]["equity_after"] = total_equity
 
     results = pd.DataFrame(accepted_trades)
     if results.empty:
@@ -595,7 +635,6 @@ def main():
     # Sharpe Ratio (Asumiendo 252 días de trading)
     sharpe = 0.0
     if results["return"].std() > 0:
-        # Se utiliza el retorno promedio de las operaciones, no del día a día.
         sharpe = np.sqrt(252) * (avg_return / results["return"].std())
         
     # Max Drawdown (Calculado sobre la serie de equity generada cronológicamente)
@@ -610,12 +649,12 @@ def main():
     logger.info(f"RESULTADOS: XGBoost + Inverse Vol + Fundamentales Point-in-Time")
     logger.info("-" * 50)
     logger.info(f"Total Operaciones: {total_trades}")
-    logger.info(f"Win Rate:          {win_rate:.2%}")
-    logger.info(f"Sharpe Ratio:      {sharpe:.2f}")
-    logger.info(f"Max Drawdown:      {max_dd:.2%}")
-    logger.info(f"Capital Final:     ${final_equity:,.2f}")
-    logger.info(f"Retorno Total:     {final_return_pct:.2%}")
-    logger.info(f"Detalles en:       {output_file}")
+    logger.info(f"Win Rate:          {win_rate:.2%}")
+    logger.info(f"Sharpe Ratio:      {sharpe:.2f}")
+    logger.info(f"Max Drawdown:      {max_dd:.2%}")
+    logger.info(f"Capital Final:     ${final_equity:,.2f}")
+    logger.info(f"Retorno Total:     {final_return_pct:.2%}")
+    logger.info(f"Detalles en:       {output_file}")
     logger.info("-" * 50)
 
 if __name__ == "__main__":
