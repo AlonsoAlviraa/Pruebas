@@ -36,35 +36,60 @@ def load_model(model_path: Path) -> Any:
             return pickle.load(f)
 
 
-def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp) -> pd.DataFrame:
+def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp, data_root: Path = Path("data")) -> pd.DataFrame:
     """
-    Descarga QQQ y calcula la SMA 50 para determinar el régimen de mercado.
+    Carga QQQ desde CSV local (si existe) o descarga, y calcula SMA 50.
     Retorna un DataFrame con índice de fecha y columna 'is_bullish'.
     """
-    logger.info("Descargando datos de QQQ para filtro de régimen...")
-    # Descargar un poco antes para tener datos para la media móvil
-    start_buffer = start_date - pd.Timedelta(days=100)
-    qqq = yf.download("QQQ", start=start_buffer, end=end_date, progress=False)
-    
+    qqq_path = data_root / "QQQ_history.csv"
+    qqq = pd.DataFrame()
+
+    # 1. Intentar cargar desde local
+    if qqq_path.exists():
+        logger.info(f"Cargando QQQ desde {qqq_path}...")
+        try:
+            qqq = pd.read_csv(qqq_path)
+            if "date" in qqq.columns:
+                qqq["date"] = pd.to_datetime(qqq["date"], utc=True)
+                qqq = qqq.set_index("date").sort_index()
+            elif qqq.index.name == "date":
+                qqq.index = pd.to_datetime(qqq.index, utc=True)
+                qqq = qqq.sort_index()
+            
+            # Renombrar columnas si es necesario
+            qqq = qqq.rename(columns=str.lower)
+        except Exception as e:
+            logger.warning(f"Error leyendo QQQ local: {e}")
+            qqq = pd.DataFrame()
+
+    # 2. Si falla local, intentar descargar (con buffer para la media móvil)
     if qqq.empty:
-        logger.warning("No se pudieron descargar datos de QQQ. El filtro de régimen estará desactivado.")
+        logger.info("Descargando datos de QQQ para filtro de régimen...")
+        start_buffer = start_date - pd.Timedelta(days=200) # Más buffer para asegurar SMA50
+        try:
+            qqq = yf.download("QQQ", start=start_buffer, end=end_date, progress=False)
+            if isinstance(qqq.columns, pd.MultiIndex):
+                qqq.columns = qqq.columns.get_level_values(0)
+            qqq = qqq.rename(columns={"Close": "close"})
+            qqq.index = pd.to_datetime(qqq.index, utc=True)
+        except Exception as e:
+            logger.warning(f"Fallo descarga QQQ: {e}")
+
+    if qqq.empty or "close" not in qqq.columns:
+        logger.warning("No hay datos de QQQ. Filtro de régimen DESACTIVADO.")
         return pd.DataFrame()
 
-    # Aplanar MultiIndex si existe (yfinance v0.2+)
-    if isinstance(qqq.columns, pd.MultiIndex):
-        qqq.columns = qqq.columns.get_level_values(0)
-    
-    qqq = qqq.rename(columns={"Close": "close"})
-    qqq.index = pd.to_datetime(qqq.index).tz_localize(None) # Asegurar naive para compatibilidad fácil o convertir todo a UTC después
-    
     # Calcular SMA 50
+    # Aseguramos que hay suficientes datos
     qqq["sma_50"] = ta.sma(qqq["close"], length=50)
     qqq["is_bullish"] = qqq["close"] > qqq["sma_50"]
     
-    # Filtrar solo el rango relevante y asegurar UTC
-    qqq = qqq.loc[start_date.tz_localize(None) : end_date.tz_localize(None)].copy()
-    qqq.index = qqq.index.tz_localize("UTC")
+    # Filtrar rango solicitado
+    # Convertir start/end a UTC para comparar con índice UTC
+    if start_date.tzinfo is None: start_date = start_date.tz_localize("UTC")
+    if end_date.tzinfo is None: end_date = end_date.tz_localize("UTC")
     
+    qqq = qqq.loc[start_date : end_date].copy()
     return qqq[["is_bullish"]]
 
 
