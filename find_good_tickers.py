@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Filter tickers based on minimum price and SPAC exclusion (Volume logic removed)."""
+"""Apply price and quality filters to the cached tickers list (Volume logic removed)."""
 from __future__ import annotations
 
 import argparse
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
-# --- CONSTANTES DE CONFIGURACIÓN ---
+# --- CONFIGURACIÓN ---
 MIN_PRICE_DEFAULT = 0.30
 HISTORY_SUFFIX = "_history.csv"
 # Sufijos para identificar y excluir SPACs (Warrants, Units, Rights)
@@ -34,7 +34,7 @@ def safe_float(value: object) -> Optional[float]:
 
 @dataclass
 class TickerMetrics:
-    """Estructura de datos simplificada: solo nos importa el nombre y el cierre."""
+    """Estructura simplificada: solo transportamos el ticker y su último cierre."""
     ticker: str
     last_close: Optional[float]
 
@@ -55,7 +55,7 @@ def iter_tickers(input_path: Optional[Path], data_root: Path) -> Iterable[str]:
 
 
 def read_history_metrics(history_path: Path) -> TickerMetrics:
-    """Return only the last close stored in a history CSV."""
+    """Return the last close stored in a history CSV."""
     last_close: Optional[float] = None
     ticker_name = history_path.name.replace(HISTORY_SUFFIX, "")
 
@@ -65,10 +65,9 @@ def read_history_metrics(history_path: Path) -> TickerMetrics:
             if reader.fieldnames is None:
                 return TickerMetrics(ticker_name, None)
 
-            # Iterar para encontrar el último precio de cierre válido
-            # (El CSV puede tener headers en mayúscula o minúscula, buscamos 'close' o 'Close')
+            # Buscar columna de cierre (insensible a mayúsculas)
             close_field = next((f for f in reader.fieldnames if f and f.lower() == "close"), None)
-            
+
             if close_field:
                 for row in reader:
                     close_val = safe_float(row.get(close_field))
@@ -160,12 +159,14 @@ def main() -> None:
     if not data_root.is_dir():
         raise SystemExit(f"El directorio de datos {data_root} no existe")
 
+    # Fase 1: Identificar candidatos
     candidates = list(iter_tickers(args.input, data_root))
     if not candidates:
         raise SystemExit("No hay tickers candidatos para evaluar")
 
+    # Fase 2: Filtrado
     keep: list[str] = []
-    # Ordenamos set(candidates) para evitar duplicados y mantener consistencia
+    # Usamos set() para evitar duplicados si la lista de entrada está sucia
     for ticker in sorted(set(candidates)):
         result = filter_ticker(
             ticker,
@@ -176,6 +177,7 @@ def main() -> None:
         if result:
             keep.append(result)
 
+    # Fase 3: Guardado
     args.output.write_text("\n".join(sorted(keep)) + ("\n" if keep else ""), encoding="utf-8")
 
     print(
