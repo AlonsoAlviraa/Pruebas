@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
 Backtest Strategy: XGBoost Signal + Chandelier Exit + Inverse Volatility Sizing.
-Includes Point-in-Time Fundamental Validation and Hybrid Time/EMA Exit.
+Includes Point-in-Time Fundamental Validation, Hybrid Time/EMA Exit, and Chronological Cashflow Replay.
 """
 import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,7 @@ except ImportError:
         try:
             from data_pipeline import DataPipeline, PipelineConfig  # type: ignore
         except ImportError as exc:
+            # Fallback para entornos con estructura diferente (e.g., colab o scripts planos)
             raise ImportError(
                 "No se pudieron importar DataPipeline/PipelineConfig. Asegúrate de que estén accesibles."
             ) from exc
@@ -39,6 +40,7 @@ except ImportError:
 try:
     from src.model_utils import load_model  # type: ignore
 except ImportError:
+    # Fallback si src.model_utils no existe (asume serialización con joblib)
     def load_model(model_path: Any) -> Any:
         path = Path(model_path)
         if not path.exists():
@@ -59,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp, data_root: Path = Path("data")) -> pd.DataFrame:
-    """Determina si el mercado (QQQ) está alcista o bajista."""
+    """Determina si el mercado (QQQ) está alcista o bajista (Cierre > SMA 50)."""
     qqq_path = data_root / "QQQ_history.csv"
     if not qqq_path.exists():
         logger.warning("QQQ_history.csv no encontrado. Saltando filtro de régimen.")
@@ -84,6 +86,7 @@ def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp, data_roo
     if end_date.tzinfo is None: end_date = end_date.tz_localize("UTC")
     
     try:
+        # Usamos .copy() para evitar SettingWithCopyWarning
         qqq = qqq.loc[start_date : end_date].copy()
     except KeyError:
         pass 
@@ -104,7 +107,8 @@ def calculate_chandelier_exit(
     max_volatility_stop_pct: float = 0.05,
 ) -> Dict[str, Any]:
     """
-    Simula operación con Chandelier Exit, Hard Stop y Salida Híbrida (Tiempo/EMA).
+    Simula operación con Chandelier Exit (Trailing Stop), Hard Stop Dinámico, 
+    y Salida Híbrida (Tiempo/EMA).
     """
     entry_price = prices[start_idx]
     initial_atr = atrs[start_idx]
@@ -113,7 +117,7 @@ def calculate_chandelier_exit(
     stop_loss = initial_stop
     highest_high = highs[start_idx]
 
-    # Hard Stop Dinámico
+    # Hard Stop Dinámico: Ajustado por volatilidad (ATR/Precio)
     atr_pct = 0.0
     if entry_price > 0:
         atr_pct = (initial_atr / entry_price) * volatility_stop_scale
@@ -128,6 +132,7 @@ def calculate_chandelier_exit(
         curr_idx = start_idx + bars_held
         
         if curr_idx >= len(prices):
+            # Salida por final de datos
             return {
                 "exit_price": prices[-1], "exit_idx": len(prices) - 1, "reason": "end_of_data",
                 "bars_held": bars_held, "initial_stop": initial_stop,
@@ -141,6 +146,7 @@ def calculate_chandelier_exit(
         active_stop = max(stop_loss, hard_stop_price)
         
         if curr_price < active_stop:
+            # Salida por Stop Loss (Trailing o Hard Stop)
             reason = "hard_stop" if np.isclose(active_stop, hard_stop_price) else "stop_loss"
             return {
                 "exit_price": active_stop, "exit_idx": curr_idx, "reason": reason,
@@ -148,6 +154,7 @@ def calculate_chandelier_exit(
                 "hard_stop_price": hard_stop_price, "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
             }
             
+        # Actualizar Highest High para el Trailing Stop (Chandelier)
         if curr_high > highest_high:
             highest_high = curr_high
         
@@ -158,17 +165,18 @@ def calculate_chandelier_exit(
         if bars_held >= max_horizon:
             ema_value = emas[curr_idx] if len(emas) > curr_idx else np.nan
             
-            # Si NO tenemos EMA válida o el precio ha perdido la EMA -> Salimos (horizon_limit)
             if np.isnan(ema_value) or curr_price < ema_value:
+                # Salida por límite de tiempo Y precio bajo la EMA
                 return {
                     "exit_price": curr_price, "exit_idx": curr_idx, "reason": "horizon_limit",
                     "bars_held": bars_held, "initial_stop": initial_stop,
                     "hard_stop_price": hard_stop_price, "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
                 }
-            # Si el precio está sobre la EMA (curr_price >= ema_value), el loop continúa, extendiendo el horizonte.
+            # Si el precio está sobre la EMA, el loop continúa (extensión implícita del horizonte).
 
 
 def _load_fundamentals(ticker: str, data_root: Path, cache: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Carga y cachea datos fundamentales para un ticker."""
     if ticker in cache: return cache[ticker]
 
     fundamentals_path = data_root / f"{ticker}_fundamentals.csv"
@@ -183,6 +191,7 @@ def _load_fundamentals(ticker: str, data_root: Path, cache: Dict[str, pd.DataFra
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], utc=True)
 
+    # Ordenar por la fecha en que los datos estaban disponibles
     if "available_at" in df.columns:
         df = df.sort_values("available_at")
     
@@ -197,22 +206,22 @@ def validate_fundamentals_at_date(
     fundamentals_cache: Dict[str, pd.DataFrame],
     data_root: Path,
 ) -> bool:
-    """Valida fundamentales Point-in-Time para evitar Look-Ahead Bias."""
+    """Valida crecimiento fundamental Point-in-Time para evitar Look-Ahead Bias."""
     df = _load_fundamentals(ticker, data_root, fundamentals_cache)
     if df.empty: return False
 
     current_ts = pd.to_datetime(current_simulation_date, utc=True)
     
-    # Filtramos solo lo que se sabía EN ESE MOMENTO
+    # Solo considerar fundamentales *ya* disponibles en la fecha actual de la simulación
     if "available_at" not in df.columns: return False
     df_available = df[df["available_at"] <= current_ts]
     
-    if len(df_available) < 2: return False
+    if len(df_available) < 2: return False # Necesitamos al menos dos puntos para calcular crecimiento
 
     latest = df_available.iloc[-1]
     previous = df_available.iloc[-2]
 
-    # Prioridad: Revenue > EPS
+    # Usar 'revenue' o 'eps' como métrica principal de crecimiento
     metric_col = "revenue" if "revenue" in df_available.columns else "eps" if "eps" in df_available.columns else None
     if metric_col is None: return False
 
@@ -227,6 +236,7 @@ def validate_fundamentals_at_date(
 
 
 def _parse_date(value: Optional[str]) -> Optional[pd.Timestamp]:
+    """Convierte un string de fecha a pd.Timestamp con UTC."""
     if not value: return None
     ts = pd.Timestamp(value)
     if ts.tzinfo is None:
@@ -268,6 +278,9 @@ def run_backtest(
     volatility_exponent = max(0.0, volatility_exponent)
     max_position_pct = max(0.0, min(1.0, max_position_pct))
     
+    # ATENCIÓN: Esta 'equity' se usa para el sizing en la fase de GENERACIÓN de trades, 
+    # y se asume el capital inicial. El control de liquidez REAL se hace en el 
+    # CASH FLOW REPLAY en la función 'main'.
     equity = initial_capital
     
     regime_df = pd.DataFrame()
@@ -291,12 +304,14 @@ def run_backtest(
             if end_date: mask &= dates <= end_date
             df = df.loc[mask].copy()
             
+            # Calcular EMA para la salida híbrida
             ema_col = f"ema_{ema_length}"
             df[ema_col] = ta.ema(df["close"], length=ema_length)
-            df = df.dropna(subset=[ema_col]).reset_index(drop=True)
+            df = df.dropna(subset=[ema_col]).reset_index(drop=True) # Se elimina el NaN inicial
             
             if df.empty: continue
 
+            # Preparar Features y Predicciones
             feature_cols = [c for c in df.columns if c not in ["date", "ticker", "target", "open", "high", "low", "close", "volume", "atr", ema_col]]
             if hasattr(model, "feature_names_in_"):
                  X = df[feature_cols].reindex(columns=model.feature_names_in_, fill_value=0)
@@ -330,6 +345,7 @@ def run_backtest(
                     is_bullish_regime = True
                     if not regime_df.empty:
                         try:
+                            # 'pad' para obtener el régimen anterior si no hay un match exacto
                             loc_idx = regime_df.index.get_indexer([current_date], method='pad')[0]
                             if loc_idx != -1:
                                 is_bullish_regime = regime_df.iloc[loc_idx]["is_bullish"]
@@ -337,6 +353,7 @@ def run_backtest(
                             pass 
                     
                     if is_bullish_regime:
+                        # Determinar Stop Loss y Horizonte de Salida
                         result = calculate_chandelier_exit(
                             prices, highs, atrs, emas, t,
                             k=k_atr, max_horizon=max_horizon,
@@ -356,28 +373,27 @@ def run_backtest(
                         hard_stop_price = result.get("hard_stop_price", entry_stop)
                         dynamic_hard_stop_pct = result.get("dynamic_hard_stop_pct", hard_stop_pct)
 
-                        # --- NUEVA LÓGICA: INVERSE VOLATILITY SIZING ---
+                        # --- LÓGICA: INVERSE VOLATILITY SIZING ---
                         atr_value = atrs[t]
                         volatility_current = 0.0
                         if entry_price > 0:
                             volatility_current = atr_value / entry_price
                         volatility_current = max(volatility_current, 1e-8)
 
-                        # Fórmula Maestra con Factor Alpha
+                        # 1. Base Sizing: Target Volatility
                         allocation_dollars = equity * volatility_target_pct
                         allocation_dollars /= max(volatility_current ** volatility_exponent, 1e-8)
                         
-                        # Aplicar Límites (Safety Caps) en dólares y en acciones
+                        # 2. Hard Caps (basados en capital inicial, optimista)
                         max_capital_dollars = max(0.0, min(equity * max_position_pct, equity))
                         capped_allocation = max(0.0, min(allocation_dollars, max_capital_dollars))
 
-                        # Segunda línea de defensa: cap en número de acciones
+                        # 3. Cálculo de Posición
                         shares_by_allocation = capped_allocation / entry_price if entry_price > 0 else 0.0
                         shares_by_cash_cap = max_capital_dollars / entry_price if entry_price > 0 else 0.0
-                        shares_by_equity = equity / entry_price if entry_price > 0 else 0.0
-
-                        # Evitar infinities/NaNs que podrían saltarse el min()
-                        share_candidates = [shares_by_allocation, shares_by_cash_cap, shares_by_equity]
+                        
+                        # El tamaño de posición es el mínimo de los límites
+                        share_candidates = [shares_by_allocation, shares_by_cash_cap]
                         share_candidates = [s for s in share_candidates if np.isfinite(s) and s > 0]
                         position_size = int(min(share_candidates)) if share_candidates else 0
                         
@@ -385,7 +401,7 @@ def run_backtest(
                             t += 1
                             continue
 
-                        # --- EJECUCIÓN ---
+                        # --- REGISTRO DEL TRADE PARA REPLAY ---
                         invested_capital = position_size * entry_price
 
                         entry_comm = position_size * entry_price * commission
@@ -393,9 +409,7 @@ def run_backtest(
                         gross_profit = position_size * (exit_price - entry_price)
                         net_profit = gross_profit - (entry_comm + exit_comm)
                         
-                        trade_ret = net_profit / invested_capital
-
-                        equity += net_profit
+                        trade_ret = net_profit / invested_capital if invested_capital > 0 else 0.0
 
                         exit_idx = min(result["exit_idx"], len(dates_arr) - 1)
 
@@ -414,7 +428,7 @@ def run_backtest(
                             "return": trade_ret,
                             "bars_held": result["bars_held"],
                             "exit_reason": result["reason"],
-                            "equity_after": equity,
+                            "equity_after": np.nan,  # Se calcula en el replay loop
                         })
                         
                         t = result["exit_idx"]
@@ -437,8 +451,8 @@ def main():
     parser.add_argument("--data-root", type=Path, default=Path("data"))
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--min-confidence", type=float, default=0.65)
-    parser.add_argument("--k-atr", type=float, default=3.0, help="Multiplicador ATR para Chandelier Exit")
-    parser.add_argument("--max-horizon", type=int, default=20, help="Horizonte máximo de retención")
+    parser.add_argument("--k-atr", type=float, default=3.0, help="Multiplicador ATR")
+    parser.add_argument("--max-horizon", type=int, default=20, help="Horizonte máximo")
     
     # Argumentos Nuevos (EMA y Fundamentales)
     parser.add_argument("--ema-length", type=int, default=20, help="Longitud de la EMA para extender horizonte")
@@ -451,10 +465,10 @@ def main():
     parser.add_argument("--max-position-pct", type=float, default=0.25, help="Límite máximo de capital por operación respecto al equity (Hard Cap)")
     
     # Stops
-    parser.add_argument("--hard-stop-pct", type=float, default=0.07, help="Stop porcentual de emergencia base")
-    parser.add_argument("--volatility-stop-scale", type=float, default=1.0, help="Factor multiplicador para ATR/Precio al ampliar el hard stop")
-    parser.add_argument("--max-volatility-stop-pct", type=float, default=0.05, help="Límite extra que la volatilidad puede añadir al stop")
-    parser.add_argument("--commission", type=float, default=0.001, help="Comisión por lado (defecto: 0.1%)")
+    parser.add_argument("--hard-stop-pct", type=float, default=0.07)
+    parser.add_argument("--volatility-stop-scale", type=float, default=1.0)
+    parser.add_argument("--max-volatility-stop-pct", type=float, default=0.05)
+    parser.add_argument("--commission", type=float, default=0.001)
     
     parser.add_argument("--start-date", help="YYYY-MM-DD")
     parser.add_argument("--end-date", help="YYYY-MM-DD")
@@ -474,25 +488,12 @@ def main():
     start_date = _parse_date(args.start_date)
     end_date = _parse_date(args.end_date)
 
+    # Paso 1: Generación de trades potenciales (con sizing optimista)
     results = run_backtest(
-        tickers,
-        args.data_root,
-        model,
-        args.min_confidence,
-        args.k_atr,
-        args.max_horizon,
-        args.ema_length,
-        args.min_growth_pct,
-        start_date,
-        end_date,
-        args.initial_capital,
-        args.volatility_target_pct,
-        args.volatility_exponent,
-        args.max_position_pct,
-        args.hard_stop_pct,
-        args.volatility_stop_scale,
-        args.max_volatility_stop_pct,
-        args.commission,
+        tickers, args.data_root, model, args.min_confidence, args.k_atr, args.max_horizon,
+        args.ema_length, args.min_growth_pct, start_date, end_date, args.initial_capital,
+        args.volatility_target_pct, args.volatility_exponent, args.max_position_pct, args.hard_stop_pct,
+        args.volatility_stop_scale, args.max_volatility_stop_pct, args.commission,
     )
     
     if results.empty:
@@ -500,24 +501,106 @@ def main():
         return
         
     results["entry_date"] = pd.to_datetime(results["entry_date"])
-    results = results.sort_values("entry_date")
+    results["exit_date"] = pd.to_datetime(results["exit_date"])
+
+    # ------------------------------------------------------------------
+    # CASH FLOW REPLAY (Soluciona el Bug Millonario)
+    # Re-ejecutar cronológicamente para control de liquidez.
+    # ------------------------------------------------------------------
+    results = results.sort_values("entry_date").reset_index(drop=True)
     
-    # Cálculo cronológico de la curva de equidad
-    results["cumulative_profit"] = results["net_profit"].cumsum()
-    results["equity"] = args.initial_capital + results["cumulative_profit"]
+    # Inicialización para el replay
+    cash = args.initial_capital
+    equity_history: List[Dict[str, Any]] = []
+    accepted_trades: List[Dict[str, Any]] = []
     
-    results["cum_return"] = results["equity"] / args.initial_capital
+    # Heap de eventos de salida: (fecha_salida, idx_trade, cash_delta)
+    # Se utiliza una lista simple ordenada, asumiendo un número manejable de trades.
+    exit_events: List[Tuple[Any, int, float]] = []
+    
+    # Registrar punto inicial
+    if not results.empty:
+        equity_history.append({"date": results["entry_date"].min(), "equity": cash})
+
+    for idx, trade in results.iterrows():
+        # 1. Procesar salidas pendientes (liberar cash)
+        # Se liberan fondos de operaciones ya cerradas cuya fecha de salida es anterior o igual a la entrada actual
+        while exit_events and exit_events[0][0] <= trade["entry_date"]:
+            exit_date, trade_idx, cash_delta = exit_events.pop(0)
+            cash += cash_delta
+            equity_history.append({"date": exit_date, "equity": cash})
+            if 0 <= trade_idx < len(accepted_trades):
+                accepted_trades[trade_idx]["equity_after"] = cash
+
+        # 2. Intentar la nueva entrada
+        capital_required = trade.get("capital_used", 0.0)
+        
+        # EL CHECK CLAVE: Si el cash actual es insuficiente, descartamos la orden
+        if capital_required <= 0 or cash < capital_required:
+            continue
+
+        # Compra: Reducir caja por el capital usado
+        cash -= capital_required
+        equity_history.append({"date": trade["entry_date"], "equity": cash})
+
+        # Aceptar y registrar el trade
+        trade_record = trade.to_dict()
+        trade_record["equity_after"] = np.nan
+        accepted_idx = len(accepted_trades)
+        accepted_trades.append(trade_record)
+
+        # 3. Planear la salida: Se programa el evento de liberación de capital
+        cash_delta_on_exit = capital_required + trade.get("net_profit", 0.0)
+        exit_events.append((trade["exit_date"], accepted_idx, cash_delta_on_exit))
+        exit_events.sort(key=lambda x: x[0]) # Mantener orden cronológico
+
+    # 4. Procesar eventos finales de salida
+    for exit_date, trade_idx, cash_delta in exit_events:
+        cash += cash_delta
+        equity_history.append({"date": exit_date, "equity": cash})
+        if 0 <= trade_idx < len(accepted_trades):
+            accepted_trades[trade_idx]["equity_after"] = cash
+
+    results = pd.DataFrame(accepted_trades)
+    if results.empty:
+        logger.warning("No se generaron operaciones tras aplicar control de liquidez cronológico.")
+        return
+
+    equity_df = pd.DataFrame(equity_history)
+    equity_df = equity_df.sort_values("date")
+    # Eliminar duplicados de fecha manteniendo el último valor (el más actualizado)
+    equity_df = equity_df.drop_duplicates(subset=["date"], keep="last").reset_index(drop=True)
+    
+    results = results.reset_index(drop=True)
+    results["cumulative_profit"] = results.get("net_profit", 0).cumsum()
+    
+    # Rellenar los valores de equity faltantes (entre trades)
+    equity_series = equity_df["equity"] if not equity_df.empty else pd.Series([args.initial_capital])
+    # Rellenar NANs con el valor anterior/siguiente conocido de capital final
+    results["equity_after"] = results["equity_after"].fillna(method="ffill").fillna(method="bfill")
+    final_equity = equity_series.iloc[-1]
+    
+    # La columna 'equity' debe contener el capital final después de la operación (el valor rellenado)
+    results["equity"] = results["equity_after"].fillna(final_equity)
+    
+    # ------------------------------------------------------------------
+    # CÁLCULOS FINALES
+    # ------------------------------------------------------------------
     
     total_trades = len(results)
+    final_return_pct = (final_equity - args.initial_capital) / args.initial_capital
     win_rate = (results["net_profit"] > 0).mean()
     avg_return = results["return"].mean()
     
+    # Sharpe Ratio (Asumiendo 252 días de trading)
     sharpe = 0.0
     if results["return"].std() > 0:
+        # Se utiliza el retorno promedio de las operaciones, no del día a día.
         sharpe = np.sqrt(252) * (avg_return / results["return"].std())
         
-    rolling_max = results["equity"].cummax()
-    drawdown = (results["equity"] - rolling_max) / rolling_max
+    # Max Drawdown (Calculado sobre la serie de equity generada cronológicamente)
+    rolling_max = equity_series.cummax()
+    drawdown = (equity_series - rolling_max) / rolling_max
     max_dd = drawdown.min()
 
     output_file = "backtest_results.csv"
@@ -530,8 +613,8 @@ def main():
     logger.info(f"Win Rate:          {win_rate:.2%}")
     logger.info(f"Sharpe Ratio:      {sharpe:.2f}")
     logger.info(f"Max Drawdown:      {max_dd:.2%}")
-    logger.info(f"Capital Final:     ${results['equity'].iloc[-1]:,.2f}")
-    logger.info(f"Retorno Total:     {(results['equity'].iloc[-1] - args.initial_capital) / args.initial_capital:.2%}")
+    logger.info(f"Capital Final:     ${final_equity:,.2f}")
+    logger.info(f"Retorno Total:     {final_return_pct:.2%}")
     logger.info(f"Detalles en:       {output_file}")
     logger.info("-" * 50)
 
