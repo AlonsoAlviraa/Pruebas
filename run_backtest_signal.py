@@ -1,26 +1,55 @@
 #!/usr/bin/env python3
 """
 Backtest Strategy: XGBoost Signal + Chandelier Exit + Inverse Volatility Sizing.
-Includes 'Alpha' dampening factor to control aggression on volatile assets.
+Includes Point-in-Time Fundamental Validation and Hybrid Time/EMA Exit.
 """
 import argparse
 import logging
-import pandas as pd
-import numpy as np
-import pandas_ta as ta
+import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
-# Ajusta estos imports según la estructura de tu proyecto
+import numpy as np
+import pandas as pd
+import pandas_ta as ta
+
+# ---------------------------------------------------------------------------
+# Configuración de Rutas y Dependencias (Parche de Robustez)
+# ---------------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+DataPipeline = None
+PipelineConfig = None
+
 try:
-    from src.data_pipeline import DataPipeline, PipelineConfig
-    from src.model_utils import load_model
+    from src.data_pipeline import DataPipeline, PipelineConfig  # type: ignore
 except ImportError:
-    # Fallback para evitar errores de linter si no existen los módulos
-    from sys import exit
-    print("Error: No se encuentran los módulos 'src'. Asegúrate de estar en la raíz del proyecto.")
+    try:
+        from drl_platform.data_pipeline import DataPipeline, PipelineConfig  # type: ignore
+    except ImportError:
+        try:
+            from data_pipeline import DataPipeline, PipelineConfig  # type: ignore
+        except ImportError as exc:
+            raise ImportError(
+                "No se pudieron importar DataPipeline/PipelineConfig. Asegúrate de que estén accesibles."
+            ) from exc
 
-# Configuración de Logging
+try:
+    from src.model_utils import load_model  # type: ignore
+except ImportError:
+    def load_model(model_path: Any) -> Any:
+        path = Path(model_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Modelo no encontrado en {path}")
+        import joblib
+        return joblib.load(path)
+
+# ---------------------------------------------------------------------------
+# Lógica del Backtest
+# ---------------------------------------------------------------------------
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(funcName)s: %(message)s",
@@ -30,10 +59,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp, data_root: Path = Path("data")) -> pd.DataFrame:
-    """
-    Determina si el mercado (QQQ) está alcista o bajista.
-    Regla: Precio > SMA 50.
-    """
+    """Determina si el mercado (QQQ) está alcista o bajista."""
     qqq_path = data_root / "QQQ_history.csv"
     if not qqq_path.exists():
         logger.warning("QQQ_history.csv no encontrado. Saltando filtro de régimen.")
@@ -51,11 +77,9 @@ def get_market_regime(start_date: pd.Timestamp, end_date: pd.Timestamp, data_roo
         logger.warning("No hay datos de QQQ. Filtro de régimen DESACTIVADO.")
         return pd.DataFrame()
 
-    # Calcular SMA 50
     qqq["sma_50"] = ta.sma(qqq["close"], length=50)
     qqq["is_bullish"] = qqq["close"] > qqq["sma_50"]
     
-    # Filtrar rango solicitado
     if start_date.tzinfo is None: start_date = start_date.tz_localize("UTC")
     if end_date.tzinfo is None: end_date = end_date.tz_localize("UTC")
     
@@ -71,6 +95,7 @@ def calculate_chandelier_exit(
     prices: np.ndarray,
     highs: np.ndarray,
     atrs: np.ndarray,
+    emas: np.ndarray,
     start_idx: int,
     k: float = 3.0,
     max_horizon: int = 20,
@@ -79,14 +104,11 @@ def calculate_chandelier_exit(
     max_volatility_stop_pct: float = 0.05,
 ) -> Dict[str, Any]:
     """
-    Simula una operación con doble mecanismo de salida:
-    1. Chandelier Exit (Trailing Stop dinámico).
-    2. Hard Stop (Stop de emergencia basado en volatilidad).
+    Simula operación con Chandelier Exit, Hard Stop y Salida Híbrida (Tiempo/EMA).
     """
     entry_price = prices[start_idx]
     initial_atr = atrs[start_idx]
     
-    # --- 1. Configuración de Stops ---
     initial_stop = entry_price - (k * initial_atr)
     stop_loss = initial_stop
     highest_high = highs[start_idx]
@@ -97,41 +119,33 @@ def calculate_chandelier_exit(
         atr_pct = (initial_atr / entry_price) * volatility_stop_scale
     
     atr_pct = np.clip(atr_pct, 0.0, max_volatility_stop_pct)
-    
     dynamic_hard_stop_pct = max(0.0, hard_stop_pct + atr_pct)
     hard_stop_price = entry_price * (1 - dynamic_hard_stop_pct)
     
-    # --- 2. Simulación Barra a Barra ---
-    for i in range(1, max_horizon + 1):
-        curr_idx = start_idx + i
+    bars_held = 0
+    while True:
+        bars_held += 1
+        curr_idx = start_idx + bars_held
+        
         if curr_idx >= len(prices):
             return {
-                "exit_price": prices[-1],
-                "exit_idx": len(prices) - 1,
-                "reason": "end_of_data",
-                "bars_held": i,
-                "initial_stop": initial_stop,
-                "hard_stop_price": hard_stop_price,
-                "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
+                "exit_price": prices[-1], "exit_idx": len(prices) - 1, "reason": "end_of_data",
+                "bars_held": bars_held, "initial_stop": initial_stop,
+                "hard_stop_price": hard_stop_price, "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
             }
             
         curr_price = prices[curr_idx]
         curr_high = highs[curr_idx]
         curr_atr = atrs[curr_idx]
         
-        # Stop activo: el precio más alto entre el trailing y el hard stop
         active_stop = max(stop_loss, hard_stop_price)
         
         if curr_price < active_stop:
             reason = "hard_stop" if np.isclose(active_stop, hard_stop_price) else "stop_loss"
             return {
-                "exit_price": active_stop,
-                "exit_idx": curr_idx,
-                "reason": reason,
-                "bars_held": i,
-                "initial_stop": initial_stop,
-                "hard_stop_price": hard_stop_price,
-                "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
+                "exit_price": active_stop, "exit_idx": curr_idx, "reason": reason,
+                "bars_held": bars_held, "initial_stop": initial_stop,
+                "hard_stop_price": hard_stop_price, "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
             }
             
         if curr_high > highest_high:
@@ -139,21 +153,81 @@ def calculate_chandelier_exit(
         
         new_stop = highest_high - (k * curr_atr)
         stop_loss = max(stop_loss, new_stop)
-        
-    return {
-        "exit_price": prices[start_idx + max_horizon],
-        "exit_idx": start_idx + max_horizon,
-        "reason": "horizon_limit",
-        "bars_held": max_horizon,
-        "initial_stop": initial_stop,
-        "hard_stop_price": hard_stop_price,
-        "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
-    }
+
+        # Lógica Híbrida: Salida por Tiempo CONDICIONAL
+        if bars_held >= max_horizon:
+            ema_value = emas[curr_idx] if len(emas) > curr_idx else np.nan
+            
+            # Si NO tenemos EMA válida o el precio ha perdido la EMA -> Salimos (horizon_limit)
+            if np.isnan(ema_value) or curr_price < ema_value:
+                return {
+                    "exit_price": curr_price, "exit_idx": curr_idx, "reason": "horizon_limit",
+                    "bars_held": bars_held, "initial_stop": initial_stop,
+                    "hard_stop_price": hard_stop_price, "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
+                }
+            # Si el precio está sobre la EMA (curr_price >= ema_value), el loop continúa, extendiendo el horizonte.
+
+
+def _load_fundamentals(ticker: str, data_root: Path, cache: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+    if ticker in cache: return cache[ticker]
+
+    fundamentals_path = data_root / f"{ticker}_fundamentals.csv"
+    if not fundamentals_path.exists():
+        cache[ticker] = pd.DataFrame()
+        return cache[ticker]
+
+    df = pd.read_csv(fundamentals_path)
+    df.columns = [c.lower().strip() for c in df.columns]
+    
+    for col in ["as_of", "available_at"]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], utc=True)
+
+    if "available_at" in df.columns:
+        df = df.sort_values("available_at")
+    
+    cache[ticker] = df
+    return df
+
+
+def validate_fundamentals_at_date(
+    ticker: str,
+    current_simulation_date: Any,
+    min_growth_pct: float,
+    fundamentals_cache: Dict[str, pd.DataFrame],
+    data_root: Path,
+) -> bool:
+    """Valida fundamentales Point-in-Time para evitar Look-Ahead Bias."""
+    df = _load_fundamentals(ticker, data_root, fundamentals_cache)
+    if df.empty: return False
+
+    current_ts = pd.to_datetime(current_simulation_date, utc=True)
+    
+    # Filtramos solo lo que se sabía EN ESE MOMENTO
+    if "available_at" not in df.columns: return False
+    df_available = df[df["available_at"] <= current_ts]
+    
+    if len(df_available) < 2: return False
+
+    latest = df_available.iloc[-1]
+    previous = df_available.iloc[-2]
+
+    # Prioridad: Revenue > EPS
+    metric_col = "revenue" if "revenue" in df_available.columns else "eps" if "eps" in df_available.columns else None
+    if metric_col is None: return False
+
+    prev_value = previous[metric_col]
+    latest_value = latest[metric_col]
+    
+    if pd.isna(prev_value) or pd.isna(latest_value) or prev_value == 0:
+        return False
+
+    growth_pct = (latest_value - prev_value) / abs(prev_value)
+    return growth_pct >= min_growth_pct
 
 
 def _parse_date(value: Optional[str]) -> Optional[pd.Timestamp]:
-    if not value:
-        return None
+    if not value: return None
     ts = pd.Timestamp(value)
     if ts.tzinfo is None:
         ts = ts.tz_localize("UTC")
@@ -169,6 +243,8 @@ def run_backtest(
     min_confidence: float,
     k_atr: float,
     max_horizon: int,
+    ema_length: int,
+    min_growth_pct: float,
     start_date: Optional[pd.Timestamp],
     end_date: Optional[pd.Timestamp],
     initial_capital: float,
@@ -181,14 +257,19 @@ def run_backtest(
     commission: float = 0.001,
 ) -> pd.DataFrame:
     
-    pipeline = DataPipeline(PipelineConfig(data_root=data_root))
+    if DataPipeline is None: # type: ignore
+        raise ImportError("DataPipeline no inicializado.")
+
+    pipeline = DataPipeline(PipelineConfig(data_root=data_root)) # type: ignore
     trades = []
+    fundamentals_cache: Dict[str, pd.DataFrame] = {}
     
-    # Inicialización de Gestión de Capital
     volatility_target_pct = max(0.0, volatility_target_pct)
     volatility_exponent = max(0.0, volatility_exponent)
     max_position_pct = max(0.0, min(1.0, max_position_pct))
+    
     equity = initial_capital
+    cash = initial_capital
     
     regime_df = pd.DataFrame()
     if start_date and end_date:
@@ -211,13 +292,18 @@ def run_backtest(
             if end_date: mask &= dates <= end_date
             df = df.loc[mask].copy()
             
+            ema_col = f"ema_{ema_length}"
+            df[ema_col] = ta.ema(df["close"], length=ema_length)
+            df = df.dropna(subset=[ema_col]).reset_index(drop=True)
+            
             if df.empty: continue
 
-            feature_cols = [c for c in df.columns if c not in ["date", "ticker", "target", "open", "high", "low", "close", "volume", "atr"]]
+            feature_cols = [c for c in df.columns if c not in ["date", "ticker", "target", "open", "high", "low", "close", "volume", "atr", ema_col]]
             if hasattr(model, "feature_names_in_"):
                  X = df[feature_cols].reindex(columns=model.feature_names_in_, fill_value=0)
             else:
                  X = df[feature_cols]
+            X = X.apply(pd.to_numeric, errors="coerce").fillna(0.0)
 
             preds_proba = model.predict_proba(X)[:, 1]
             signals = preds_proba >= min_confidence
@@ -225,13 +311,27 @@ def run_backtest(
             prices = df["close"].values
             highs = df["high"].values
             atrs = df["atr"].values
+            emas = df[ema_col].values
             dates_arr = df["date"].values
             
             t = 0
             while t < len(prices) - 1:
+                if cash < 10:
+                    t += 1
+                    continue
+
                 if signals[t]:
                     current_date = dates_arr[t]
                     
+                    # 1. Validación Fundamental Point-in-Time
+                    fundamentals_ok = validate_fundamentals_at_date(
+                        ticker, current_date, min_growth_pct, fundamentals_cache, data_root
+                    )
+                    if not fundamentals_ok:
+                        t += 1
+                        continue
+
+                    # 2. Filtro Régimen de Mercado
                     is_bullish_regime = True
                     if not regime_df.empty:
                         try:
@@ -243,7 +343,7 @@ def run_backtest(
                     
                     if is_bullish_regime:
                         result = calculate_chandelier_exit(
-                            prices, highs, atrs, t,
+                            prices, highs, atrs, emas, t,
                             k=k_atr, max_horizon=max_horizon,
                             hard_stop_pct=hard_stop_pct,
                             volatility_stop_scale=volatility_stop_scale,
@@ -253,41 +353,42 @@ def run_backtest(
                         entry_price = prices[t]
                         exit_price = result["exit_price"]
                         
-                        entry_stop = result.get("initial_stop", entry_price)
-                        hard_stop_price = result.get("hard_stop_price", entry_stop)
-                        dynamic_hard_stop_pct = result.get("dynamic_hard_stop_pct", hard_stop_pct)
-
-                        # --- NUEVA LÓGICA: INVERSE VOLATILITY SIZING ---
+                        if entry_price <= 0: 
+                            t += 1
+                            continue
+                        
+                        # --- SIZING ---
                         atr_value = atrs[t]
-                        volatility_current = 0.0
-                        if entry_price > 0:
-                            volatility_current = atr_value / entry_price
-                        volatility_current = max(volatility_current, 1e-8)
+                        vol_curr = max(atr_value / entry_price, 1e-4)
 
                         # Fórmula Maestra con Factor Alpha
-                        allocation_dollars = equity * volatility_target_pct
-                        # Aplicamos el exponente (Alpha) aquí:
-                        allocation_dollars /= max(volatility_current ** volatility_exponent, 1e-8)
+                        alloc_dollars = equity * volatility_target_pct
+                        alloc_dollars /= max(vol_curr ** volatility_exponent, 1e-8)
                         
-                        # Aplicar Límites (Safety Caps)
-                        max_capital = equity * max_position_pct
-                        allocation_dollars = max(0.0, min(allocation_dollars, max_capital, equity))
+                        # Cap Equity
+                        alloc_dollars = min(alloc_dollars, equity * max_position_pct)
+                        
+                        # Cap Cash Real
+                        alloc_dollars = min(alloc_dollars, cash)
 
-                        position_size = int(allocation_dollars / entry_price)
+                        position_size = int(alloc_dollars / entry_price)
                         
                         if position_size == 0:
                             t += 1
                             continue
 
-                        # Cálculo PnL
-                        entry_commission = position_size * entry_price * commission
-                        exit_commission = position_size * exit_price * commission
-                        gross_profit = position_size * (exit_price - entry_price)
-                        net_profit = gross_profit - (entry_commission + exit_commission)
-                        
+                        # --- EJECUCIÓN ---
                         invested_capital = position_size * entry_price
-                        trade_return = net_profit / invested_capital if invested_capital > 0 else 0.0
+                        cash -= invested_capital 
 
+                        entry_comm = position_size * entry_price * commission
+                        exit_comm = position_size * exit_price * commission
+                        gross_profit = position_size * (exit_price - entry_price)
+                        net_profit = gross_profit - (entry_comm + exit_comm)
+                        
+                        trade_ret = net_profit / invested_capital
+
+                        cash += invested_capital + net_profit
                         equity += net_profit
 
                         trades.append({
@@ -296,16 +397,13 @@ def run_backtest(
                             "exit_date": dates_arr[result["exit_idx"]],
                             "entry_price": entry_price,
                             "exit_price": exit_price,
-                            "initial_stop": entry_stop,
-                            "hard_stop_price": hard_stop_price,
-                            "hard_stop_pct": dynamic_hard_stop_pct,
                             "shares": position_size,
-                            "capital_used": invested_capital,
                             "net_profit": net_profit,
-                            "return": trade_return,
+                            "return": trade_ret,
                             "bars_held": result["bars_held"],
                             "exit_reason": result["reason"],
                             "equity_after": equity,
+                            "cash_after": cash
                         })
                         
                         t = result["exit_idx"]
@@ -320,6 +418,7 @@ def run_backtest(
             
     return pd.DataFrame(trades)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Backtester Sniper + Inverse Volatility Sizing")
     parser.add_argument("--tickers", help="Lista de tickers separados por coma")
@@ -327,29 +426,32 @@ def main():
     parser.add_argument("--data-root", type=Path, default=Path("data"))
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--min-confidence", type=float, default=0.65)
-    parser.add_argument("--k-atr", type=float, default=3.0, help="Multiplicador ATR para Chandelier Exit")
-    parser.add_argument("--max-horizon", type=int, default=20, help="Horizonte máximo de retención")
+    parser.add_argument("--k-atr", type=float, default=3.0, help="Multiplicador ATR")
+    parser.add_argument("--max-horizon", type=int, default=20, help="Horizonte máximo")
     
-    # Argumentos de Gestión de Capital (NUEVOS)
+    # Argumentos Nuevos (EMA y Fundamentales)
+    parser.add_argument("--ema-length", type=int, default=20, help="Longitud de la EMA para extender horizonte")
+    parser.add_argument("--min-growth-pct", type=float, default=0.05, help="Crecimiento mínimo QoQ/YoY requerido")
+    
+    # Gestión de Capital
     parser.add_argument("--initial-capital", type=float, default=10000.0)
-    parser.add_argument("--volatility-target-pct", type=float, default=0.005, help="Volatilidad objetivo por posición (por defecto 0.5%)")
-    parser.add_argument("--volatility-exponent", type=float, default=1.0, help="Exponente Alpha: 1.0=Conservador, 0.5=Agresivo/Growth, 0.0=Igualdad")
-    parser.add_argument("--max-position-pct", type=float, default=0.25, help="Límite máximo de capital por operación respecto al equity (Hard Cap)")
+    parser.add_argument("--volatility-target-pct", type=float, default=0.005)
+    parser.add_argument("--volatility-exponent", type=float, default=1.0)
+    parser.add_argument("--max-position-pct", type=float, default=0.25)
     
-    # Argumentos de Stop Loss
-    parser.add_argument("--hard-stop-pct", type=float, default=0.07, help="Stop porcentual de emergencia base")
-    parser.add_argument("--volatility-stop-scale", type=float, default=1.0, help="Factor multiplicador para ATR/Precio al ampliar el hard stop")
-    parser.add_argument("--max-volatility-stop-pct", type=float, default=0.05, help="Límite extra que la volatilidad puede añadir al stop")
-    parser.add_argument("--commission", type=float, default=0.001, help="Comisión por lado (defecto: 0.1%)")
+    # Stops
+    parser.add_argument("--hard-stop-pct", type=float, default=0.07)
+    parser.add_argument("--volatility-stop-scale", type=float, default=1.0)
+    parser.add_argument("--max-volatility-stop-pct", type=float, default=0.05)
+    parser.add_argument("--commission", type=float, default=0.001)
     
-    parser.add_argument("--start-date", help="YYYY-MM-DD start date")
-    parser.add_argument("--end-date", help="YYYY-MM-DD end date")
+    parser.add_argument("--start-date", help="YYYY-MM-DD")
+    parser.add_argument("--end-date", help="YYYY-MM-DD")
     
     args = parser.parse_args()
     
     tickers = []
-    if args.tickers:
-        tickers.extend([t.strip().upper() for t in args.tickers.split(",") if t.strip()])
+    if args.tickers: tickers.extend([t.strip().upper() for t in args.tickers.split(",") if t.strip()])
     if args.ticker_file and args.ticker_file.exists():
         content = args.ticker_file.read_text(encoding="utf-8").splitlines()
         tickers.extend([t.strip().upper() for t in content if t.strip()])
@@ -368,6 +470,8 @@ def main():
         args.min_confidence,
         args.k_atr,
         args.max_horizon,
+        args.ema_length,
+        args.min_growth_pct,
         start_date,
         end_date,
         args.initial_capital,
@@ -394,7 +498,7 @@ def main():
     results["cum_return"] = results["equity"] / args.initial_capital
     
     total_trades = len(results)
-    win_rate = (results["return"] > 0).mean()
+    win_rate = (results["net_profit"] > 0).mean()
     avg_return = results["return"].mean()
     
     sharpe = 0.0
@@ -409,7 +513,7 @@ def main():
     results.to_csv(output_file, index=False)
 
     logger.info("-" * 50)
-    logger.info(f"RESULTADOS: XGBoost + Inverse Volatility Sizing (Alpha={args.volatility_exponent})")
+    logger.info(f"RESULTADOS: XGBoost + Inverse Vol + Fundamentales Point-in-Time")
     logger.info("-" * 50)
     logger.info(f"Total Operaciones: {total_trades}")
     logger.info(f"Win Rate:          {win_rate:.2%}")
