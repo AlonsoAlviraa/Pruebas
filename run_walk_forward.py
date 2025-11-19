@@ -1,294 +1,257 @@
 #!/usr/bin/env python3
-"""
-Script de Walk-Forward Analysis (WFA) para la estrategia Event-Driven.
-Simula el re-entrenamiento periódico para validar la robustez de la estrategia.
-"""
+"""Walk-Forward Analysis script for the Sniper strategy."""
+from __future__ import annotations
+
 import argparse
 import logging
-import sys
 from pathlib import Path
-from typing import List, Dict, Any
-import datetime
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.metrics import precision_score, recall_score, f1_score
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
-from train_signal_model import train_model
+from train_signal_model import build_model
 
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger("run_walk_forward")
 
-def load_all_data(
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Walk-Forward Analysis")
+    parser.add_argument("--tickers", help="Comma separated tickers")
+    parser.add_argument("--data-root", type=Path, default=Path("data"))
+    parser.add_argument("--train-start", help="Force training start date")
+    parser.add_argument("--first-test-start", help="First OOS date (defaults to 2022-01-01)")
+    parser.add_argument("--test-period-days", type=int, default=90)
+    parser.add_argument("--horizon", type=int, default=5)
+    parser.add_argument("--take-profit", type=float, help="Optional fixed TP")
+    parser.add_argument("--stop-loss", type=float, help="Optional fixed SL")
+    parser.add_argument("--atr-multiplier-tp", type=float, default=2.0)
+    parser.add_argument("--atr-multiplier-sl", type=float, default=2.0)
+    parser.add_argument("--min-confidence", type=float, default=0.6)
+    parser.add_argument("--initial-capital", type=float, default=10000.0)
+    parser.add_argument("--model-type", choices=["rf", "xgb"], default="rf")
+    parser.add_argument("--n-estimators", type=int, default=200)
+    parser.add_argument("--max-depth", type=int, default=10)
+    parser.add_argument("--min-samples-split", type=int, default=4)
+    parser.add_argument("--learning-rate", type=float, default=0.05)
+    parser.add_argument("--subsample", type=float, default=0.8)
+    parser.add_argument("--colsample-bytree", type=float, default=0.8)
+    parser.add_argument("--n-jobs", type=int, default=-1)
+    parser.add_argument("--class-weighted", action="store_true")
+    parser.add_argument("--random-state", type=int, default=42)
+    return parser.parse_args()
+
+
+def _parse_date(value: Optional[str], default: Optional[str] = None) -> Optional[pd.Timestamp]:
+    if value:
+        ts = pd.Timestamp(value)
+    elif default:
+        ts = pd.Timestamp(default)
+    else:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    else:
+        ts = ts.tz_convert("UTC")
+    return ts
+
+
+def _ticker_list(args: argparse.Namespace, data_root: Path) -> List[str]:
+    tickers: List[str] = []
+    if args.tickers:
+        tickers.extend(part.strip().upper() for part in args.tickers.split(",") if part.strip())
+    if not tickers:
+        tickers = [path.name.replace("_history.csv", "") for path in data_root.glob("*_history.csv")]
+    if not tickers:
+        raise ValueError("No tickers available for walk-forward")
+    return tickers
+
+
+def _load_master_frame(
     tickers: List[str],
-    data_root: Path,
+    pipeline: DataPipeline,
     horizon: int,
-    take_profit: float,
-    stop_loss: float,
-    use_dynamic_barriers: bool,
-    barrier_std: float
+    tp: Optional[float],
+    sl: Optional[float],
+    atr_tp: float,
+    atr_sl: float,
 ) -> pd.DataFrame:
-    """Carga y etiqueta todos los datos disponibles."""
-    pipeline = DataPipeline(PipelineConfig(data_root=data_root))
-    all_dfs = []
-    
-    logger.info(f"Cargando datos históricos para {len(tickers)} tickers...")
-    
+    frames: List[pd.DataFrame] = []
     for ticker in tickers:
         try:
             df = pipeline.load_feature_view(ticker, indicators=True)
-            if df.empty:
-                continue
-                
-            labeled_df = pipeline.create_triple_barrier_labels(
-                df, 
-                horizon=horizon, 
-                take_profit=take_profit, 
-                stop_loss=stop_loss,
-                use_dynamic_barriers=use_dynamic_barriers,
-                barrier_std=barrier_std
+            labeled = pipeline.create_triple_barrier_labels(
+                df,
+                horizon=horizon,
+                take_profit=tp,
+                stop_loss=sl,
+                atr_multiplier_tp=atr_tp,
+                atr_multiplier_sl=atr_sl,
             )
-            
-            # Limpiar NaNs de etiquetas (final de serie)
-            valid_mask = labeled_df["label"].notna()
-            clean_df = labeled_df[valid_mask].copy()
-            
-            if clean_df.empty:
-                continue
-                
-            clean_df["ticker"] = ticker
-            all_dfs.append(clean_df)
-            
-        except Exception as e:
-            logger.warning(f"Error cargando {ticker}: {e}")
-            
-    if not all_dfs:
-        raise ValueError("No se cargaron datos.")
-        
-    master_df = pd.concat(all_dfs, axis=0, ignore_index=True)
-    master_df["date"] = pd.to_datetime(master_df["date"])
-    master_df = master_df.sort_values("date")
-    
-    return master_df
+            labeled = labeled[labeled["label"].notna()].copy()
+            labeled["ticker"] = ticker
+            frames.append(labeled)
+        except Exception as exc:
+            logger.warning("Unable to prepare %s: %s", ticker, exc)
+    if not frames:
+        raise ValueError("No labelled data for walk-forward analysis")
+    master = pd.concat(frames, axis=0, ignore_index=True)
+    master["date"] = pd.to_datetime(master["date"], utc=True)
+    master = master.sort_values("date").reset_index(drop=True)
+    return master
+
+
+def _feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    drop_cols = ["date", "label", "ticker", "index", "tp_pct", "sl_pct", "time_exit_return", "summary"]
+    features = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    return features.select_dtypes(include=[np.number]).fillna(0.0)
+
+
+def _label_to_return(row: pd.Series) -> float:
+    label = row.get("label")
+    if label == 1:
+        return float(row.get("tp_pct", 0.0))
+    if label == -1:
+        return float(row.get("sl_pct", 0.0))
+    return float(row.get("time_exit_return", 0.0))
+
+
+def _append_equity(trades: pd.DataFrame, initial_capital: float) -> pd.DataFrame:
+    if trades.empty:
+        return trades
+    trades = trades.sort_values("date").reset_index(drop=True)
+    compounded = (1 + trades["return"]).cumprod()
+    trades["equity"] = initial_capital * compounded
+    trades["cum_return"] = compounded - 1
+    return trades
+
 
 def run_walk_forward(
-    master_df: pd.DataFrame,
-    start_date: str,
-    train_period_days: int, # Periodo inicial de entrenamiento
-    test_period_days: int,  # Ventana de test (re-entrenamiento)
-    model_params: Dict[str, Any]
-):
-    """
-    Ejecuta el bucle de Walk-Forward.
-    Expanding Window: Train [Start, T], Test [T, T+step]
-    """
-    dates = master_df["date"].unique()
-    dates.sort()
-    
-    min_date = dates[0]
-    max_date = dates[-1]
-    
-    # Definir fecha de corte inicial
-    if start_date:
-        current_cutoff = pd.Timestamp(start_date)
-    else:
-        current_cutoff = min_date + pd.Timedelta(days=train_period_days)
-        
-    logger.info(f"Rango de datos: {min_date} a {max_date}")
-    logger.info(f"Inicio de Walk-Forward (Primer Test): {current_cutoff}")
-    
-    all_predictions = []
-    
-    iteration = 1
-    
+    master: pd.DataFrame,
+    first_test_start: pd.Timestamp,
+    test_period_days: int,
+    model_params: Dict[str, object],
+    min_confidence: float,
+    initial_capital: float,
+) -> Dict[str, pd.DataFrame]:
+    max_date = master["date"].max()
+    current_cutoff = first_test_start
+    all_predictions: List[pd.DataFrame] = []
+
     while current_cutoff < max_date:
         test_end = current_cutoff + pd.Timedelta(days=test_period_days)
-        if test_end > max_date:
-            test_end = max_date
-            
-        logger.info(f"Iteración {iteration}: Train [Start -> {current_cutoff.date()}] | Test [{current_cutoff.date()} -> {test_end.date()}]")
-        
-        # Slice Data
-        train_mask = master_df["date"] < current_cutoff
-        test_mask = (master_df["date"] >= current_cutoff) & (master_df["date"] < test_end)
-        
-        train_df = master_df[train_mask]
-        test_df = master_df[test_mask]
-        
-        if train_df.empty or test_df.empty:
-            logger.warning("Datos insuficientes para esta iteración.")
+        logger.info("Walk iteration | Train < %s | Test [%s -> %s]", current_cutoff.date(), current_cutoff.date(), test_end.date())
+
+        train_mask = master["date"] < current_cutoff
+        test_mask = (master["date"] >= current_cutoff) & (master["date"] < test_end)
+        train_df = master.loc[train_mask]
+        test_df = master.loc[test_mask]
+
+        if len(train_df) < 100 or test_df.empty:
+            logger.warning("Skipping iteration due to insufficient data")
             current_cutoff = test_end
             continue
-            
-        # Prepare Features
-        drop_cols = ["date", "label", "ticker", "index"]
-        X_train = train_df.drop(columns=[c for c in drop_cols if c in train_df.columns]).select_dtypes(include=[np.number])
+
+        X_train = _feature_matrix(train_df)
         y_train = train_df["label"].astype(int)
-        
-        X_test = test_df.drop(columns=[c for c in drop_cols if c in test_df.columns]).select_dtypes(include=[np.number])
-        y_test = test_df["label"].astype(int)
-        
-        # Train
-        model = train_model(X_train, y_train, **model_params)
+        X_test = _feature_matrix(test_df)
+
+        model = build_model(**model_params)
         model.fit(X_train, y_train)
-        
-        # Predict
+
         if hasattr(model, "predict_proba"):
-            probs = model.predict_proba(X_test)
-            # Asumimos que la clase 1 es BUY. Necesitamos saber el índice.
-            classes = model.classes_
-            if 1 in classes:
-                buy_idx = np.where(classes == 1)[0][0]
-                buy_probs = probs[:, buy_idx]
-            else:
-                buy_probs = np.zeros(len(X_test))
-            
-            preds = model.predict(X_test)
+            probas = model.predict_proba(X_test)
+            classes = list(model.classes_)
+            buy_idx = classes.index(1) if 1 in classes else None
+            buy_probs = probas[:, buy_idx] if buy_idx is not None else np.zeros(len(X_test))
         else:
-            preds = model.predict(X_test)
-            buy_probs = np.zeros(len(X_test)) # No probs
-            
-        # Store results
-        results = test_df[["date", "ticker", "label", "close"]].copy()
-        results["pred"] = preds
-        results["prob_buy"] = buy_probs
-        
-        all_predictions.append(results)
-        
-        # Metrics for this fold
-        prec = precision_score(y_test, preds, average="weighted", zero_division=0)
-        logger.info(f"  -> Precision (Weighted): {prec:.4f}")
-        
-        # Advance
+            buy_probs = np.zeros(len(X_test))
+        preds = model.predict(X_test)
+
+        fold_results = test_df[["date", "ticker", "label", "tp_pct", "sl_pct", "time_exit_return", "close"]].copy()
+        fold_results["prob_buy"] = buy_probs
+        fold_results["prediction"] = preds
+        all_predictions.append(fold_results)
+
         current_cutoff = test_end
-        iteration += 1
-        
+
     if not all_predictions:
-        logger.error("No se generaron predicciones.")
-        return pd.DataFrame()
-        
-    full_results = pd.concat(all_predictions, axis=0, ignore_index=True)
-    return full_results
+        raise ValueError("Walk-forward produced no predictions")
 
-def analyze_results(results: pd.DataFrame, min_confidence: float = 0.6):
-    """Calcula curva de equidad sobre los resultados concatenados."""
-    logger.info("-" * 40)
-    logger.info("ANÁLISIS DE RESULTADOS WALK-FORWARD")
-    
-    # Filtrar operaciones
-    # Compramos si prob_buy > min_confidence (o si pred == 1 si no hay probs)
-    # Asumimos retorno simple: si label == 1 (Buy) ganamos TakeProfit? 
-    # No, label es el resultado perfecto. Si label=1, ganamos. Si label=-1, perdemos.
-    # Pero necesitamos saber CUÁNTO ganamos.
-    # El label 1 significa "Tocó TP antes que SL". Ganancia = TP.
-    # El label -1 significa "Tocó SL antes que TP". Pérdida = SL.
-    # El label 0 significa "Time Exit". Retorno = (Close_end - Close_start) / Close_start.
-    # Para simplificar, usaremos una aproximación basada en labels, 
-    # pero idealmente deberíamos simular día a día.
-    # Dado que create_triple_barrier_labels ya codifica el resultado, podemos usar proxies:
-    # Label 1 -> +TP
-    # Label -1 -> +SL (que es negativo)
-    # Label 0 -> 0 (Neutral/Flat) o un promedio pequeño.
-    
-    # Vamos a usar una simulación simplificada.
-    # Necesitamos los parámetros TP/SL usados para etiquetar.
-    # Como no los tenemos aquí pasados explícitamente, asumiremos los defaults o los pasados por args.
-    # O mejor, calculamos retornos reales si tuviéramos precios de salida, pero aquí solo tenemos 'close' de entrada.
-    
-    # Para este reporte, usaremos Precision/Recall real.
-    
-    y_true = results["label"]
-    y_pred = (results["prob_buy"] > min_confidence).astype(int)
-    # Ajustar y_pred: 1 es Buy, 0 es Hold/Sell.
-    # Pero el modelo predice -1, 0, 1.
-    # Si prob_buy > conf, predecimos 1. Si no, 0 (o lo que sea).
-    # Comparemos solo cuando decidimos comprar.
-    
-    trades = results[results["prob_buy"] > min_confidence]
-    
+    results = pd.concat(all_predictions, axis=0, ignore_index=True)
+
+    trades = results[results["prob_buy"] > min_confidence].copy()
+    trades["return"] = trades.apply(_label_to_return, axis=1)
+    trades = trades.dropna(subset=["return"])  # Remove NaNs from tail
+    equity = _append_equity(trades, initial_capital)
+
+    return {"predictions": results, "trades": equity}
+
+
+def summarize_equity(trades: pd.DataFrame) -> None:
     if trades.empty:
-        logger.warning("No se ejecutaron trades con la confianza mínima.")
+        logger.warning("No trades triggered during WFA")
         return
-        
-    n_trades = len(trades)
-    winners = (trades["label"] == 1).sum()
-    losers = (trades["label"] == -1).sum()
-    timed_out = (trades["label"] == 0).sum()
-    
-    win_rate = winners / n_trades
-    
-    logger.info(f"Total Trades Simulados: {n_trades}")
-    logger.info(f"Winners (TP): {winners}")
-    logger.info(f"Losers (SL): {losers}")
-    logger.info(f"Timeouts: {timed_out}")
-    logger.info(f"Win Rate: {win_rate:.2%}")
-    
-    # Guardar CSV
-    results.to_csv("walk_forward_results.csv", index=False)
-    logger.info("Resultados guardados en walk_forward_results.csv")
+    total_return = trades["cum_return"].iloc[-1]
+    win_rate = (trades["return"] > 0).mean()
+    logger.info("Walk-forward trades: %d", len(trades))
+    logger.info("Win rate: %.2f%%", win_rate * 100)
+    logger.info("Total compounded return: %.2f%%", total_return * 100)
 
-def main():
-    parser = argparse.ArgumentParser(description="Walk-Forward Analysis")
-    parser.add_argument("--tickers", help="Lista de tickers")
-    parser.add_argument("--data-root", type=Path, default=Path("data"))
-    parser.add_argument("--start-date", help="Fecha inicio test (YYYY-MM-DD)")
-    parser.add_argument("--initial-train-days", type=int, default=730, help="Días iniciales de entrenamiento (si no hay start-date)")
-    parser.add_argument("--test-period-days", type=int, default=90, help="Tamaño ventana de test (días)")
-    parser.add_argument("--horizon", type=int, default=5)
-    parser.add_argument("--take-profit", type=float, default=0.05)
-    parser.add_argument("--stop-loss", type=float, default=-0.03)
-    parser.add_argument("--min-confidence", type=float, default=0.6)
-    parser.add_argument("--model-type", default="rf")
-    parser.add_argument("--n-estimators", type=int, default=100)
-    parser.add_argument("--dynamic-barriers", action="store_true")
-    parser.add_argument("--barrier-std", type=float, default=2.0)
-    
-    args = parser.parse_args()
-    
-    # Tickers
-    tickers = []
-    if args.tickers:
-        tickers = [t.strip().upper() for t in args.tickers.split(",")]
-    else:
-        files = list(args.data_root.glob("*_history.csv"))
-        tickers = [f.name.replace("_history.csv", "") for f in files]
-        
-    # Cargar datos
-    master_df = load_all_data(
-        tickers, 
-        args.data_root, 
-        args.horizon, 
-        args.take_profit, 
-        args.stop_loss,
-        args.dynamic_barriers,
-        args.barrier_std
-    )
-    
-    # Config modelo
-    model_params = {
-        "model_type": args.model_type,
-        "n_estimators": args.n_estimators,
-        "max_depth": 10 # Default
-    }
-    
-    # Ejecutar WFA
-    results = run_walk_forward(
-        master_df,
-        args.start_date,
-        args.initial_train_days,
-        args.test_period_days,
-        model_params
-    )
-    
-    if not results.empty:
-        analyze_results(results, args.min_confidence)
 
 if __name__ == "__main__":
-    main()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    args = _parse_args()
+
+    data_root = args.data_root
+    tickers = _ticker_list(args, data_root)
+    pipeline = DataPipeline(PipelineConfig(data_root=data_root))
+
+    master = _load_master_frame(
+        tickers,
+        pipeline,
+        args.horizon,
+        args.take_profit,
+        args.stop_loss,
+        args.atr_multiplier_tp,
+        args.atr_multiplier_sl,
+    )
+
+    first_test_start = _parse_date(args.first_test_start or args.train_start, default="2022-01-01")
+    if first_test_start is None:
+        raise ValueError("Unable to determine the first test date")
+
+    model_params: Dict[str, object] = dict(
+        model_type=args.model_type,
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_split=args.min_samples_split,
+        learning_rate=args.learning_rate,
+        subsample=args.subsample,
+        colsample_bytree=args.colsample_bytree,
+        n_jobs=args.n_jobs,
+        class_weighted=args.class_weighted,
+        random_state=args.random_state,
+    )
+
+    results = run_walk_forward(
+        master,
+        first_test_start,
+        args.test_period_days,
+        model_params,
+        args.min_confidence,
+        args.initial_capital,
+    )
+
+    predictions = results["predictions"]
+    trades = results["trades"]
+
+    predictions.to_csv("walk_forward_predictions.csv", index=False)
+    trades.to_csv("walk_forward_equity.csv", index=False)
+
+    summarize_equity(trades)

@@ -1,54 +1,257 @@
 #!/usr/bin/env python3
-"""
-Script de entrenamiento para el modelo de señales (Event-Driven).
-Usa Triple Barrier Method, Class Balancing y Purged K-Fold CV.
-"""
+"""Optuna based hyper-parameter tuning for the Sniper signal model."""
+from __future__ import annotations
+
 import argparse
 import logging
-import pickle
 import sys
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import Dict, List, Optional, Tuple
 
-import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, f1_score
-from sklearn.base import clone
+from sklearn.metrics import f1_score
+from sklearn.model_selection import TimeSeriesSplit
 
-# Intentar importar XGBoost
 try:
-    from xgboost import XGBClassifier
-    HAS_XGBOOST = True
-except ImportError:
-    HAS_XGBOOST = False
+    import optuna
+except ImportError as exc:  # pragma: no cover - CLI entry point
+    raise SystemExit("Optuna is required for tuning: pip install optuna") from exc
+
+try:  # Optional dependency
+    from xgboost import XGBClassifier  # type: ignore[import-untyped]
+
+    HAS_XGB = True
+except ImportError:  # pragma: no cover
+    HAS_XGB = False
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
-from drl_platform.validation import PurgedKFoldValidator, PurgedKFoldConfig
+from train_signal_model import build_model
 
-# Configurar logging
-logging.basicConfig(
-        n_estimators=args.n_estimators, 
-        max_depth=args.max_depth
+logger = logging.getLogger("tune_signal_model")
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Hyperparameter tuning via Optuna")
+    parser.add_argument("--tickers", help="Comma separated ticker universe")
+    # --- NUEVO: Soporte para archivo de tickers ---
+    parser.add_argument("--ticker-file", type=Path, help="File with one ticker per line")
+    # ----------------------------------------------
+    parser.add_argument("--data-root", type=Path, default=Path("data"))
+    parser.add_argument("--n-trials", type=int, default=30)
+    parser.add_argument("--model-type", choices=["rf", "xgb"], default="rf")
+    parser.add_argument("--objective", choices=["f1_buy", "sharpe"], default="f1_buy")
+    parser.add_argument("--horizon", type=int, default=5)
+    parser.add_argument("--take-profit", type=float, help="Optional fixed TP")
+    parser.add_argument("--stop-loss", type=float, help="Optional fixed SL")
+    
+    # --- CONSISTENCIA: Nombres cortos igual que en train_signal_model.py ---
+    parser.add_argument("--atr-tp", type=float, default=2.0, help="ATR multiplier for Take Profit")
+    parser.add_argument("--atr-sl", type=float, default=2.0, help="ATR multiplier for Stop Loss")
+    # -----------------------------------------------------------------------
+    
+    parser.add_argument("--random-state", type=int, default=42)
+    return parser.parse_args()
+
+
+def _ticker_list(args: argparse.Namespace, data_root: Path) -> List[str]:
+    tickers: List[str] = []
+    if args.tickers:
+        tickers.extend(part.strip().upper() for part in args.tickers.split(",") if part.strip())
+    # --- LOGICA DE LECTURA DE ARCHIVO ---
+    if args.ticker_file and args.ticker_file.exists():
+        tickers.extend(line.strip().upper() for line in args.ticker_file.read_text().splitlines() if line.strip())
+    # ------------------------------------
+    if not tickers:
+        tickers = [path.name.replace("_history.csv", "") for path in data_root.glob("*_history.csv")]
+    if not tickers:
+        raise ValueError("No tickers available")
+    
+    # Eliminar duplicados y vacíos
+    unique = sorted(list(set(t for t in tickers if t)))
+    return unique
+
+
+def _feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    drop_cols = ["date", "label", "ticker", "index", "tp_pct", "sl_pct", "time_exit_return", "summary"]
+    features = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    return features.select_dtypes(include=[np.number]).fillna(0.0)
+
+
+def _label_to_return(row: pd.Series) -> float:
+    label = row.get("label")
+    # AJUSTE: Si tus etiquetas ahora son 0, 1, 2 (Stop, Hold, Buy)
+    # Buy es 2, Stop es 0.
+    if label == 2: 
+        return float(row.get("tp_pct", 0.0))
+    if label == 0:
+        return float(row.get("sl_pct", 0.0))
+    return float(row.get("time_exit_return", 0.0))
+
+
+def _assemble_dataset(
+    raw_data: Dict[str, pd.DataFrame],
+    pipeline: DataPipeline,
+    horizon: int,
+    tp: Optional[float],
+    sl: Optional[float],
+    atr_tp: float,
+    atr_sl: float,
+) -> Tuple[pd.DataFrame, pd.Series, pd.Series]:
+    frames: List[pd.DataFrame] = []
+    for ticker, frame in raw_data.items():
+        labeled = pipeline.create_triple_barrier_labels(
+            frame,
+            horizon=horizon,
+            take_profit=tp,
+            stop_loss=sl,
+            atr_multiplier_tp=atr_tp,
+            atr_multiplier_sl=atr_sl,
+        )
+        labeled = labeled[labeled["label"].notna()].copy()
+        labeled["ticker"] = ticker
+        frames.append(labeled)
+    if not frames:
+        raise ValueError("No labelled samples available for tuning")
+    master = pd.concat(frames, axis=0, ignore_index=True)
+    
+    # --- AJUSTE DE CLASES: +1 para que XGBoost funcione (0, 1, 2) ---
+    master["label"] = master["label"].astype(int) + 1
+    # ----------------------------------------------------------------
+    
+    X = _feature_matrix(master)
+    y = master["label"].astype(int)
+    realized = master.apply(_label_to_return, axis=1)
+    return X, y, realized
+
+
+def _build_model_from_trial(trial: "optuna.trial.Trial", model_type: str):
+    if model_type == "rf":
+        params = dict(
+            model_type="rf",
+            n_estimators=trial.suggest_int("n_estimators", 100, 400),
+            max_depth=trial.suggest_int("max_depth", 5, 20),
+            min_samples_split=trial.suggest_int("min_samples_split", 2, 20),
+            learning_rate=0.05,
+            subsample=1.0,
+            colsample_bytree=1.0,
+            n_jobs=-1,
+            class_weighted=True,
+            random_state=trial.suggest_int("random_state", 1, 5000),
+        )
+        return build_model(**params)
+    params = dict(
+        model_type="xgb",
+        n_estimators=trial.suggest_int("n_estimators", 200, 600),
+        max_depth=trial.suggest_int("max_depth", 3, 12),
+        min_samples_split=2,
+        learning_rate=trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+        subsample=trial.suggest_float("subsample", 0.5, 1.0),
+        colsample_bytree=trial.suggest_float("colsample_bytree", 0.4, 1.0),
+        n_jobs=-1,
+        class_weighted=False,
+        random_state=trial.suggest_int("random_state", 1, 5000),
     )
+    if not HAS_XGB:
+        raise RuntimeError("xgboost is required for model_type='xgb'")
+    return build_model(**params)
+
+
+def _score_trial(
+    model,
+    X: pd.DataFrame,
+    y: pd.Series,
+    returns: pd.Series,
+    objective: str,
+) -> float:
+    splitter = TimeSeriesSplit(n_splits=3)
+    scores: List[float] = []
+    for train_idx, test_idx in splitter.split(X):
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        
+        try:
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
+            
+            if objective == "f1_buy":
+                # Clase Buy ahora es 2
+                scores.append(f1_score(y_test, preds, labels=[2], average="micro", zero_division=0))
+            else:
+                # Sharpe Ratio
+                # Clase Buy ahora es 2
+                mask = preds == 2
+                trade_returns = returns.iloc[test_idx][mask]
+                
+                if trade_returns.empty:
+                    scores.append(-1.0) # Penalización si no opera
+                else:
+                    mean = trade_returns.mean()
+                    std = trade_returns.std(ddof=1)
+                    # Sharpe anualizado simplificado (sin Risk Free Rate)
+                    sharpe = np.sqrt(252) * mean / (std + 1e-8)
+                    scores.append(float(sharpe))
+        except Exception:
+            scores.append(-1.0) # Fallo en fold
+            
+    return float(np.mean(scores))
+
+
+def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    args = _parse_args()
+
+    data_root = args.data_root
+    tickers = _ticker_list(args, data_root)
+    pipeline = DataPipeline(PipelineConfig(data_root=data_root))
     
-    # Validación
-    run_validation(X, y, model)
-    
-    # Entrenamiento Final
-    logger.info("Entrenando modelo final con todos los datos...")
-    model.fit(X, y)
-    
-    # Guardar
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, args.output)
-    logger.info(f"Modelo guardado en {args.output}")
-    
-    # Reporte final en datos de entrenamiento (sanity check)
-    y_pred = model.predict(X)
-    logger.info("Reporte de Clasificación (Training Set - Sanity Check):")
-    logger.info("\n" + classification_report(y, y_pred))
+    # Cargar datos base en memoria
+    logger.info("Loading raw data for %d tickers...", len(tickers))
+    raw_data = {ticker: pipeline.load_feature_view(ticker, indicators=True) for ticker in tickers}
+    raw_data = {k: v for k, v in raw_data.items() if not v.empty}
+
+    if not raw_data:
+        logger.error("No data loaded.")
+        sys.exit(1)
+
+    def objective(trial: "optuna.trial.Trial") -> float:
+        # Sugerir parámetros de Estrategia
+        horizon = trial.suggest_int("horizon", max(3, args.horizon - 2), args.horizon + 2)
+        tp = trial.suggest_float("take_profit", 0.02, 0.10) if args.take_profit is None else args.take_profit
+        sl = trial.suggest_float("stop_loss", -0.08, -0.01) if args.stop_loss is None else args.stop_loss
+        
+        atr_tp = trial.suggest_float("atr_tp", 1.0, 3.5) # Nombre corto en Optuna
+        atr_sl = trial.suggest_float("atr_sl", 1.0, 3.0) # Nombre corto en Optuna
+
+        # Generar etiquetas al vuelo
+        X, y, realized = _assemble_dataset(raw_data, pipeline, horizon, tp, sl, atr_tp, atr_sl)
+        
+        # Entrenar modelo
+        model = _build_model_from_trial(trial, args.model_type)
+        
+        # Evaluar
+        score = _score_trial(model, X, y, realized, args.objective)
+        return score
+
+    logger.info("Launching Optuna study with %d trials", args.n_trials)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=args.n_trials)
+
+    logger.info("-" * 40)
+    logger.info("Best score (%s): %.4f", args.objective, study.best_value)
+    logger.info("Best params:")
+    for k, v in study.best_params.items():
+        logger.info(f"  {k}: {v}")
+    logger.info("-" * 40)
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:  # pragma: no cover - CLI entry point
+        logger.exception("Tuning failed: %s", exc)
+        sys.exit(1)
