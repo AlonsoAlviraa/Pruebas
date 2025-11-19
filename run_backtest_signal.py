@@ -14,7 +14,7 @@ import pandas as pd
 import pandas_ta as ta
 
 # ---------------------------------------------------------------------------
-# Configuración de Rutas y Dependencias (Parche de Robustez)
+# Configuración de Rutas y Dependencias
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -269,7 +269,6 @@ def run_backtest(
     max_position_pct = max(0.0, min(1.0, max_position_pct))
     
     equity = initial_capital
-    cash = initial_capital
     
     regime_df = pd.DataFrame()
     if start_date and end_date:
@@ -316,10 +315,6 @@ def run_backtest(
             
             t = 0
             while t < len(prices) - 1:
-                if cash < 10:
-                    t += 1
-                    continue
-
                 if signals[t]:
                     current_date = dates_arr[t]
                     
@@ -357,29 +352,41 @@ def run_backtest(
                             t += 1
                             continue
                         
-                        # --- SIZING ---
+                        entry_stop = result.get("initial_stop", entry_price)
+                        hard_stop_price = result.get("hard_stop_price", entry_stop)
+                        dynamic_hard_stop_pct = result.get("dynamic_hard_stop_pct", hard_stop_pct)
+
+                        # --- NUEVA LÓGICA: INVERSE VOLATILITY SIZING ---
                         atr_value = atrs[t]
-                        vol_curr = max(atr_value / entry_price, 1e-4)
+                        volatility_current = 0.0
+                        if entry_price > 0:
+                            volatility_current = atr_value / entry_price
+                        volatility_current = max(volatility_current, 1e-8)
 
                         # Fórmula Maestra con Factor Alpha
-                        alloc_dollars = equity * volatility_target_pct
-                        alloc_dollars /= max(vol_curr ** volatility_exponent, 1e-8)
+                        allocation_dollars = equity * volatility_target_pct
+                        allocation_dollars /= max(volatility_current ** volatility_exponent, 1e-8)
                         
-                        # Cap Equity
-                        alloc_dollars = min(alloc_dollars, equity * max_position_pct)
-                        
-                        # Cap Cash Real
-                        alloc_dollars = min(alloc_dollars, cash)
+                        # Aplicar Límites (Safety Caps) en dólares y en acciones
+                        max_capital_dollars = max(0.0, min(equity * max_position_pct, equity))
+                        capped_allocation = max(0.0, min(allocation_dollars, max_capital_dollars))
 
-                        position_size = int(alloc_dollars / entry_price)
+                        # Segunda línea de defensa: cap en número de acciones
+                        shares_by_allocation = capped_allocation / entry_price if entry_price > 0 else 0.0
+                        shares_by_cash_cap = max_capital_dollars / entry_price if entry_price > 0 else 0.0
+                        shares_by_equity = equity / entry_price if entry_price > 0 else 0.0
+
+                        # Evitar infinities/NaNs que podrían saltarse el min()
+                        share_candidates = [shares_by_allocation, shares_by_cash_cap, shares_by_equity]
+                        share_candidates = [s for s in share_candidates if np.isfinite(s) and s > 0]
+                        position_size = int(min(share_candidates)) if share_candidates else 0
                         
-                        if position_size == 0:
+                        if position_size <= 0:
                             t += 1
                             continue
 
                         # --- EJECUCIÓN ---
                         invested_capital = position_size * entry_price
-                        cash -= invested_capital 
 
                         entry_comm = position_size * entry_price * commission
                         exit_comm = position_size * exit_price * commission
@@ -388,22 +395,26 @@ def run_backtest(
                         
                         trade_ret = net_profit / invested_capital
 
-                        cash += invested_capital + net_profit
                         equity += net_profit
+
+                        exit_idx = min(result["exit_idx"], len(dates_arr) - 1)
 
                         trades.append({
                             "ticker": ticker,
                             "entry_date": dates_arr[t],
-                            "exit_date": dates_arr[result["exit_idx"]],
+                            "exit_date": dates_arr[exit_idx],
                             "entry_price": entry_price,
                             "exit_price": exit_price,
+                            "initial_stop": entry_stop,
+                            "hard_stop_price": hard_stop_price,
+                            "hard_stop_pct": dynamic_hard_stop_pct,
                             "shares": position_size,
+                            "capital_used": invested_capital,
                             "net_profit": net_profit,
                             "return": trade_ret,
                             "bars_held": result["bars_held"],
                             "exit_reason": result["reason"],
                             "equity_after": equity,
-                            "cash_after": cash
                         })
                         
                         t = result["exit_idx"]
@@ -426,8 +437,8 @@ def main():
     parser.add_argument("--data-root", type=Path, default=Path("data"))
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--min-confidence", type=float, default=0.65)
-    parser.add_argument("--k-atr", type=float, default=3.0, help="Multiplicador ATR")
-    parser.add_argument("--max-horizon", type=int, default=20, help="Horizonte máximo")
+    parser.add_argument("--k-atr", type=float, default=3.0, help="Multiplicador ATR para Chandelier Exit")
+    parser.add_argument("--max-horizon", type=int, default=20, help="Horizonte máximo de retención")
     
     # Argumentos Nuevos (EMA y Fundamentales)
     parser.add_argument("--ema-length", type=int, default=20, help="Longitud de la EMA para extender horizonte")
@@ -437,13 +448,13 @@ def main():
     parser.add_argument("--initial-capital", type=float, default=10000.0)
     parser.add_argument("--volatility-target-pct", type=float, default=0.005)
     parser.add_argument("--volatility-exponent", type=float, default=1.0)
-    parser.add_argument("--max-position-pct", type=float, default=0.25)
+    parser.add_argument("--max-position-pct", type=float, default=0.25, help="Límite máximo de capital por operación respecto al equity (Hard Cap)")
     
     # Stops
-    parser.add_argument("--hard-stop-pct", type=float, default=0.07)
-    parser.add_argument("--volatility-stop-scale", type=float, default=1.0)
-    parser.add_argument("--max-volatility-stop-pct", type=float, default=0.05)
-    parser.add_argument("--commission", type=float, default=0.001)
+    parser.add_argument("--hard-stop-pct", type=float, default=0.07, help="Stop porcentual de emergencia base")
+    parser.add_argument("--volatility-stop-scale", type=float, default=1.0, help="Factor multiplicador para ATR/Precio al ampliar el hard stop")
+    parser.add_argument("--max-volatility-stop-pct", type=float, default=0.05, help="Límite extra que la volatilidad puede añadir al stop")
+    parser.add_argument("--commission", type=float, default=0.001, help="Comisión por lado (defecto: 0.1%)")
     
     parser.add_argument("--start-date", help="YYYY-MM-DD")
     parser.add_argument("--end-date", help="YYYY-MM-DD")
@@ -491,10 +502,10 @@ def main():
     results["entry_date"] = pd.to_datetime(results["entry_date"])
     results = results.sort_values("entry_date")
     
-    if "equity_after" not in results.columns:
-         results["equity_after"] = args.initial_capital * (1 + results["return"]).cumprod()
-
-    results["equity"] = results["equity_after"]
+    # Cálculo cronológico de la curva de equidad
+    results["cumulative_profit"] = results["net_profit"].cumsum()
+    results["equity"] = args.initial_capital + results["cumulative_profit"]
+    
     results["cum_return"] = results["equity"] / args.initial_capital
     
     total_trades = len(results)
