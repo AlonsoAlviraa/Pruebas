@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
+from drl_platform.model_factory import BUY_CLASS
+
 
 # Configurar logging
 logging.basicConfig(
@@ -135,7 +137,7 @@ def run_backtest(
             if hasattr(model, "predict_proba"):
                 probas = model.predict_proba(features)
                 classes = model.classes_
-                buy_idx = np.where(classes == 1)[0]
+                buy_idx = np.where(classes == BUY_CLASS)[0]
                 
                 if len(buy_idx) > 0:
                     buy_probs = probas[:, buy_idx[0]]
@@ -144,7 +146,8 @@ def run_backtest(
                     signals = np.zeros(len(df), dtype=bool)
             else:
                 preds = model.predict(features)
-                signals = preds == 1
+                signals = preds == BUY_CLASS
+
                 
             prices = df["close"].values
             dates = pd.to_datetime(df["date"]).values

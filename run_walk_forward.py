@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
-from train_signal_model import build_model
+from model_factory import BUY_CLASS, CLASS_MAPPING, build_model
 
 logger = logging.getLogger("run_walk_forward")
 
@@ -90,6 +90,8 @@ def _load_master_frame(
                 atr_multiplier_sl=atr_sl,
             )
             labeled = labeled[labeled["label"].notna()].copy()
+            labeled["label"] = labeled["label"].map(CLASS_MAPPING)
+            labeled = labeled[labeled["label"].notna()]
             labeled["ticker"] = ticker
             frames.append(labeled)
         except Exception as exc:

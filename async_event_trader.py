@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
+from model_factory import BUY_CLASS
+
 
 logger = logging.getLogger("async_event_trader")
 
@@ -79,7 +81,7 @@ class ProbabilisticSignalModel:
     def __init__(self, estimator: Any, *, class_order: Sequence[str], score_threshold: float) -> None:
         self._estimator = estimator
         self._score_threshold = score_threshold
-        self._buy_label = 1
+        self._buy_label = BUY_CLASS
         self._class_names = [label.strip().upper() for label in class_order] or ["HOLD", "BUY", "SHORT"]
 
     def evaluate(self, vector: FeatureVector) -> ModelDecision:
@@ -100,8 +102,8 @@ class ProbabilisticSignalModel:
             probabilities = self._estimator.predict_proba(frame)[0]
             classes = list(getattr(self._estimator, "classes_", range(len(probabilities))))
             scores = {str(label): float(prob) for label, prob in zip(classes, probabilities)}
-            if 1 in classes:
-                confidence = float(probabilities[classes.index(1)])
+            if BUY_CLASS in classes:
+                confidence = float(probabilities[classes.index(BUY_CLASS)])
             else:
                 confidence = float(max(probabilities))
         else:

@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover
     HAS_XGB = False
 
 from drl_platform.data_pipeline import DataPipeline, PipelineConfig
-from train_signal_model import build_model
+from drl_platform.model_factory import BUY_CLASS, CLASS_MAPPING, build_model
 
 logger = logging.getLogger("tune_signal_model")
 
@@ -34,6 +34,7 @@ logger = logging.getLogger("tune_signal_model")
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Hyperparameter tuning via Optuna")
     parser.add_argument("--tickers", help="Comma separated ticker universe")
+    parser.add_argument("--ticker-file", type=Path, help="File with one ticker per line")
     parser.add_argument("--data-root", type=Path, default=Path("data"))
     parser.add_argument("--n-trials", type=int, default=30)
     parser.add_argument("--model-type", choices=["rf", "xgb"], default="rf")
@@ -51,11 +52,13 @@ def _ticker_list(args: argparse.Namespace, data_root: Path) -> List[str]:
     tickers: List[str] = []
     if args.tickers:
         tickers.extend(part.strip().upper() for part in args.tickers.split(",") if part.strip())
+    if args.ticker_file and args.ticker_file.exists():
+        tickers.extend(line.strip().upper() for line in args.ticker_file.read_text().splitlines() if line.strip())
     if not tickers:
         tickers = [path.name.replace("_history.csv", "") for path in data_root.glob("*_history.csv")]
     if not tickers:
         raise ValueError("No tickers available")
-    return tickers
+    return sorted(set(tickers))
 
 
 def _feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
@@ -66,9 +69,9 @@ def _feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
 
 def _label_to_return(row: pd.Series) -> float:
     label = row.get("label")
-    if label == 1:
+    if label == BUY_CLASS:
         return float(row.get("tp_pct", 0.0))
-    if label == -1:
+    if label == 0:
         return float(row.get("sl_pct", 0.0))
     return float(row.get("time_exit_return", 0.0))
 
@@ -93,6 +96,8 @@ def _assemble_dataset(
             atr_multiplier_sl=atr_sl,
         )
         labeled = labeled[labeled["label"].notna()].copy()
+        labeled["label"] = labeled["label"].map(CLASS_MAPPING)
+        labeled = labeled[labeled["label"].notna()]
         labeled["ticker"] = ticker
         frames.append(labeled)
     if not frames:
@@ -151,9 +156,9 @@ def _score_trial(
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
         if objective == "f1_buy":
-            scores.append(f1_score(y_test, preds, labels=[1], average="micro", zero_division=0))
+            scores.append(f1_score(y_test, preds, labels=[BUY_CLASS], average="micro", zero_division=0))
         else:
-            mask = preds == 1
+            mask = preds == BUY_CLASS
             trade_returns = returns.iloc[test_idx][mask]
             if trade_returns.empty:
                 scores.append(-1.0)
@@ -182,7 +187,7 @@ def main() -> None:
         horizon = trial.suggest_int("horizon", max(3, args.horizon - 2), args.horizon + 2)
         tp = trial.suggest_float("take_profit", 0.02, 0.10) if args.take_profit is None else args.take_profit
         sl = trial.suggest_float("stop_loss", -0.08, -0.01) if args.stop_loss is None else args.stop_loss
-        atr_tp = trial.suggest_float("atr_multiplier_tp", 1.0, 3.0)
+        atr_tp = trial.suggest_float("atr_multiplier_tp", 1.0, 3.5)
         atr_sl = trial.suggest_float("atr_multiplier_sl", 1.0, 3.0)
 
         X, y, realized = _assemble_dataset(raw_data, pipeline, horizon, tp, sl, atr_tp, atr_sl)
@@ -194,8 +199,12 @@ def main() -> None:
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=args.n_trials)
 
-    logger.info("Best score: %.4f", study.best_value)
-    logger.info("Best params: %s", study.best_params)
+    logger.info("-" * 40)
+    logger.info("Best score (%s): %.4f", args.objective, study.best_value)
+    logger.info("Best params:")
+    for k, v in study.best_params.items():
+        logger.info(f"  {k}: {v}")
+    logger.info("-" * 40)
 
 
 if __name__ == "__main__":

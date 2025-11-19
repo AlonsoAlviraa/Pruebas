@@ -1,0 +1,119 @@
+{
+  "generated_at": "2025-11-19T10:51:32.396026",
+  "model_path": "C:\\Users\\alons\\Documents\\Pruebas\\models\\signal_model.joblib",
+  "tickers": [
+    "AAPL",
+    "ADBE",
+    "AMD",
+    "AMGN",
+    "AMZN",
+    "AVGO",
+    "CMCSA",
+    "COST",
+    "CSCO",
+    "GOOG",
+    "GOOGL",
+    "INTC",
+    "META",
+    "MSFT",
+    "NFLX",
+    "NVDA",
+    "PEP",
+    "PYPL",
+    "QCOM",
+    "TSLA"
+  ],
+  "train_rows": 22880,
+  "train_range": {
+    "start": "2019-06-17T13:30:00+00:00",
+    "end": "2023-12-29T14:30:00+00:00"
+  },
+  "class_mapping": {
+    "0": "STOP",
+    "1": "HOLD",
+    "2": "BUY"
+  },
+  "feature_columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "atr",
+    "atr_norm",
+    "rsi_7",
+    "rsi_14",
+    "rsi_21",
+    "sma_50",
+    "dist_sma_50",
+    "sma_200",
+    "dist_sma_200",
+    "volatility_20",
+    "volume_sma",
+    "volume_ratio",
+    "volume_zscore"
+  ],
+  "model_params": {
+    "model_type": "xgb",
+    "n_estimators": 200,
+    "max_depth": 10,
+    "min_samples_split": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "n_jobs": -1,
+    "class_weighted": true,
+    "random_state": 42
+  },
+  "pipeline_config": {
+    "data_root": "data",
+    "indicator_windows": [
+      5,
+      10,
+      20
+    ],
+    "rsi_windows": [
+      7,
+      14,
+      21
+    ],
+    "sma_windows": [
+      50,
+      200
+    ],
+    "volatility_window": 20,
+    "atr_window": 14,
+    "volume_window": 20,
+    "min_history": 250
+  },
+  "strategy": {
+    "horizon": 5,
+    "take_profit": null,
+    "stop_loss": null,
+    "atr_multiplier_tp": 2.0,
+    "atr_multiplier_sl": 1.5
+  },
+  "cv_metrics": {
+    "folds": [
+      {
+        "fold": 0,
+        "f1_buy": 0.19079685746352412,
+        "support_buy": 1645,
+        "accuracy": 0.4478825226170185
+      },
+      {
+        "fold": 1,
+        "f1_buy": 0.15415415415415415,
+        "support_buy": 1356,
+        "accuracy": 0.45889602727153533
+      },
+      {
+        "fold": 2,
+        "f1_buy": 0.15155385270327798,
+        "support_buy": 1607,
+        "accuracy": 0.44190925780225543
+      }
+    ],
+    "f1_buy_mean": 0.16550162144031874,
+    "f1_buy_std": 0.017917907541732416
+  }
+}
