@@ -94,6 +94,10 @@ class DataPipeline:
         result["atr"] = atr.fillna(0.0)
         # Feature normalization: ATR relative to price
         result["atr_norm"] = result["atr"] / close.clip(lower=1e-6)
+        result["log_price"] = np.log(close.clip(lower=1e-6))
+        result["liquidity_ratio"] = (close * volume).fillna(0.0)
+        result["liquidity_per_atr"] = (volume / atr.replace(0, np.nan)).fillna(0.0)
+        result["atr_ratio"] = atr / close.clip(lower=1e-6)
 
         # RSI with multiple windows
         for window in cfg.rsi_windows:
