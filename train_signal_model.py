@@ -88,7 +88,13 @@ def _load_tickers(args: argparse.Namespace, data_root: Path) -> List[str]:
 
 def _feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
     drop_cols = ["date", "label", "ticker", "index", "tp_pct", "sl_pct", "time_exit_return", "summary"]
-    features = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    features = df.drop(columns=[c for c in drop_cols if c in df.columns]).copy()
+
+    categorical_cols = features.select_dtypes(include=["category"]).columns
+    for col in categorical_cols:
+        codes = features[col].cat.codes.replace(-1, np.nan)
+        features[col] = codes
+    
     return features.select_dtypes(include=[np.number]).fillna(0.0)
 
 

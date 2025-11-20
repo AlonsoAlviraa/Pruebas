@@ -25,6 +25,9 @@ class PipelineConfig:
     volatility_window: int = 20
     atr_window: int = 14
     volume_window: int = 20
+    # Nuevas configuraciones para retornos de largo plazo
+    long_return_windows: Sequence[int] = (63, 126)  # ~3M y ~6M hábiles
+    return_imputation: float = 0.0
     min_history: int = 250
 
 
@@ -64,8 +67,8 @@ class DataPipeline:
         if indicators:
             frame = self._engineer_indicators(frame)
 
+        # Some datasets include a JSON fundamentals summary. Keep as-is.
         if include_summary and "summary" in frame.columns:
-            # Some datasets include a JSON fundamentals summary. Keep as-is.
             pass
 
         frame = frame.dropna(subset=["close"])
@@ -79,21 +82,51 @@ class DataPipeline:
             logger.debug("Ticker %s has only %d rows; indicators may be unstable", result["ticker"].iloc[0], len(result))
 
         close = result["close"].astype(float)
-        high = result.get("high", close)
-        low = result.get("low", close)
-        volume = result.get("volume", pd.Series(index=result.index, dtype=float))
+        high = result.get("high", close).astype(float)
+        low = result.get("low", close).astype(float)
+        volume = result.get("volume", pd.Series(index=result.index, dtype=float)).fillna(0.0)
 
         # ATR and normalized ATR (volatility proxy)
         atr = ta.atr(high=high, low=low, close=close, length=cfg.atr_window)
-        result["atr"] = atr
+        if atr is None:
+            atr = pd.Series(0.0, index=result.index)
+        
+        result["atr"] = atr.fillna(0.0)
         # Feature normalization: ATR relative to price
-        result["atr_norm"] = atr / close.clip(lower=1e-6)
+        result["atr_norm"] = result["atr"] / close.clip(lower=1e-6)
 
         # RSI with multiple windows
         for window in cfg.rsi_windows:
-            result[f"rsi_{window}"] = ta.rsi(close, length=window)
+            rsi = ta.rsi(close, length=window)
+            if rsi is None:
+                rsi = pd.Series(50.0, index=result.index) # Default to neutral 50
+            result[f"rsi_{window}"] = rsi
 
-        # Moving averages and distance to them
+        # --- NUEVO: Moving averages features para XGBoost (Cruces y distancias cortas) ---
+        # Calculamos MA10 y MA20 con min_periods reducidos para tener datos pronto
+        ma10 = close.rolling(window=10, min_periods=5).mean()
+        if "ma10" not in result.columns:
+            result["ma10"] = ma10
+        else:
+            result["ma10"] = result["ma10"].fillna(ma10)
+
+        ma20 = close.rolling(window=20, min_periods=10).mean()
+        if "ma20" not in result.columns:
+            result["ma20"] = ma20
+        else:
+            result["ma20"] = result["ma20"].fillna(ma20)
+
+        # Feature categórica: Estado del cruce (1: MA10>MA20, -1: MA10<MA20)
+        ma_cross = np.sign((result["ma10"] - result["ma20"]).fillna(0.0)).astype(int)
+        result["ma10_ma20_cross_status"] = pd.Categorical(
+            ma_cross, categories=[-1, 0, 1], ordered=True
+        )
+        
+        # Feature continua: Distancia del precio a la MA10 (para medir pullbacks)
+        result["price_rel_ma10"] = (close - result["ma10"]) / result["ma10"].replace(0, np.nan)
+        # --------------------------------------------------------------------------------
+
+        # Moving averages tradicionales (SMA 50, 200) y distancia a ellas
         for window in cfg.sma_windows:
             sma = close.rolling(window=window, min_periods=window // 2).mean()
             result[f"sma_{window}"] = sma
@@ -107,10 +140,39 @@ class DataPipeline:
         # Volume features (Z-Score adds regime detection capability)
         volume_sma = volume.rolling(cfg.volume_window, min_periods=max(2, cfg.volume_window // 2)).mean()
         volume_std = volume.rolling(cfg.volume_window, min_periods=max(2, cfg.volume_window // 2)).std()
+        
+        # Handle potential None/NaN in volume stats
+        volume_sma = volume_sma.fillna(0.0)
+        volume_std = volume_std.fillna(1.0) # Avoid div/0
+        
         result["volume_sma"] = volume_sma
         result["volume_ratio"] = volume / volume_sma.replace(0, np.nan)
         result["volume_zscore"] = (volume - volume_sma) / volume_std.replace(0, np.nan)
 
+        # --- NUEVO: Long-horizon returns (~3M and ~6M) ---
+        # Usamos return_imputation=0.0 para evitar perder filas al inicio (Cold Start)
+        long_windows = {"3m": cfg.long_return_windows[0], "6m": cfg.long_return_windows[1]}
+        for label, window in long_windows.items():
+            if window is None or window <= 0:
+                continue
+
+            shifted = close.shift(window)
+            ratio = close / shifted.replace(0, np.nan)
+            log_ret = np.log(ratio)
+            pct_ret = ratio - 1.0
+
+            result[f"log_return_{label}"] = (
+                log_ret.replace([-np.inf, np.inf], np.nan).fillna(cfg.return_imputation)
+            )
+            result[f"return_{label}"] = pct_ret.replace([-np.inf, np.inf], np.nan).fillna(
+                cfg.return_imputation
+            )
+        # ---------------------------------------------------
+
+        # Final cleanup: Ensure all numeric columns are actually numeric and fill NaNs
+        numeric_cols = result.select_dtypes(include=[np.number]).columns
+        result[numeric_cols] = result[numeric_cols].fillna(0.0)
+        
         return result
 
     # ------------------------------------------------------------------
@@ -137,15 +199,15 @@ class DataPipeline:
         high = df.get("high", df["close"]).astype(float).values
         low = df.get("low", df["close"]).astype(float).values
 
-        # --- CORRECCIÓN DE WARNINGS AQUÍ ---
         if "atr" in df.columns and df["atr"].notna().any():
             atr = df["atr"].astype(float).ffill().bfill().values
         else:
             cfg = self.config
             atr_series = ta.atr(high=df.get("high", df["close"]), low=df.get("low", df["close"]), close=df["close"], length=cfg.atr_window)
+            if atr_series is None:
+                atr_series = pd.Series(0.0, index=df.index)
             atr = atr_series.ffill().bfill().fillna(0.0).values
             df["atr"] = atr_series
-        # -----------------------------------
 
         atr_norm = atr / np.clip(close, 1e-6, None)
         dynamic_tp = atr_multiplier_tp * atr_norm
@@ -206,5 +268,3 @@ class DataPipeline:
         out["time_exit_return"] = time_exit_return
 
         return out
-
-__all__ = ["PipelineConfig", "DataPipeline"]

@@ -491,6 +491,12 @@ class TradingEnvironment(gym.Env):
                 series = frame.get(name)
                 if series is None:
                     arr = np.zeros(num_steps, dtype=np.float32)
+                elif pd.api.types.is_categorical_dtype(series):
+                    arr = (
+                        series.cat.codes.replace(-1, 0)
+                        .fillna(0)
+                        .to_numpy(dtype=np.float32)
+                    )
                 else:
                     arr = pd.to_numeric(series, errors="coerce").fillna(0.0).to_numpy(dtype=np.float32)
                 col_arrays.append(arr)
