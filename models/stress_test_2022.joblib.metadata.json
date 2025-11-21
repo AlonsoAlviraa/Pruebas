@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-11-19T20:03:58.947286+00:00",
+  "generated_at": "2025-11-20T16:40:58.234984+00:00",
   "model_path": "C:\\Users\\alons\\Documents\\Pruebas\\models\\stress_test_2022.joblib",
   "tickers": [
     "AACG",
@@ -3016,15 +3016,29 @@
     "atr_norm",
     "rsi_7",
     "rsi_14",
+    "slope_rsi_14",
     "rsi_21",
+    "adx_14",
+    "adxr_14_2",
+    "dmp_14",
+    "dmn_14",
+    "ma10",
+    "ma20",
+    "ma10_ma20_cross_status",
+    "price_rel_ma10",
     "sma_50",
     "dist_sma_50",
+    "slope_sma_50",
     "sma_200",
     "dist_sma_200",
     "volatility_20",
     "volume_sma",
     "volume_ratio",
     "volume_zscore",
+    "log_return_3m",
+    "return_3m",
+    "log_return_6m",
+    "return_6m",
     "volume"
   ],
   "model_params": {
@@ -3058,6 +3072,11 @@
     "volatility_window": 20,
     "atr_window": 14,
     "volume_window": 20,
+    "long_return_windows": [
+      63,
+      126
+    ],
+    "return_imputation": 0.0,
     "min_history": 250
   },
   "strategy": {
@@ -3071,24 +3090,24 @@
     "folds": [
       {
         "fold": 0,
-        "f1_buy": 0.020175459565414864,
-        "support_buy": 81498,
-        "accuracy": 0.8213822514838466
+        "f1_buy": 0.024420558381476283,
+        "support_buy": 83683,
+        "accuracy": 0.8207495339055562
       },
       {
         "fold": 1,
-        "f1_buy": 0.04831386684226943,
-        "support_buy": 54276,
-        "accuracy": 0.8591674247268731
+        "f1_buy": 0.057706467576499595,
+        "support_buy": 54468,
+        "accuracy": 0.8594590152122419
       },
       {
         "fold": 2,
-        "f1_buy": 0.023659737417943107,
-        "support_buy": 71226,
-        "accuracy": 0.8421043150888506
+        "f1_buy": 0.028772091885944057,
+        "support_buy": 71259,
+        "accuracy": 0.8423092165110017
       }
     ],
-    "f1_buy_mean": 0.030716354608542468,
-    "f1_buy_std": 0.012524359615047054
+    "f1_buy_mean": 0.03696637261463998,
+    "f1_buy_std": 0.014772668800419744
   }
 }

@@ -98,7 +98,7 @@ def calculate_chandelier_exit(
     emas: np.ndarray,
     start_idx: int,
     k: float = 3.0,
-    max_horizon: int = 20,
+    max_horizon: int = 1250,
     hard_stop_pct: float = 0.07,
     volatility_stop_scale: float = 1.0,
     max_volatility_stop_pct: float = 0.05,
@@ -158,18 +158,7 @@ def calculate_chandelier_exit(
         new_stop = highest_high - (k * curr_atr)
         stop_loss = max(stop_loss, new_stop)
 
-        # Lógica Híbrida: Salida por Tiempo CONDICIONAL
-        if bars_held >= max_horizon:
-            ema_value = emas[curr_idx] if len(emas) > curr_idx else np.nan
-            
-            if np.isnan(ema_value) or curr_price < ema_value:
-                # Salida por límite de tiempo Y precio bajo la EMA
-                return {
-                    "exit_price": curr_price, "exit_idx": curr_idx, "reason": "horizon_limit",
-                    "bars_held": bars_held, "initial_stop": initial_stop,
-                    "hard_stop_price": hard_stop_price, "dynamic_hard_stop_pct": dynamic_hard_stop_pct,
-                }
-            # Si el precio está sobre la EMA, el loop continúa (extensión implícita del horizonte).
+       
 
 
 def _load_fundamentals(ticker: str, data_root: Path, cache: Dict[str, pd.DataFrame]) -> pd.DataFrame:

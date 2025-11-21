@@ -94,10 +94,6 @@ class DataPipeline:
         result["atr"] = atr.fillna(0.0)
         # Feature normalization: ATR relative to price
         result["atr_norm"] = result["atr"] / close.clip(lower=1e-6)
-        result["log_price"] = np.log(close.clip(lower=1e-6))
-        result["liquidity_ratio"] = (close * volume).fillna(0.0)
-        result["liquidity_per_atr"] = (volume / atr.replace(0, np.nan)).fillna(0.0)
-        result["atr_ratio"] = atr / close.clip(lower=1e-6)
 
         # RSI with multiple windows
         for window in cfg.rsi_windows:
@@ -105,6 +101,23 @@ class DataPipeline:
             if rsi is None:
                 rsi = pd.Series(50.0, index=result.index) # Default to neutral 50
             result[f"rsi_{window}"] = rsi
+            
+            # --- NUEVO: Slope RSI (Divergencias) ---
+            if window == 14:
+                slope_rsi = ta.slope(rsi, length=5)
+                if slope_rsi is None:
+                    slope_rsi = pd.Series(0.0, index=result.index)
+                result["slope_rsi_14"] = slope_rsi.fillna(0.0)
+
+        # --- NUEVO: Trend Strength (ADX, DMP, DMN) ---
+        # Esto ayuda al modelo a saber si el mercado está en tendencia o lateral
+        try:
+            adx_df = ta.adx(high, low, close, length=14)
+            if adx_df is not None:
+                adx_df.columns = [c.lower() for c in adx_df.columns] # adx_14, dmp_14, dmn_14
+                result = pd.concat([result, adx_df], axis=1)
+        except Exception:
+            pass # Fallback silencioso si faltan datos
 
         # --- NUEVO: Moving averages features para XGBoost (Cruces y distancias cortas) ---
         # Calculamos MA10 y MA20 con min_periods reducidos para tener datos pronto
@@ -135,6 +148,13 @@ class DataPipeline:
             sma = close.rolling(window=window, min_periods=window // 2).mean()
             result[f"sma_{window}"] = sma
             result[f"dist_sma_{window}"] = (close - sma) / sma.replace(0, np.nan)
+            
+            # --- NUEVO: Pendiente de la media (Aceleración de tendencia) ---
+            if window == 50:
+                slope_sma50 = ta.slope(sma, length=5)
+                if slope_sma50 is None:
+                     slope_sma50 = pd.Series(0.0, index=result.index)
+                result["slope_sma_50"] = slope_sma50.fillna(0.0)
 
         # Historical volatility (annualised std of returns)
         returns = close.pct_change()
