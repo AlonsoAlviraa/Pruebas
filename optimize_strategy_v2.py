@@ -6,40 +6,41 @@ import sys
 import time
 
 # ==============================================================================
-# CONFIGURACIÓN DEL GRID DE OPTIMIZACIÓN MEJORADO
+# CONFIGURACIÓN DEL GRID DE OPTIMIZACIÓN v2.0 - 120 COMBINACIONES
 # ==============================================================================
-# Basado en análisis SHAP: dmp_14, ATR, volatility son las features más importantes
-# Objetivo: Maximizar trades de calidad con buena gestión de riesgo
+# Modelo entrenado con Optuna (mejor F1-Score)
+# Exploración exhaustiva del espacio de hiperparámetros
 
 param_grid = {
-    # 1. UMBRAL DE ENTRADA: Más flexible para capturar más señales
-    # Bajamos a 0.45 para permitir más operaciones
-    "min_confidence": [0.45, 0.50, 0.55, 0.60],
+    # 1. UMBRAL DE ENTRADA (Confianza del modelo)
+    # Rango ampliado para explorar desde señales agresivas a conservadoras
+    "min_confidence": [0.40, 0.45, 0.50, 0.55, 0.60],
     
-    # 2. GESTIÓN DE CAPITAL: Aumentamos targets para aprovechar volatilidad
-    # Antes: 0.20-0.40 no generaba suficiente impacto
-    # Ahora: 0.15-0.35 permite mayor exposición controlada
-    "volatility_target_pct": [0.15, 0.25, 0.35],
+    # 2. GESTIÓN DE CAPITAL (Volatility Targeting)
+    # Más opciones para encontrar el sweet spot
+    "volatility_target_pct": [0.10, 0.15, 0.20, 0.25],
     
-    # 3. STOP LOSS (TRAILING): Más conservador para proteger capital
-    # Reducimos K para stops más ajustados
-    "k_atr": [2.5, 3.0, 3.5],
+    # 3. STOP LOSS TRAILING (K × ATR)
+    # Desde stops muy ajustados hasta generosos
+    "k_atr": [2.0, 2.5, 3.0],
     
-    # 4. DIVERSIFICACIÓN: Límite por posición individual
-    # Mantenemos el rango pero exploramos opciones intermedias
-    "max_position_pct": [0.15, 0.20, 0.25]
+    # 4. LÍMITE DE POSICIÓN INDIVIDUAL
+    # Balance entre diversificación y concentración
+    "max_position_pct": [0.10, 0.15, 0.20, 0.25]
 }
 
-# Parámetros fijos
+# Parámetros fijos (NO cambian)
 FIXED_PARAMS = {
     "ticker_file": "good.txt",
-    "model_path": "models/stress_test_2022.joblib",
-    "start_date": "2024-01-01",
+    "model_path": "models/trend_model_2015_2024_OPTUNA.joblib",  # Nuevo modelo Optuna
+    "start_date": "2023-01-01",  # Out-of-sample testing (2023-2024)
     "end_date": "2024-12-31",
-    "hard_stop_pct": "0.10",       # Stop de desastre al 10% (antes 15%)
-    "volatility_exponent": "1.0",  # Lineal
-    "commission": "0.001"
+    "hard_stop_pct": "0.08",       # Hard stop al 8%
+    "volatility_exponent": "1.0",  # Escalamiento lineal
+    "commission": "0.001"          # 0.1% comisión
 }
+
+# Total de combinaciones: 5 × 4 × 3 × 4 = 120
 
 # ==============================================================================
 # MOTOR DE EJECUCIÓN
