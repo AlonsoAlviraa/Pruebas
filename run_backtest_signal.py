@@ -289,58 +289,6 @@ def run_backtest(
             if start_date: mask &= dates >= start_date
             if end_date: mask &= dates <= end_date
             df = df.loc[mask].copy()
-            
-            # Calcular EMA para la salida híbrida
-            ema_col = f"ema_{ema_length}"
-            df[ema_col] = ta.ema(df["close"], length=ema_length)
-            
-            # NUEVO: Cálculo de MA10 y MA20 para Filtro de Momentum (Corto Plazo)
-            df["ma_10"] = ta.sma(df["close"], length=10)
-            df["ma_20"] = ta.sma(df["close"], length=20)
-            
-            # NUEVO: Filtro de tendencia: +15% en los últimos 3 meses (~63 barras) (Largo Plazo)
-            df["ret_3m"] = df["close"].pct_change(periods=63)
-            
-            # NUEVO: Filtro Anti-Cuchillos (Distancia a Máximos Anuales 52W)
-            # 252 periodos es el proxy estándar para un año de trading (52 semanas)
-            df["max_1y"] = df["close"].rolling(window=252, min_periods=1).max()
-            
-            # Se elimina el NaN inicial debido al cálculo de los indicadores
-            # El subset ahora incluye todas las nuevas métricas
-            df = df.dropna(subset=[ema_col, "ma_10", "ma_20", "ret_3m", "max_1y"]).reset_index(drop=True) 
-            
-            if df.empty: continue
-
-            # Preparar Features y Predicciones
-            # La lista de features EXCLUYE todas las nuevas métricas de filtro
-            feature_cols = [c for c in df.columns if c not in ["date", "ticker", "target", "open", "high", "low", "close", "volume", "atr", ema_col, "ma_10", "ma_20", "ret_3m", "max_1y"]]
-            if hasattr(model, "feature_names_in_"):
-                X = df[feature_cols].reindex(columns=model.feature_names_in_, fill_value=0)
-            else:
-                X = df[feature_cols]
-            X = X.apply(pd.to_numeric, errors="coerce").fillna(0.0)
-
-            preds_proba = model.predict_proba(X)[:, 1]
-            
-            # APLICACIÓN DE FILTROS (MOMENTUM CORTO, LARGO PLAZO Y DISTANCIA A MÁXIMOS)
-            
-            # 1. Filtro de Momentum de Corto Plazo (Alineación)
-            momentum_filter = (df["ma_10"] > df["ma_20"]) & (df["close"] > df["ma_10"])
-            
-            # 2. Filtro de Tendencia de Largo Plazo (Fuerza Estructural)
-            trend_filter = df["ret_3m"] >= 0.15
-            
-            # 3. Filtro Anti-Cuchillos (Distancia a Máximos <= 25%)
-            # Condición: Cierre >= (Máximo Anual * 0.75)
-            annual_proximity_filter = df["close"] >= (df["max_1y"] * 0.01)
-            
-            # La señal final es la intersección (AND) de todos los criterios
-            signals = (preds_proba >= min_confidence) & momentum_filter.values & trend_filter.values & annual_proximity_filter.values
-            
-            prices = df["close"].values
-            highs = df["high"].values
-            atrs = df["atr"].values
-            emas = df[ema_col].values
             dates_arr = df["date"].values
             
             t = 0

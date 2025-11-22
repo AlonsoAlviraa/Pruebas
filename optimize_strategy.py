@@ -45,9 +45,9 @@ FIXED_PARAMS = {
 # ==============================================================================
 
 def run_backtest(params):
-    """Construye el comando y ejecuta el backtest, capturando métricas."""
+    """Construye el comando y ejecuta el backtest MEJORADO v2, capturando métricas."""
     cmd = [
-        sys.executable, "run_backtest_signal.py",
+        sys.executable, "run_backtest_signal_v2.py",
         "--ticker-file", FIXED_PARAMS["ticker_file"],
         "--model-path", FIXED_PARAMS["model_path"],
         "--start-date", FIXED_PARAMS["start_date"],
