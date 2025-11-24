@@ -643,7 +643,7 @@ def main():
     logger.info(f"Win Rate:          {win_rate:.2%}")
     logger.info(f"Sharpe Ratio:      {sharpe:.2f}")
     logger.info(f"Max Drawdown:      {max_dd:.2%}")
-    logger.info(f"Capital Final:     ${final_equity:,.2f}")
+    logger.info(f"Capital Final:     {final_equity:,.2f} $")
     logger.info(f"Retorno Total:     {final_return_pct:.2%}")
     logger.info(f"Detalles en:       {output_file}")
     logger.info("-" * 60)
