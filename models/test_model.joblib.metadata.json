@@ -1,0 +1,123 @@
+{
+  "version": "2.0",
+  "generated_at": "2025-11-23T10:15:22.059696+00:00",
+  "model_path": "C:\\Users\\alons\\Documents\\Pruebas\\models\\test_model.joblib",
+  "tickers": [
+    "AAL"
+  ],
+  "train_rows": 243,
+  "train_range": {
+    "start": "2020-01-02T14:30:00+00:00",
+    "end": "2020-12-16T14:30:00+00:00"
+  },
+  "class_mapping": {
+    "0": "STOP",
+    "1": "HOLD",
+    "2": "BUY"
+  },
+  "feature_columns": [
+    "atr_norm",
+    "rsi_7",
+    "rsi_14",
+    "slope_rsi_14",
+    "rsi_21",
+    "adx_14",
+    "adxr_14_2",
+    "dmp_14",
+    "dmn_14",
+    "ma10_ma20_cross_status",
+    "price_rel_ma10",
+    "dist_sma_50",
+    "slope_sma_50",
+    "dist_sma_200",
+    "volatility_20",
+    "volume_ratio",
+    "volume_zscore",
+    "log_return_3m",
+    "return_3m",
+    "log_return_6m",
+    "return_6m"
+  ],
+  "model_params": {
+    "model_type": "xgb",
+    "n_estimators": 10,
+    "max_depth": 3,
+    "min_samples_split": 10,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "n_jobs": -1,
+    "class_weighted": false,
+    "random_state": 42
+  },
+  "best_hyperparams_optuna": null,
+  "pipeline_config": {
+    "data_root": "data",
+    "indicator_windows": [
+      5,
+      10,
+      20
+    ],
+    "rsi_windows": [
+      7,
+      14,
+      21
+    ],
+    "sma_windows": [
+      50,
+      200
+    ],
+    "volatility_window": 20,
+    "atr_window": 14,
+    "volume_window": 20,
+    "long_return_windows": [
+      63,
+      126
+    ],
+    "return_imputation": 0.0,
+    "min_history": 250
+  },
+  "strategy": {
+    "horizon": 10,
+    "take_profit": null,
+    "stop_loss": null,
+    "atr_multiplier_tp": 3.0,
+    "atr_multiplier_sl": 2.0
+  },
+  "cv_metrics": {
+    "folds": [
+      {
+        "fold": 0,
+        "f1_buy": 0.20512820512820512,
+        "support_buy": 4,
+        "accuracy": 0.14285714285714285
+      },
+      {
+        "fold": 1,
+        "f1_buy": 0.0,
+        "support_buy": 7,
+        "accuracy": 0.673469387755102
+      },
+      {
+        "fold": 2,
+        "f1_buy": 0.0,
+        "support_buy": 13,
+        "accuracy": 0.5306122448979592
+      },
+      {
+        "fold": 3,
+        "f1_buy": 0.0,
+        "support_buy": 2,
+        "accuracy": 0.3541666666666667
+      },
+      {
+        "fold": 4,
+        "f1_buy": 0.0,
+        "support_buy": 27,
+        "accuracy": 0.22916666666666666
+      }
+    ],
+    "f1_buy_mean": 0.041025641025641026,
+    "f1_buy_std": 0.08205128205128205
+  }
+}

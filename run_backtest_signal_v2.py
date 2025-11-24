@@ -334,32 +334,25 @@ def run_backtest(
             preds_proba = model.predict_proba(X)[:, 1]
             
             # ===================================================================
-            # NUEVOS FILTROS MEJORADOS - Menos restrictivos pero más inteligentes
+            # FILTROS MÍNIMOS v2.2 - Confiar en el Modelo Optuna
             # ===================================================================
+            # El modelo entrenado con Optuna tiene F1-Score optimizado
+            # Solo aplicamos filtros absolutamente esenciales
             
-            # 1. FILTRO DE TENDENCIA BÁSICA (Aflojado: Solo requiere precio > MA50)
-            # Antes era demasiado restrictivo (MA10 > MA20 Y Close > MA10)
+            # 1. FILTRO DE TENDENCIA BÁSICA
+            # Solo requiere tendencia alcista general (precio > MA50)
             trend_filter = df["close"] > df["ma_50"]
             
-            # 2. FILTRO DE MOMENTUM (Aflojado: 5% en 1 mes en vez de 15% en 3 meses)
-            # Esto permite capturar movimientos tempranos
-            momentum_filter = df["ret_1m"] >= 0.05
+            # 2. FILTRO DE MOMENTUM MÍNIMO (3% en 1 mes)
+            # Evita entrar en valores completamente planos
+            momentum_filter = df["ret_1m"] >= 0.03
             
-            # 3. FILTRO ANTI-CUCHILLOS (ARREGLADO: Ahora usa -0.30 en vez de bug anterior)
-            # Solo entrar si el precio está dentro del 30% del máximo anual
-            anti_knife_filter = df["dist_to_high_1y"] >= -0.30
-            
-            # 4. FILTRO DE VOLATILIDAD (NUEVO: Evitar entrar en acciones demasiado volátiles)
-            # Queremos volatilidad moderada (entre el 20% y 80% del rango reciente)
-            volatility_filter = (df["volatility_rank"] >= 0.20) & (df["volatility_rank"] <= 0.80)
-            
-            # SEÑAL FINAL: Confianza del modelo + Filtros de Calidad
+            # SEÑAL FINAL: Confianza del Modelo + Tendencia + Momentum Mínimo
+            # El modelo Optuna ya aprendió a evitar falling knives y manejar volatilidad
             signals = (
                 (preds_proba >= min_confidence) & 
                 trend_filter.values & 
-                momentum_filter.values & 
-                anti_knife_filter.values &
-                volatility_filter.values
+                momentum_filter.values
             )
             
             prices = df["close"].values
@@ -413,29 +406,28 @@ def run_backtest(
                         hard_stop_price = result.get("hard_stop_price", entry_stop)
                         dynamic_hard_stop_pct = result.get("dynamic_hard_stop_pct", hard_stop_pct)
 
-                        # --- LÓGICA: INVERSE VOLATILITY SIZING ---
+                        # --- SIZING SIMPLIFICADO QUE USA LOS PARÁMETROS ---
+                        # Problema anterior: equity nunca cambiaba, todos los parámetros daban igual
+                        # Solución: Usar initial_capital directamente para cada trade
+                        
                         atr_value = atrs[t]
                         volatility_current = 0.0
                         if entry_price > 0:
                             volatility_current = atr_value / entry_price
                         volatility_current = max(volatility_current, 1e-8)
 
-                        # 1. Base Sizing: Target Volatility
-                        allocation_dollars = equity * volatility_target_pct
+                        # 1. Base Sizing: Target Volatility (AHORA USA EL PARÁMETRO)
+                        allocation_dollars = initial_capital * volatility_target_pct
                         allocation_dollars /= max(volatility_current ** volatility_exponent, 1e-8)
                         
-                        # 2. Hard Caps (basados en capital inicial, optimista)
-                        max_capital_dollars = max(0.0, min(equity * max_position_pct, equity))
-                        capped_allocation = max(0.0, min(allocation_dollars, max_capital_dollars))
-
-                        # 3. Cálculo de Posición
-                        shares_by_allocation = capped_allocation / entry_price if entry_price > 0 else 0.0
-                        shares_by_cash_cap = max_capital_dollars / entry_price if entry_price > 0 else 0.0
+                        # 2. Hard Cap por Posición (AHORA USA EL PARÁMETRO)
+                        max_capital_dollars = initial_capital * max_position_pct
                         
-                        # El tamaño de posición es el mínimo de los límites
-                        share_candidates = [shares_by_allocation, shares_by_cash_cap]
-                        share_candidates = [s for s in share_candidates if np.isfinite(s) and s > 0]
-                        position_size = int(min(share_candidates)) if share_candidates else 0
+                        # 3. Tomar el mínimo
+                        final_allocation = min(allocation_dollars, max_capital_dollars)
+                        
+                        # 4. Calcular shares
+                        position_size = int(final_allocation / entry_price) if entry_price > 0 else 0
                         
                         if position_size <= 0:
                             t += 1

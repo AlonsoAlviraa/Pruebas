@@ -112,7 +112,17 @@ def _load_tickers(args: argparse.Namespace, data_root: Path) -> List[str]:
 
 
 def _feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
-    drop_cols = ["date", "label", "ticker", "index", "tp_pct", "sl_pct", "time_exit_return", "summary"]
+    # Columnas de metadatos a eliminar
+    meta_cols = ["date", "label", "ticker", "index", "tp_pct", "sl_pct", "time_exit_return", "summary"]
+    
+    # Columnas no estacionarias (precios absolutos) que confunden al modelo
+    non_stationary = [
+        "open", "high", "low", "close", "volume", 
+        "atr", "ma10", "ma20", "sma_50", "sma_200", "volume_sma"
+    ]
+    
+    drop_cols = meta_cols + non_stationary
+    
     features = df.drop(columns=[c for c in drop_cols if c in df.columns]).copy()
 
     categorical_cols = features.select_dtypes(include=["category"]).columns

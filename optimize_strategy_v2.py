@@ -32,7 +32,7 @@ param_grid = {
 # Parámetros fijos (NO cambian)
 FIXED_PARAMS = {
     "ticker_file": "good.txt",
-    "model_path": "models/trend_model_2015_2024_OPTUNA.joblib",  # Nuevo modelo Optuna
+    "model_path": "models/trend_model_2015_2024_OPTUNA_FIXED.joblib",  # ← MODELO CORREGIDO
     "start_date": "2023-01-01",  # Out-of-sample testing (2023-2024)
     "end_date": "2024-12-31",
     "hard_stop_pct": "0.08",       # Hard stop al 8%

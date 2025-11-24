@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Backtest Strategy: XGBoost Signal + Chandelier Exit + Inverse Volatility Sizing.
-Includes Point-in-Time Fundamental Validation, Hybrid Time/EMA Exit, and Chronological Cashflow Replay.
+Backtest MEJORADO v2.0: XGBoost Signal + Filtros Inteligentes + Gestión de Riesgo Dinámica
+- Bug fixes: Filtro anti-cuchillos corregido
+- Filtros menos restrictivos pero más inteligentes
+- Gestión de riesgo mejorada basada en SHAP (dmp_14, ATR, volatility)
 """
 import argparse
 import logging
@@ -47,7 +49,7 @@ except ImportError:
         return joblib.load(path)
 
 # ---------------------------------------------------------------------------
-# Lógica del Backtest
+# Logging Setup
 # ---------------------------------------------------------------------------
 
 logging.basicConfig(
@@ -158,8 +160,6 @@ def calculate_chandelier_exit(
         new_stop = highest_high - (k * curr_atr)
         stop_loss = max(stop_loss, new_stop)
 
-       
-
 
 def _load_fundamentals(ticker: str, data_root: Path, cache: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Carga y cachea datos fundamentales para un ticker."""
@@ -264,9 +264,6 @@ def run_backtest(
     volatility_exponent = max(0.0, volatility_exponent)
     max_position_pct = max(0.0, min(1.0, max_position_pct))
     
-    # ATENCIÓN: Esta 'equity' se usa para el sizing en la fase de GENERACIÓN de trades, 
-    # y se asume el capital inicial. El control de liquidez REAL se hace en el 
-    # CASH FLOW REPLAY en la función 'main'.
     equity = initial_capital
     
     regime_df = pd.DataFrame()
@@ -276,8 +273,9 @@ def run_backtest(
         except Exception as e:
             logger.warning(f"Error obteniendo régimen de mercado: {e}")
 
-    logger.info(f"Iniciando backtest para {len(tickers)} tickers...")
+    logger.info(f"Iniciando backtest MEJORADO para {len(tickers)} tickers...")
     logger.info(f"Estrategia: Inverse Volatility (Target={volatility_target_pct:.2%}, Alpha={volatility_exponent})")
+    logger.info(f"Filtros: Más inteligentes y menos restrictivos")
     
     for ticker in tickers:
         try:
@@ -289,6 +287,78 @@ def run_backtest(
             if start_date: mask &= dates >= start_date
             if end_date: mask &= dates <= end_date
             df = df.loc[mask].copy()
+            
+            # Calcular EMA para la salida híbrida
+            ema_col = f"ema_{ema_length}"
+            df[ema_col] = ta.ema(df["close"], length=ema_length)
+            
+            # ==========================================
+            # FEATURES MEJORADAS BASADAS EN SHAP
+            # ==========================================
+            # El modelo valora: dmp_14, atr, volatility_20, dist_sma_200
+            
+            # 1. SMAs para Filtros de Tendencia (más flexibles)
+            df["ma_10"] = ta.sma(df["close"], length=10)
+            df["ma_20"] = ta.sma(df["close"], length=20)
+            df["ma_50"] = ta.sma(df["close"], length=50)
+            
+            # 2. Retornos de múltiples horizontes (el modelo usa log_return_3m y log_return_6m)
+            df["ret_1m"] = df["close"].pct_change(periods=21)  # ~1 mes
+            df["ret_3m"] = df["close"].pct_change(periods=63)  # ~3 meses
+            
+            # 3. Filtro Anti-Cuchillos: Distancia a máximos de 1 año
+            df["max_1y"] = df["close"].rolling(window=252, min_periods=50).max()
+            df["dist_to_high_1y"] = (df["close"] - df["max_1y"]) / df["max_1y"]
+            
+            # 4. Volatilidad normalizada (el modelo usa volatility_20)
+            df["volatility_rank"] = df["atr"].rolling(window=60, min_periods=20).apply(
+                lambda x: pd.Series(x).rank(pct=True).iloc[-1] if len(x) > 0 else 0.5
+            )
+            
+            # Limpiar NaNs
+            df = df.dropna(subset=[ema_col, "ma_10", "ma_20", "ma_50", "ret_1m", "ret_3m", "max_1y", "volatility_rank"]).reset_index(drop=True) 
+            
+            if df.empty: continue
+
+            # Preparar Features y Predicciones
+            feature_cols = [c for c in df.columns if c not in [
+                "date", "ticker", "target", "open", "high", "low", "close", "volume", "atr", 
+                ema_col, "ma_10", "ma_20", "ma_50", "ret_1m", "ret_3m", "max_1y", "dist_to_high_1y", "volatility_rank"
+            ]]
+            if hasattr(model, "feature_names_in_"):
+                X = df[feature_cols].reindex(columns=model.feature_names_in_, fill_value=0)
+            else:
+                X = df[feature_cols]
+            X = X.apply(pd.to_numeric, errors="coerce").fillna(0.0)
+
+            preds_proba = model.predict_proba(X)[:, 1]
+            
+            # ===================================================================
+            # FILTROS MÍNIMOS v2.2 - Confiar en el Modelo Optuna
+            # ===================================================================
+            # El modelo entrenado con Optuna tiene F1-Score optimizado
+            # Solo aplicamos filtros absolutamente esenciales
+            
+            # 1. FILTRO DE TENDENCIA BÁSICA
+            # Solo requiere tendencia alcista general (precio > MA50)
+            trend_filter = df["close"] > df["ma_50"]
+            
+            # 2. FILTRO DE MOMENTUM MÍNIMO (3% en 1 mes)
+            # Evita entrar en valores completamente planos
+            momentum_filter = df["ret_1m"] >= 0.03
+            
+            # SEÑAL FINAL: Confianza del Modelo + Tendencia + Momentum Mínimo
+            # El modelo Optuna ya aprendió a evitar falling knives y manejar volatilidad
+            signals = (
+                (preds_proba >= min_confidence) & 
+                trend_filter.values & 
+                momentum_filter.values
+            )
+            
+            prices = df["close"].values
+            highs = df["high"].values
+            atrs = df["atr"].values
+            emas = df[ema_col].values
             dates_arr = df["date"].values
             
             t = 0
@@ -408,7 +478,7 @@ def run_backtest(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Backtester Sniper + Inverse Volatility Sizing")
+    parser = argparse.ArgumentParser(description="Backtester MEJORADO v2.0")
     parser.add_argument("--tickers", help="Lista de tickers separados por coma")
     parser.add_argument("--ticker-file", type=Path, help="Archivo TXT con tickers")
     parser.add_argument("--data-root", type=Path, default=Path("data"))
@@ -425,7 +495,7 @@ def main():
     parser.add_argument("--initial-capital", type=float, default=10000.0)
     parser.add_argument("--volatility-target-pct", type=float, default=0.005)
     parser.add_argument("--volatility-exponent", type=float, default=1.0)
-    parser.add_argument("--max-position-pct", type=float, default=0.25, help="Límite máximo de capital por operación respecto al equity (Hard Cap)")
+    parser.add_argument("--max-position-pct", type=float, default=0.25, help="Límite máximo de capital por operación")
     
     # Stops
     parser.add_argument("--hard-stop-pct", type=float, default=0.07)
@@ -451,7 +521,7 @@ def main():
     start_date = _parse_date(args.start_date)
     end_date = _parse_date(args.end_date)
 
-    # Paso 1: Generación de trades potenciales (con sizing optimista)
+    # Paso 1: Generación de trades potenciales
     results = run_backtest(
         tickers, args.data_root, model, args.min_confidence, args.k_atr, args.max_horizon,
         args.ema_length, args.min_growth_pct, start_date, end_date, args.initial_capital,
@@ -467,35 +537,27 @@ def main():
     results["exit_date"] = pd.to_datetime(results["exit_date"])
 
     # ------------------------------------------------------------------
-    # CASH FLOW REPLAY (Soluciona el Bug Millonario)
-    # Re-ejecutar cronológicamente para control de liquidez.
+    # CASH FLOW REPLAY (Control de liquidez cronológico)
     # ------------------------------------------------------------------
     results = results.sort_values("entry_date").reset_index(drop=True)
     
-    # Inicialización para el replay (MODIFICADO)
     cash = args.initial_capital
-    open_exposure = 0.0 # Capital actualmente comprometido en posiciones abiertas (NUEVO)
+    open_exposure = 0.0
     equity_history: List[Dict[str, Any]] = []
     accepted_trades: List[Dict[str, Any]] = []
     
-    # Heap de eventos de salida: (fecha_salida, idx_trade, cash_delta, capital_usado) (MODIFICADO)
     exit_events: List[Tuple[Any, int, float, float]] = []
     
-    # Registrar punto inicial (MODIFICADO)
     if not results.empty:
         total_equity = cash + open_exposure
         equity_history.append({"date": results["entry_date"].min(), "equity": total_equity})
 
     for idx, trade in results.iterrows():
         # 1. Procesar salidas pendientes (liberar cash)
-        # Se liberan fondos de operaciones ya cerradas cuya fecha de salida es anterior o igual a la entrada actual
         while exit_events and exit_events[0][0] <= trade["entry_date"]:
             exit_date, trade_idx, cash_delta, capital_used = exit_events.pop(0)
             
-            # Actualizar Exposición Abierta (NUEVO)
             open_exposure = max(0.0, open_exposure - capital_used)
-            
-            # Actualizar Cash y Equity Total (MODIFICADO)
             cash += cash_delta
             total_equity = cash + open_exposure
             equity_history.append({"date": exit_date, "equity": total_equity})
@@ -505,30 +567,26 @@ def main():
         # 2. Intentar la nueva entrada
         capital_required = trade.get("capital_used", 0.0)
         
-        # EL CHECK CLAVE: Si el cash actual es insuficiente, descartamos la orden
         if capital_required <= 0 or cash < capital_required:
             continue
 
-        # Compra: Reducir caja por el capital usado (MODIFICADO)
         cash -= capital_required
         open_exposure += capital_required
         total_equity = cash + open_exposure
         
         equity_history.append({"date": trade["entry_date"], "equity": total_equity})
 
-        # Aceptar y registrar el trade
         trade_record = trade.to_dict()
         trade_record["equity_after"] = np.nan
         accepted_idx = len(accepted_trades)
         accepted_trades.append(trade_record)
 
-        # 3. Planear la salida: Se programa el evento de liberación de capital (MODIFICADO)
+        # 3. Planear la salida
         cash_delta_on_exit = capital_required + trade.get("net_profit", 0.0)
-        # Se añade el capital_required para poder descontarlo de open_exposure en la salida
         exit_events.append((trade["exit_date"], accepted_idx, cash_delta_on_exit, capital_required))
-        exit_events.sort(key=lambda x: x[0]) # Mantener orden cronológico
+        exit_events.sort(key=lambda x: x[0])
 
-    # 4. Procesar eventos finales de salida (MODIFICADO)
+    # 4. Procesar eventos finales
     for exit_date, trade_idx, cash_delta, capital_used in exit_events:
         open_exposure = max(0.0, open_exposure - capital_used)
         cash += cash_delta
@@ -540,24 +598,20 @@ def main():
 
     results = pd.DataFrame(accepted_trades)
     if results.empty:
-        logger.warning("No se generaron operaciones tras aplicar control de liquidez cronológico.")
+        logger.warning("No se generaron operaciones tras aplicar control de liquidez.")
         return
 
     equity_df = pd.DataFrame(equity_history)
     equity_df = equity_df.sort_values("date")
-    # Eliminar duplicados de fecha manteniendo el último valor (el más actualizado)
     equity_df = equity_df.drop_duplicates(subset=["date"], keep="last").reset_index(drop=True)
     
     results = results.reset_index(drop=True)
     results["cumulative_profit"] = results.get("net_profit", 0).cumsum()
     
-    # Rellenar los valores de equity faltantes (entre trades)
     equity_series = equity_df["equity"] if not equity_df.empty else pd.Series([args.initial_capital])
-    # Rellenar NANs con el valor anterior/siguiente conocido de capital final
     results["equity_after"] = results["equity_after"].fillna(method="ffill").fillna(method="bfill")
     final_equity = equity_series.iloc[-1]
     
-    # La columna 'equity' debe contener el capital final después de la operación (el valor rellenado)
     results["equity"] = results["equity_after"].fillna(final_equity)
     
     # ------------------------------------------------------------------
@@ -569,12 +623,12 @@ def main():
     win_rate = (results["net_profit"] > 0).mean()
     avg_return = results["return"].mean()
     
-    # Sharpe Ratio (Asumiendo 252 días de trading)
+    # Sharpe Ratio
     sharpe = 0.0
     if results["return"].std() > 0:
         sharpe = np.sqrt(252) * (avg_return / results["return"].std())
         
-    # Max Drawdown (Calculado sobre la serie de equity generada cronológicamente)
+    # Max Drawdown
     rolling_max = equity_series.cummax()
     drawdown = (equity_series - rolling_max) / rolling_max
     max_dd = drawdown.min()
@@ -582,17 +636,17 @@ def main():
     output_file = "backtest_results.csv"
     results.to_csv(output_file, index=False)
 
-    logger.info("-" * 50)
-    logger.info(f"RESULTADOS: XGBoost + Inverse Vol + Fundamentales Point-in-Time")
-    logger.info("-" * 50)
+    logger.info("-" * 60)
+    logger.info(f"RESULTADOS BACKTEST MEJORADO v2.0")
+    logger.info("-" * 60)
     logger.info(f"Total Operaciones: {total_trades}")
-    logger.info(f"Win Rate:          {win_rate:.2%}")
-    logger.info(f"Sharpe Ratio:      {sharpe:.2f}")
-    logger.info(f"Max Drawdown:      {max_dd:.2%}")
-    logger.info(f"Capital Final:     ${final_equity:,.2f}")
-    logger.info(f"Retorno Total:     {final_return_pct:.2%}")
-    logger.info(f"Detalles en:       {output_file}")
-    logger.info("-" * 50)
+    logger.info(f"Win Rate:          {win_rate:.2%}")
+    logger.info(f"Sharpe Ratio:      {sharpe:.2f}")
+    logger.info(f"Max Drawdown:      {max_dd:.2%}")
+    logger.info(f"Capital Final:     ${final_equity:,.2f}")
+    logger.info(f"Retorno Total:     {final_return_pct:.2%}")
+    logger.info(f"Detalles en:       {output_file}")
+    logger.info("-" * 60)
 
 if __name__ == "__main__":
     main()
