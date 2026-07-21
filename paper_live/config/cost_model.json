@@ -1,0 +1,26 @@
+{
+  "version": "cost-v1",
+  "broker_profile": "ibkr_pro_tiered_like",
+  "commission": {
+    "per_share": 0.005,
+    "min_per_order": 1.0,
+    "max_pct_of_notional": 0.005
+  },
+  "slippage": {
+    "entry_bps": 5.0,
+    "exit_bps": 5.0,
+    "stop_extra_bps": 10.0,
+    "impact_bps_per_adv_pct": 2.0
+  },
+  "spread": {
+    "use_quote_if_available": true,
+    "fallback_bps": 2.0
+  },
+  "sec_fee_sell_only": true,
+  "sec_fee_per_million": 8.0,
+  "finra_taf": true,
+  "finra_taf_per_share": 0.000166,
+  "finra_taf_max_per_trade": 8.3,
+  "min_price": 2.0,
+  "max_participation_rate": 0.02
+}

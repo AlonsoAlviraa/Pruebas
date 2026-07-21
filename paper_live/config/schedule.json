@@ -1,0 +1,19 @@
+{
+  "version": "schedule-v1",
+  "timezone": "America/New_York",
+  "pre_open_hhmm": "09:00",
+  "rth_open_hhmm": "09:30",
+  "entry_window_start_hhmm": "09:45",
+  "entry_window_end_hhmm": "10:30",
+  "midday_rescan_hhmm": "12:00",
+  "exit_check_start_hhmm": "15:30",
+  "exit_check_end_hhmm": "15:50",
+  "force_flatten_hhmm": "15:55",
+  "post_close_hhmm": "16:15",
+  "night_job_hhmm": "18:00",
+  "bar_size_phase1": "5m",
+  "bar_size_stops": "1m",
+  "skip_first_minutes_after_open": 15,
+  "heartbeat_seconds": 60,
+  "stale_quote_seconds": 300
+}

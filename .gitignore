@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# Large local artifacts (keep structure, ignore bulk)
+data/**
+!data/.gitkeep
+models/**
+!models/.gitkeep
+shap_analysis/*.png
+
+# Lean / local outputs
+lean_strategy/storage/*.joblib
+backtests/
+# Research dashboards (repo root only — do not ignore paper_live/reports/)
+/reports/
+# Keep free cloud paper study pack in git (GitHub Actions writes here)
+!/reports/paper_cloud/
+!/reports/paper_cloud/**
+/reports/paper_cloud/data_cache/
+/reports/paper_cloud/**/ledgers/
+outputs/
+*.checkpoint
+mlruns/
+
+# Full vendor clones (active skills are copied under .grok/skills/)
+_vendor_skills/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+*.pem
+secrets.*
+credentials.*
+
+# Secrets (never commit)
+.env
+.env.*
+*.env
+secrets/
+.grok/secrets/
+eodhd.env
+quantconnect.env
+
+# Paper live year ledger (virtual capital runtime state)
+paper_live/ledger_data/
+paper_live/ledger_data_*/
+paper_live/**/paper_year.db
+paper_live/**/audit/
+paper_live/**/snapshots/

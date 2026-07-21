@@ -1,0 +1,13 @@
+{
+  "version": "universe-v1",
+  "ticker_file": "universe_longhist100.txt",
+  "limit": 80,
+  "min_price": 5.0,
+  "min_adv20_usd": 5000000.0,
+  "regime_symbols": ["QQQ", "SPY"],
+  "trade_regime_symbols": false,
+  "monthly_rescore": true,
+  "rescore_method": "causal_highvol_quality_hybrid",
+  "exclude_pure_max_vol_dynamic": true,
+  "notes": "Start liquid long-hist; avoid pure top-vol re-rank (failed in robust_v4)."
+}

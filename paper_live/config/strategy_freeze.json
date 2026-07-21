@@ -1,0 +1,43 @@
+{
+  "version": "strategy-freeze-v1",
+  "mode": "paper",
+  "strategy_id": "turbo_highvol_minalloc",
+  "description": "US research baseline freeze for paper live year (LIV-01). Virtual capital only.",
+  "capital0": 100000.0,
+  "currency": "USD",
+  "long_only": true,
+  "max_leverage": 1.0,
+  "knobs": {
+    "min_alloc_pct": 0.015,
+    "max_positions": 10,
+    "max_position_pct": 0.25,
+    "volatility_target_pct": 0.04,
+    "min_confidence": 0.55,
+    "hard_stop_pct": 0.07,
+    "k_atr": 3.0,
+    "max_horizon": 20,
+    "require_regime": true,
+    "regime_filter": "strict_dual_golden",
+    "preferred_index": ["QQQ", "SPY"],
+    "boost_score_by_atr": true,
+    "soft_hard_regime": false,
+    "enable_rotation": false,
+    "require_sector_trend": false
+  },
+  "risk_paper": {
+    "max_portfolio_dd": 0.18,
+    "dd_soft_scale": 0.5,
+    "dd_soft_trigger_frac": 0.5,
+    "kill_dd_from_start": 0.15,
+    "kill_rolling_sharpe_20d": -1.0,
+    "max_daily_new_entries": 5,
+    "ticker_max_capital_pct": 0.12
+  },
+  "shadow_strategy_id": "turbo_highvol_minalloc_sector_rot",
+  "shadow_enabled": false,
+  "notes": [
+    "Frozen from research baseline 2026-07-18 / live candidate 2026-07-21.",
+    "Any knob change requires a new run_id and config_hash.",
+    "TRAD_PAPER_ONLY=1 required for live runner (later PRs)."
+  ]
+}

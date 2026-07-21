@@ -1,0 +1,29 @@
+# Core research stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+scikit-learn>=1.3
+xgboost>=2.0
+joblib>=1.3
+tqdm>=4.66
+
+# Indicators / optional TA
+# pandas-ta  # optional
+# TA-Lib     # optional system install
+
+# Backtest research (optional but recommended)
+# vectorbt>=0.26
+# backtrader>=1.9
+
+# Explainability
+# shap>=0.44
+
+# DRL path (optional, heavy)
+# ray[rllib]>=2.9
+# gymnasium>=0.29
+# torch>=2.1
+
+# Tests
+pytest>=7.4
+
+# Lean cloud/local is separate: install QuantConnect LEAN CLI if needed
