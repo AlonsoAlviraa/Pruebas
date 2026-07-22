@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T092923Z_18872944f4",
+  "run_id": "paper_20260722T223728Z_6f81db569a",
   "day": "2025-11-06",
   "strategy_id": "S05_topk_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 99239.98509299073,
-  "cash": 93400.48509299073,
+  "equity": 99982.80491187927,
+  "cash": 94143.30491187927,
   "gross_exposure": 5839.5,
-  "dd_from_peak": -0.007600149070092765,
+  "dd_from_peak": -0.00474518518844369,
   "n_positions": 1,
   "n_fills": 2,
   "n_buys": 0,
   "n_sells": 2,
-  "commission": 7.0,
-  "fees": 0.13715345065174472,
-  "slippage_est": 39.74397342670542,
+  "commission": 5.0,
+  "fees": 0.10068737393506993,
+  "slippage_est": 29.535628485762118,
   "turnover": 5839.5,
   "n_orders": 2,
   "n_rejects": 0,
@@ -25,34 +25,34 @@
       "ts": "2025-11-06T15:45:00+00:00",
       "ticker": "AMZN",
       "side": "sell",
-      "qty": 25.0,
-      "price": 242.9801778813501,
+      "qty": 26.0,
+      "price": 242.97534365239125,
       "commission": 1.0,
-      "fees": 0.05274603557627002
+      "fees": 0.05485487147969738
     },
     {
       "ts": "2025-11-06T15:45:00+00:00",
       "ticker": "MSFT",
       "side": "sell",
       "qty": 11.0,
-      "price": 500.0792031285494,
+      "price": 500.0738915383246,
       "commission": 1.0,
-      "fees": 0.045832969875312345
+      "fees": 0.045832502455372556
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T092923Z_18872944f4",
+      "run_id": "paper_20260722T223728Z_6f81db569a",
       "ticker": "NVDA",
-      "qty": 28.0,
-      "avg_px": 208.66511808765551,
-      "stop": 192.30712190746863,
-      "hard_stop": 189.88525745976654,
+      "qty": 29.0,
+      "avg_px": 208.6651181164252,
+      "stop": 192.88712372954032,
+      "hard_stop": 189.88525748594694,
       "opened_at": "2026-07-13T09:45:00+00:00",
-      "bars_held": 7,
+      "bars_held": 8,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T09:29:38.308709+00:00"
+  "generated_at": "2026-07-22T22:37:46.848919+00:00"
 }

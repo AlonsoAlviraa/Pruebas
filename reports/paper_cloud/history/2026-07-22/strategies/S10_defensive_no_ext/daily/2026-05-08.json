@@ -1,21 +1,21 @@
 {
-  "run_id": "paper_20260722T093017Z_168ee941a7",
+  "run_id": "paper_20260722T223829Z_a11e2a77f5",
   "day": "2026-05-08",
   "strategy_id": "S10_defensive_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 99772.24253010663,
-  "cash": 95683.44258809002,
-  "gross_exposure": 4088.7999420166016,
-  "dd_from_peak": -0.0022775746989337486,
+  "equity": 100288.65808809514,
+  "cash": 95984.6581491303,
+  "gross_exposure": 4303.999938964844,
+  "dd_from_peak": -0.000253736580257069,
   "n_positions": 1,
   "n_fills": 1,
   "n_buys": 0,
   "n_sells": 1,
-  "commission": 61.0,
-  "fees": 1.0059278978511152,
-  "slippage_est": 226.62491197508487,
-  "turnover": 4088.7999420166016,
+  "commission": 59.0,
+  "fees": 0.9827041142614786,
+  "slippage_est": 219.95657791743363,
+  "turnover": 4303.999938964844,
   "n_orders": 1,
   "n_rejects": 0,
   "n_kill_events": 0,
@@ -26,35 +26,24 @@
       "ticker": "JPM",
       "side": "sell",
       "qty": 12.0,
-      "price": 300.581460731987,
+      "price": 300.5814593869914,
       "commission": 1.0,
-      "fees": 0.030847820230270752
+      "fees": 0.030847820101151176
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T093017Z_168ee941a7",
-      "ticker": "JPM",
-      "qty": 12.0,
-      "avg_px": 328.56702480487564,
-      "stop": 333.46509004451053,
-      "hard_stop": 308.8530033165831,
-      "opened_at": "2026-07-01T09:45:00+00:00",
-      "bars_held": 14,
-      "meta_json": "{}"
-    },
-    {
-      "run_id": "paper_20260722T093017Z_168ee941a7",
+      "run_id": "paper_20260722T223829Z_a11e2a77f5",
       "ticker": "NVDA",
       "qty": 19.0,
       "avg_px": 208.66511782872843,
-      "stop": 196.1452107590047,
+      "stop": 196.47093633955834,
       "hard_stop": 196.1452107590047,
       "opened_at": "2026-07-13T09:45:00+00:00",
-      "bars_held": 7,
+      "bars_held": 8,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T09:30:32.419623+00:00"
+  "generated_at": "2026-07-22T22:38:43.505480+00:00"
 }

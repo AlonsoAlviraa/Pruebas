@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T092835Z_2eaaa59101",
+  "run_id": "paper_20260722T223636Z_9c664ec9b3",
   "day": "2026-05-18",
   "strategy_id": "S02_no_extension",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100731.55925269866,
-  "cash": 88103.14902015471,
+  "equity": 101177.94182119379,
+  "cash": 88549.53158864984,
   "gross_exposure": 12628.410232543945,
-  "dd_from_peak": -0.002238269229263623,
+  "dd_from_peak": -0.0022284163118730937,
   "n_positions": 3,
   "n_fills": 1,
   "n_buys": 1,
   "n_sells": 0,
-  "commission": 49.0,
-  "fees": 0.7747991289629063,
-  "slippage_est": 185.24374927788992,
+  "commission": 47.0,
+  "fees": 0.7502451968762107,
+  "slippage_est": 178.35525586125684,
   "turnover": 12628.410232543945,
   "n_orders": 1,
   "n_rejects": 0,
@@ -33,17 +33,17 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T092835Z_2eaaa59101",
+      "run_id": "paper_20260722T223636Z_9c664ec9b3",
       "ticker": "NVDA",
       "qty": 19.0,
       "avg_px": 208.66511782872843,
-      "stop": 192.30712190746863,
+      "stop": 192.88712372954032,
       "hard_stop": 191.97190840243016,
       "opened_at": "2026-07-13T09:45:00+00:00",
-      "bars_held": 7,
+      "bars_held": 8,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T09:28:51.306612+00:00"
+  "generated_at": "2026-07-22T22:36:52.219685+00:00"
 }

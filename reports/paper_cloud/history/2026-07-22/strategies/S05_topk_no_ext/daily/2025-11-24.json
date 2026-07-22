@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T092923Z_18872944f4",
+  "run_id": "paper_20260722T223728Z_6f81db569a",
   "day": "2025-11-24",
   "strategy_id": "S05_topk_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 98365.54877400596,
-  "cash": 92708.54880452354,
+  "equity": 99108.1016041109,
+  "cash": 93451.10163462847,
   "gross_exposure": 5656.999969482422,
-  "dd_from_peak": -0.01634451225994038,
+  "dd_from_peak": -0.01345220915476808,
   "n_positions": 1,
   "n_fills": 1,
   "n_buys": 0,
   "n_sells": 1,
-  "commission": 13.0,
-  "fees": 0.2893818815079554,
-  "slippage_est": 77.49144002016327,
+  "commission": 11.0,
+  "fees": 0.2529136688639243,
+  "slippage_est": 67.28266719414304,
   "turnover": 5656.999969482422,
   "n_orders": 1,
   "n_rejects": 0,
@@ -26,24 +26,24 @@
       "ticker": "XOM",
       "side": "sell",
       "qty": 51.0,
-      "price": 114.97756504526316,
+      "price": 114.97610459215912,
       "commission": 1.0,
-      "fees": 0.05537684653846737
+      "fees": 0.05537625067360092
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T092923Z_18872944f4",
+      "run_id": "paper_20260722T223728Z_6f81db569a",
       "ticker": "NVDA",
-      "qty": 28.0,
-      "avg_px": 208.66511808765551,
-      "stop": 192.30712190746863,
-      "hard_stop": 189.88525745976654,
+      "qty": 29.0,
+      "avg_px": 208.6651181164252,
+      "stop": 192.88712372954032,
+      "hard_stop": 189.88525748594694,
       "opened_at": "2026-07-13T09:45:00+00:00",
-      "bars_held": 7,
+      "bars_held": 8,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T09:29:38.315129+00:00"
+  "generated_at": "2026-07-22T22:37:46.852597+00:00"
 }

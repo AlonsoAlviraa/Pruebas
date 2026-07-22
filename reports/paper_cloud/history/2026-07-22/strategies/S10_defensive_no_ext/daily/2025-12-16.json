@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T093017Z_168ee941a7",
+  "run_id": "paper_20260722T223829Z_a11e2a77f5",
   "day": "2025-12-16",
   "strategy_id": "S10_defensive_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 98426.0232944132,
-  "cash": 90794.8836459757,
+  "equity": 98940.01806166368,
+  "cash": 91308.87841322618,
   "gross_exposure": 7631.1396484375,
-  "dd_from_peak": -0.015739767055867993,
+  "dd_from_peak": -0.01352922263164058,
   "n_positions": 2,
   "n_fills": 2,
   "n_buys": 0,
   "n_sells": 2,
-  "commission": 24.0,
-  "fees": 0.3575940571299675,
-  "slippage_est": 95.07866821231146,
+  "commission": 22.0,
+  "fees": 0.33112243198664393,
+  "slippage_est": 87.66743025562269,
   "turnover": 7631.1396484375,
   "n_orders": 2,
   "n_rejects": 0,
@@ -26,44 +26,33 @@
       "ticker": "AMZN",
       "side": "sell",
       "qty": 17.0,
-      "price": 220.8435109548654,
+      "price": 220.84179288635153,
       "commission": 1.0,
-      "fees": 0.03285671748986169
+      "fees": 0.032856483832543804
     },
     {
       "ts": "2025-12-16T15:45:00+00:00",
       "ticker": "XOM",
       "side": "sell",
-      "qty": 33.0,
-      "price": 114.78880494084302,
+      "qty": 34.0,
+      "price": 114.7885664246987,
       "commission": 1.0,
-      "fees": 0.035782244504382554
+      "fees": 0.03686649006751805
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T093017Z_168ee941a7",
-      "ticker": "JPM",
-      "qty": 12.0,
-      "avg_px": 328.56702480487564,
-      "stop": 333.46509004451053,
-      "hard_stop": 308.8530033165831,
-      "opened_at": "2026-07-01T09:45:00+00:00",
-      "bars_held": 14,
-      "meta_json": "{}"
-    },
-    {
-      "run_id": "paper_20260722T093017Z_168ee941a7",
+      "run_id": "paper_20260722T223829Z_a11e2a77f5",
       "ticker": "NVDA",
       "qty": 19.0,
       "avg_px": 208.66511782872843,
-      "stop": 196.1452107590047,
+      "stop": 196.47093633955834,
       "hard_stop": 196.1452107590047,
       "opened_at": "2026-07-13T09:45:00+00:00",
-      "bars_held": 7,
+      "bars_held": 8,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T09:30:32.365365+00:00"
+  "generated_at": "2026-07-22T22:38:43.471846+00:00"
 }
