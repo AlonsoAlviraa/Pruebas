@@ -46,6 +46,7 @@ class ReplaySessionResult:
     daily_nav: List[Dict[str, Any]] = field(default_factory=list)
     kill_trips: int = 0
     hard_kill: bool = False
+    closed_trades: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -61,6 +62,7 @@ class ReplaySessionResult:
             "run_id": self.run_id,
             "kill_trips": self.kill_trips,
             "hard_kill": self.hard_kill,
+            "n_closed_trades": len(self.closed_trades),
             "capital_label": "VIRTUAL",
             "mode": "paper",
         }
@@ -91,6 +93,8 @@ class ReplaySession:
         max_position_pct: Optional[float] = None,
         max_entries_per_day: Optional[int] = None,
         enable_risk: bool = True,
+        trail_stops: Optional[bool] = None,
+        use_hard_stop: Optional[bool] = None,
     ):
         assert_paper_only(require_env=False)
         self.feed = feed
@@ -102,6 +106,12 @@ class ReplaySession:
         self.k_atr = float(k_atr if k_atr is not None else kn.get("k_atr", 3.0))
         self.hard_stop_pct = float(
             hard_stop_pct if hard_stop_pct is not None else kn.get("hard_stop_pct", 0.07)
+        )
+        self.trail_stops = bool(
+            kn.get("trail_stops", True) if trail_stops is None else trail_stops
+        )
+        self.use_hard_stop = bool(
+            kn.get("use_hard_stop", True) if use_hard_stop is None else use_hard_stop
         )
         self.min_alloc_pct = float(
             min_alloc_pct if min_alloc_pct is not None else kn.get("min_alloc_pct", 0.015)
@@ -144,6 +154,7 @@ class ReplaySession:
             "n_entry_rejects": 0,
             "n_exits": 0,
         }
+        self.closed_trades: List[Dict[str, Any]] = []
         self.daily_nav: List[Dict[str, Any]] = []
         self.risk: Optional[PortfolioRisk] = None
         self.kill: Optional[KillSwitch] = None
@@ -325,6 +336,27 @@ class ReplaySession:
             meta={"exit_reason": reason},
         )
         if fills and fills[0].ok:
+            exit_px = float(fills[0].price)
+            qty = float(pos.qty)
+            entry_px = float(pos.entry_px)
+            ret = (exit_px / entry_px - 1.0) if entry_px > 0 else 0.0
+            pnl = (exit_px - entry_px) * qty
+            trade = {
+                "ticker": pos.ticker,
+                "entry_day": pos.entry_day.isoformat()
+                if hasattr(pos.entry_day, "isoformat")
+                else str(pos.entry_day),
+                "exit_day": day.isoformat(),
+                "entry_px": entry_px,
+                "exit_px": exit_px,
+                "qty": qty,
+                "ret": ret,
+                "pnl": pnl,
+                "bars_held": int(pos.bars_held),
+                "exit_reason": reason,
+                "is_stop": bool(is_stop),
+            }
+            self.closed_trades.append(trade)
             self.managed.pop(pos.ticker, None)
             self.stats["n_exits"] += 1
             if self.ledger is not None:
@@ -334,7 +366,11 @@ class ReplaySession:
                         "ticker": pos.ticker,
                         "exit_reason": reason,
                         "day": day.isoformat(),
-                        "exit_px": fills[0].price,
+                        "exit_px": exit_px,
+                        "entry_px": entry_px,
+                        "ret": ret,
+                        "pnl": pnl,
+                        "bars_held": int(pos.bars_held),
                     },
                     ts=self._ts(day, 15, 45),
                 )
@@ -345,15 +381,18 @@ class ReplaySession:
             if bar is None:
                 continue
             pos.bars_held += 1
-            # stop vs low of day
-            if bar.low <= pos.hard_stop or bar.low <= pos.stop:
-                stop_px = min(pos.hard_stop, pos.stop)
-                # fill at worse of stop and open if gapped through
+            # stop vs low of day (optional hard/trail)
+            hit_hard = self.use_hard_stop and bar.low <= pos.hard_stop
+            hit_trail = self.trail_stops and bar.low <= pos.stop
+            if hit_hard or hit_trail:
+                stop_px = pos.hard_stop if hit_hard else pos.stop
+                if hit_hard and hit_trail:
+                    stop_px = min(pos.hard_stop, pos.stop)
                 px = min(float(bar.open), stop_px) if bar.open < stop_px else stop_px
                 self._exit_ticker(day, pos, px, is_stop=True, reason="stop")
                 continue
             # trail stop up using high
-            if pos.atr > 0:
+            if self.trail_stops and pos.atr > 0:
                 trail = float(bar.high) - self.k_atr * pos.atr
                 pos.stop = max(pos.stop, trail)
             # time stop at close
@@ -494,4 +533,5 @@ class ReplaySession:
             daily_nav=list(self.daily_nav),
             kill_trips=kill_trips,
             hard_kill=hard_kill,
+            closed_trades=list(self.closed_trades),
         )

@@ -282,7 +282,7 @@ def build_cloud_feed(
     # Prefer real only — do not silent-fill missing with synthetic when require_real
     feed = DailyReplayFeed(panels, min_history=50)
     logger.info(
-        "Cloud feed ready: %d tickers, sources=%s, days=%d..%d",
+        "Cloud feed ready: %d tickers, sources=%s, days=%s..%s",
         len(panels),
         sources,
         feed.days[0] if feed.days else None,

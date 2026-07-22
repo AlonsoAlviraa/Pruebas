@@ -1,16 +1,16 @@
 {
-  "version": "paper-cloud-zoo-v2-aud-ab",
+  "version": "paper-cloud-zoo-ab-v1",
   "capital0": 100000.0,
   "universe": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "JPM", "XOM", "QQQ", "SPY"],
   "lookback_calendar_days": 400,
-  "notes": "v2 after AUD-A/B: baseline + no_extension + pullback + qqq_gate + qqq_hold control. Virtual capital only.",
+  "notes": "AUD-A/B A/B signal modes vs baseline. Virtual capital only.",
   "strategies": [
     {
-      "id": "S01_baseline_trend_mom",
-      "label": "Baseline trend_mom (legacy control)",
+      "id": "AB00_baseline",
+      "label": "Baseline trend_mom (legacy)",
       "signal_mode": "trend_mom",
       "require_regime": true,
-      "exclude_index": true,
+      "exclude_index": false,
       "min_alloc_pct": 0.015,
       "max_positions": 8,
       "max_horizon": 20,
@@ -21,8 +21,8 @@
       "min_price": 5.0
     },
     {
-      "id": "S02_no_extension",
-      "label": "No extension (AUD winner PF>1)",
+      "id": "AB01_no_extension",
+      "label": "No extension (dist_sma50/RSI cap)",
       "signal_mode": "no_extension",
       "require_regime": true,
       "exclude_index": true,
@@ -37,7 +37,7 @@
       "max_entries_per_day": 3
     },
     {
-      "id": "S03_pullback",
+      "id": "AB02_pullback",
       "label": "Pullback in uptrend",
       "signal_mode": "pullback",
       "require_regime": true,
@@ -53,9 +53,28 @@
       "max_entries_per_day": 3
     },
     {
-      "id": "S04_qqq_gate",
-      "label": "QQQ momentum gate + baseline filters",
+      "id": "AB03_topk",
+      "label": "Top-3 momentum only",
+      "signal_mode": "topk_mom",
+      "top_k": 3,
+      "require_regime": true,
+      "exclude_index": true,
+      "min_alloc_pct": 0.03,
+      "max_positions": 3,
+      "max_horizon": 20,
+      "hard_stop_pct": 0.08,
+      "k_atr": 2.8,
+      "min_atr_norm": 0.01,
+      "max_atr_pct": 0.22,
+      "min_price": 5.0,
+      "max_entries_per_day": 2
+    },
+    {
+      "id": "AB04_qqq_gate",
+      "label": "QQQ mom gate + baseline filters",
       "signal_mode": "qqq_gate",
+      "qqq_mom_gate": true,
+      "qqq_min_ret_1m": 0.0,
       "require_regime": true,
       "exclude_index": true,
       "min_alloc_pct": 0.02,
@@ -68,25 +87,8 @@
       "min_price": 5.0
     },
     {
-      "id": "S05_topk_no_ext",
-      "label": "Top-3 no_extension",
-      "signal_mode": "no_extension",
-      "top_k": 3,
-      "require_regime": true,
-      "exclude_index": true,
-      "min_alloc_pct": 0.03,
-      "max_positions": 3,
-      "max_horizon": 28,
-      "hard_stop_pct": 0.09,
-      "k_atr": 3.0,
-      "min_atr_norm": 0.01,
-      "max_atr_pct": 0.18,
-      "min_price": 5.0,
-      "max_entries_per_day": 2
-    },
-    {
-      "id": "S06_combined_v1",
-      "label": "Combined no_ext + qqq gate + topk",
+      "id": "AB05_combined_v1",
+      "label": "Combined v1: no_ext + qqq + topk",
       "signal_mode": "combined_v1",
       "top_k": 3,
       "require_regime": true,
@@ -102,8 +104,8 @@
       "max_entries_per_day": 2
     },
     {
-      "id": "S07_pullback_long",
-      "label": "Pullback longer hold",
+      "id": "AB06_combined_v2",
+      "label": "Combined v2: pullback + qqq + longer hold",
       "signal_mode": "combined_v2",
       "top_k": 3,
       "require_regime": true,
@@ -119,8 +121,25 @@
       "max_entries_per_day": 2
     },
     {
-      "id": "S08_qqq_hold_regime",
-      "label": "Control: regime QQQ hold (no trail)",
+      "id": "AB07_combined_v3",
+      "label": "Combined v3: pullback||no_ext + selective",
+      "signal_mode": "combined_v3",
+      "top_k": 2,
+      "require_regime": true,
+      "exclude_index": true,
+      "min_alloc_pct": 0.04,
+      "max_positions": 3,
+      "max_horizon": 35,
+      "hard_stop_pct": 0.10,
+      "k_atr": 3.2,
+      "min_atr_norm": 0.01,
+      "max_atr_pct": 0.18,
+      "min_price": 8.0,
+      "max_entries_per_day": 2
+    },
+    {
+      "id": "AB08_qqq_hold",
+      "label": "Regime ON → hold QQQ (no trail, very wide stop)",
       "signal_mode": "qqq_hold",
       "require_regime": true,
       "exclude_index": false,
@@ -141,8 +160,25 @@
       "max_entries_per_day": 1
     },
     {
-      "id": "S09_qqq_bh_proxy",
-      "label": "Control: QQQ B&H proxy (no stops)",
+      "id": "AB09_wide_no_ext",
+      "label": "No-extension + wide stop / long hold",
+      "signal_mode": "no_extension",
+      "require_regime": true,
+      "exclude_index": true,
+      "top_k": 4,
+      "min_alloc_pct": 0.04,
+      "max_positions": 4,
+      "max_horizon": 55,
+      "hard_stop_pct": 0.16,
+      "k_atr": 4.5,
+      "min_atr_norm": 0.01,
+      "max_atr_pct": 0.20,
+      "min_price": 5.0,
+      "max_entries_per_day": 2
+    },
+    {
+      "id": "AB10_qqq_bh_proxy",
+      "label": "QQQ B&H proxy (no stops, no trail, soft risk)",
       "signal_mode": "qqq_hold",
       "require_regime": false,
       "exclude_index": false,
@@ -152,6 +188,7 @@
       "max_positions": 1,
       "max_horizon": 400,
       "hard_stop_pct": 0.90,
+      "k_atr": 20.0,
       "trail_stops": false,
       "use_hard_stop": false,
       "enable_risk": false,
@@ -159,24 +196,6 @@
       "max_atr_pct": 0.80,
       "min_price": 1.0,
       "max_entries_per_day": 1
-    },
-    {
-      "id": "S10_defensive_no_ext",
-      "label": "Defensive no_extension tight risk",
-      "signal_mode": "no_extension",
-      "require_regime": true,
-      "exclude_index": true,
-      "min_alloc_pct": 0.02,
-      "max_positions": 4,
-      "max_horizon": 15,
-      "hard_stop_pct": 0.06,
-      "k_atr": 2.5,
-      "min_atr_norm": 0.01,
-      "max_atr_pct": 0.15,
-      "min_price": 8.0,
-      "max_entries_per_day": 2,
-      "max_portfolio_dd": 0.12,
-      "kill_dd_from_start": 0.15
     }
   ]
 }
