@@ -1,0 +1,12 @@
+# Paper digests — `paper_20260722T092938Z_2d62e59256`
+
+Strategy: `S06_combined_v1` · mode=paper · VIRTUAL capital
+
+- Days: 181
+- HTML: `reports/paper_cloud/history/2026-07-22/strategies/S06_combined_v1/dashboard.html`
+
+## Latest week 2026-07-20 → 2026-07-26
+
+- Return: 0.11%
+- Commission: $94.00
+- Kill events: 0
