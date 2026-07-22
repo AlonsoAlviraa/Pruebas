@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Free multi-strategy paper cloud batch (for GitHub Actions).
 
-Virtual capital only. Uses Stooq free data + synthetic fallback.
+Virtual capital only. Yahoo (real) OHLCV primary; synthetic only with --synthetic.
+Use --start 2026-01-01 to study YTD 2026 (or any OOS window).
 """
 from __future__ import annotations
 

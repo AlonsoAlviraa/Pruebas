@@ -16,6 +16,14 @@ on:
         description: "Keep sqlite ledgers (1/0, larger git)"
         required: false
         default: "0"
+      start:
+        description: "Replay start YYYY-MM-DD (empty = last ~180 sessions)"
+        required: false
+        default: ""
+      end:
+        description: "Replay end YYYY-MM-DD (empty = last available bar)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -52,9 +60,18 @@ jobs:
             SYNTH_FLAG="--synthetic"
             echo "WARNING: synthetic mode requested — not real market data"
           fi
+          DATE_FLAGS=""
+          if [ -n "${{ github.event.inputs.start }}" ]; then
+            DATE_FLAGS="$DATE_FLAGS --start ${{ github.event.inputs.start }}"
+          fi
+          if [ -n "${{ github.event.inputs.end }}" ]; then
+            DATE_FLAGS="$DATE_FLAGS --end ${{ github.event.inputs.end }}"
+          fi
+          echo "Date flags: ${DATE_FLAGS:-<default last ~180 sessions>}"
           python scripts/run_paper_cloud_batch.py \
             --out reports/paper_cloud \
             $SYNTH_FLAG \
+            $DATE_FLAGS \
             $( [ "${{ github.event.inputs.keep_ledgers }}" = "1" ] && echo --keep-ledgers || true )
           # Hard gate: refuse silent synthetic study packs
           python - <<'PY'
@@ -71,6 +88,8 @@ jobs:
               print("FAIL: non-real sources:", bad); sys.exit(2)
           kills = sum(1 for s in d.get("strategies") or [] if s.get("hard_kill"))
           print(f"hard_kill_count={kills}/{len(d.get('strategies') or [])}")
+          win = d.get("window") or {}
+          print(f"window={win.get('start')} → {win.get('end')}")
           print("REAL_DATA_GATE_OK")
           PY
 
