@@ -9,17 +9,22 @@ from typing import Any, Dict, List, Optional
 class OptionStrategySpec:
     id: str
     label: str
-    kind: str  # covered_call | cash_secured_put | put_credit_spread | collar | qqq_hold_control
+    kind: str  # covered_call | cash_secured_put | put_credit_spread | collar | cash
     underlying: str = "SPY"
     dte_days: int = 30
-    otm_pct: float = 0.05  # 5% OTM
-    wing_otm_pct: float = 0.15  # for spreads
+    otm_pct: float = 0.05  # 5% OTM short strike
+    wing_otm_pct: float = 0.15  # for spreads / collar long put
     target_delta: Optional[float] = None
-    premium_mult: float = 1.15  # IV = HV * mult
-    contracts: int = 1  # per 100 shares notionally
+    premium_mult: float = 1.15  # HV fallback only: IV = HV * mult when VIX surface missing
+    contracts: int = 1  # requested contracts (capped by margin budget)
     stock_shares: int = 100
     r: float = 0.02
     roll_when_dte_below: int = 7
+    # Per-strategy risk overrides (None → inherit OptionsRiskConfig + kind floors)
+    max_portfolio_dd: Optional[float] = None
+    max_single_day_drop: Optional[float] = None
+    max_margin_fraction: Optional[float] = None
+    hard_kill_enabled: Optional[bool] = None
     notes: str = ""
     meta: Dict[str, Any] = field(default_factory=dict)
 
@@ -37,6 +42,8 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             underlying="SPY",
             dte_days=30,
             otm_pct=0.05,
+            max_portfolio_dd=0.18,
+            max_margin_fraction=0.95,
             notes="Long 100 SPY + short OTM call; VRP income, capped upside.",
         ),
         OptionStrategySpec(
@@ -46,6 +53,8 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             underlying="SPY",
             dte_days=30,
             otm_pct=0.05,
+            max_portfolio_dd=0.15,
+            max_margin_fraction=0.80,
             notes="Short OTM put fully cash-secured; classic VRP / PUT-like.",
         ),
         OptionStrategySpec(
@@ -55,6 +64,8 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             underlying="SPY",
             dte_days=45,
             otm_pct=0.10,
+            max_portfolio_dd=0.15,
+            max_margin_fraction=0.80,
             notes="Farther OTM put-write; literature often favors 5–10% OTM.",
         ),
         OptionStrategySpec(
@@ -65,7 +76,10 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             dte_days=30,
             otm_pct=0.05,
             wing_otm_pct=0.15,
-            notes="Defined-risk VRP: short put + long lower put.",
+            max_portfolio_dd=0.12,
+            max_single_day_drop=0.06,
+            max_margin_fraction=0.40,
+            notes="Defined-risk VRP: short put + long lower put; size by width margin.",
         ),
         OptionStrategySpec(
             id="OPT04_collar",
@@ -75,7 +89,9 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             dte_days=30,
             otm_pct=0.05,
             wing_otm_pct=0.08,
-            notes="Defensive equity sleeve.",
+            max_portfolio_dd=0.12,
+            max_margin_fraction=0.95,
+            notes="Defensive equity sleeve; defined-ish risk via long put wing.",
         ),
         OptionStrategySpec(
             id="OPT06_csp_vrp_gate",
@@ -85,6 +101,8 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             dte_days=30,
             otm_pct=0.05,
             premium_mult=1.20,
+            max_portfolio_dd=0.15,
+            max_margin_fraction=0.80,
             meta={"require_hv_above_median": True},
             notes="Sell premium only when short-term HV regime allows richer IV proxy.",
         ),
@@ -93,6 +111,7 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             label="Cash control (no options)",
             kind="cash",
             underlying="SPY",
+            hard_kill_enabled=False,
             notes="Floor benchmark: idle virtual cash.",
         ),
         OptionStrategySpec(
@@ -102,6 +121,8 @@ def list_builtin_specs() -> List[OptionStrategySpec]:
             underlying="QQQ",
             dte_days=30,
             otm_pct=0.05,
+            max_portfolio_dd=0.18,
+            max_margin_fraction=0.95,
             notes="Same as OPT01 on Nasdaq proxy.",
         ),
     ]

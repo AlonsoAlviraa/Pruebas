@@ -1,0 +1,155 @@
+# Paper options multi-strategy study (proxy_bs marks on free OHLCV).
+# Independent from equity paper_live_daily — does NOT replace or alter that job.
+# Virtual capital only. Results under reports/paper_options/.
+name: paper-options-daily
+
+on:
+  schedule:
+    # Weekly Sunday ~22:00 UTC (after equity weekday cloud); light load
+    - cron: "0 22 * * 0"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Primary window start YYYY-MM-DD (empty = 2025-10-29)"
+        required: false
+        default: "2025-10-29"
+      end:
+        description: "Primary window end YYYY-MM-DD (empty = last bar)"
+        required: false
+        default: ""
+      multi_window:
+        description: "Run multi-year windows 2022–2026YTD (1/0)"
+        required: false
+        default: "1"
+      stress:
+        description: "Synthetic -30% crash stress on primary window (1/0)"
+        required: false
+        default: "1"
+      live_chain:
+        description: "Fetch Yahoo chain snapshot for today (1/0)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+
+jobs:
+  paper-options-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run paper options batch (proxy_bs)
+        env:
+          TRAD_PAPER_ONLY: "1"
+          TRAD_TRADING_MODE: paper
+        run: |
+          set -e
+          FLAGS="--out reports/paper_options --zoo paper_live/cloud/zoo_options.json"
+          if [ -n "${{ github.event.inputs.start }}" ]; then
+            FLAGS="$FLAGS --start ${{ github.event.inputs.start }}"
+          else
+            FLAGS="$FLAGS --start 2025-10-29"
+          fi
+          if [ -n "${{ github.event.inputs.end }}" ]; then
+            FLAGS="$FLAGS --end ${{ github.event.inputs.end }}"
+          fi
+          # schedule path: defaults via empty inputs
+          MULTI="${{ github.event.inputs.multi_window }}"
+          STRESS="${{ github.event.inputs.stress }}"
+          LIVE="${{ github.event.inputs.live_chain }}"
+          if [ -z "$MULTI" ]; then MULTI="1"; fi
+          if [ -z "$STRESS" ]; then STRESS="1"; fi
+          if [ -z "$LIVE" ]; then LIVE="0"; fi
+          if [ "$MULTI" = "1" ]; then FLAGS="$FLAGS --multi-window"; fi
+          if [ "$STRESS" = "1" ]; then FLAGS="$FLAGS --stress"; fi
+          if [ "$LIVE" = "1" ]; then FLAGS="$FLAGS --live-chain"; fi
+          echo "Flags: $FLAGS"
+          python scripts/run_paper_options_batch.py $FLAGS
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path("reports/paper_options/latest/summary.json")
+          if not p.is_file():
+              print("FAIL: missing latest/summary.json"); sys.exit(1)
+          d = json.loads(p.read_text(encoding="utf-8"))
+          label = str(d.get("data_label") or "")
+          print("data_label=", label)
+          # Accept composite labels: proxy_bs|vix_surface, proxy_bs_stress|proxy_hv, etc.
+          if "proxy_bs" not in label and "proxy_hv" not in label and "vix_surface" not in label:
+              print("FAIL: unexpected data_label", label); sys.exit(2)
+          if any(x in label.lower() for x in ("real_fill", "opra", "nbbo")):
+              print("FAIL: label must not claim exchange fills", label); sys.exit(2)
+          n = len(d.get("strategies") or [])
+          if n < 1:
+              print("FAIL: no strategies"); sys.exit(3)
+          print(f"strategies={n} window={d.get('window')} PROXY_BS_GATE_OK")
+          PY
+
+      - name: Run OPT_TA multi-window matrix (VIX surface + stress)
+        env:
+          TRAD_PAPER_ONLY: "1"
+          TRAD_TRADING_MODE: paper
+        run: |
+          set -e
+          python scripts/run_options_ta_matrix.py \
+            --zoo paper_live/cloud/zoo_options_ta.json \
+            --names-zoo paper_live/cloud/zoo_options_ta_names.json \
+            --out reports/paper_options_ta_matrix \
+            --lookback-days 1600
+          test -f reports/paper_options_ta_matrix/latest/SUMMARY.md
+          echo "OPT_TA_MATRIX_OK"
+
+      - name: Commit results to repo
+        run: |
+          set -e
+          git config user.name "paper-options-bot"
+          git config user.email "paper-options-bot@users.noreply.github.com"
+          # Force-add: parent /reports/* is gitignored
+          git add -f reports/paper_options reports/paper_options_ta_matrix || true
+          git reset reports/paper_options/data_cache 2>/dev/null || true
+          git reset reports/paper_options_ta_matrix/data_cache 2>/dev/null || true
+          find reports/paper_options reports/paper_options_ta_matrix -name '*.db' -delete 2>/dev/null || true
+          git add -f reports/paper_options reports/paper_options_ta_matrix || true
+          if git diff --staged --quiet; then
+            echo "No paper options changes to commit"
+            ls -la reports/paper_options/latest || true
+            ls -la reports/paper_options_ta_matrix/latest || true
+            if [ -f reports/paper_options/latest/SUMMARY.md ]; then
+              if ! git ls-files --error-unmatch reports/paper_options/latest/SUMMARY.md >/dev/null 2>&1; then
+                if ! git diff --cached --name-only | grep -q 'reports/paper_options'; then
+                  echo "FAIL: SUMMARY.md present but not staged/tracked — check gitignore force-add"
+                  git check-ignore -v reports/paper_options/latest/SUMMARY.md || true
+                  exit 1
+                fi
+              fi
+            fi
+          else
+            git commit -m "paper-options: study pack + OPT_TA matrix VIRTUAL [skip ci]"
+            git push
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-options-latest
+          path: |
+            reports/paper_options/latest/**
+            reports/paper_options_ta_matrix/latest/**
+          if-no-files-found: warn
+          retention-days: 30

@@ -26,9 +26,25 @@ logging.basicConfig(
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Paper cloud multi-strategy batch (free)")
+    ap = argparse.ArgumentParser(
+        description=(
+            "Paper cloud multi-strategy batch (free). "
+            "Default zoo: paper_live/cloud/strategy_zoo.json. "
+            "TA/volume zoo: paper_live/cloud/strategy_zoo_ta.json "
+            "(modes: vol_confirm, rsi_mr, vol_dryup, vol_expand, rvol_trend, …)."
+        )
+    )
     ap.add_argument("--out", default="reports/paper_cloud")
-    ap.add_argument("--zoo", default=None, help="Path to strategy_zoo.json")
+    ap.add_argument(
+        "--zoo",
+        default=None,
+        help=(
+            "Path to strategy zoo JSON. "
+            "Examples: paper_live/cloud/strategy_zoo.json (default), "
+            "paper_live/cloud/strategy_zoo_ta.json (TA/volume), "
+            "paper_live/cloud/strategy_zoo_ab.json"
+        ),
+    )
     ap.add_argument("--synthetic", action="store_true", help="Force synthetic data")
     ap.add_argument("--lookback-days", type=int, default=None)
     ap.add_argument("--start", default=None)

@@ -85,18 +85,42 @@ def _normalize_ohlcv(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
     return d
 
 
+def _yahoo_symbol(ticker: str) -> str:
+    """Map friendly aliases to Yahoo chart symbols (indexes need caret)."""
+    t = ticker.strip()
+    aliases = {
+        "VIX": "^VIX",
+        "VIX3M": "^VIX3M",
+        "VXST": "^VXST",
+        "VIXCLS": "^VIX",
+    }
+    key = t.upper()
+    if key in aliases:
+        return aliases[key]
+    return t  # preserve caret tickers as-is (e.g. ^VIX)
+
+
 def fetch_yahoo_daily(ticker: str, *, range_: str = "5y", timeout: int = 45) -> pd.DataFrame:
     """Download daily OHLCV via Yahoo chart API (real market data)."""
-    t = ticker.upper().strip()
+    from urllib.parse import quote
+
+    raw_t = ticker.strip()
+    yahoo_sym = _yahoo_symbol(raw_t)
+    # Store under requested key uppercased (VIX or ^VIX both OK for vol_surface aliases)
+    store_key = raw_t.upper() if not raw_t.startswith("^") else raw_t.upper()
+    # Friendly alias without caret → store as VIX / VIX3M for feed lookups
+    if raw_t.upper() in ("VIX", "VIX3M", "VXST", "VIXCLS"):
+        store_key = "VIX" if raw_t.upper() in ("VIX", "VIXCLS") else raw_t.upper()
     for template in (YAHOO_CHART, YAHOO_CHART_ALT):
-        url = template.format(ticker=t, range_=range_)
+        # Encode ^ and other special chars in path segment
+        url = template.format(ticker=quote(yahoo_sym, safe=""), range_=range_)
         try:
             raw = _http_get(url, timeout=timeout)
             j = json.loads(raw.decode("utf-8", errors="replace"))
             result = (j.get("chart") or {}).get("result") or []
             if not result:
                 err = (j.get("chart") or {}).get("error")
-                logger.warning("Yahoo empty result %s: %s", t, err)
+                logger.warning("Yahoo empty result %s: %s", yahoo_sym, err)
                 continue
             res = result[0]
             ts = res.get("timestamp") or []
@@ -114,12 +138,12 @@ def fetch_yahoo_daily(ticker: str, *, range_: str = "5y", timeout: int = 45) -> 
                     "volume": q0.get("volume"),
                 }
             )
-            out = _normalize_ohlcv(df, t)
+            out = _normalize_ohlcv(df, store_key)
             if len(out) >= 30:
-                logger.info("Yahoo OK %s bars=%d", t, len(out))
+                logger.info("Yahoo OK %s bars=%d", store_key, len(out))
                 return out
         except Exception as e:
-            logger.warning("Yahoo fetch fail %s: %s", t, e)
+            logger.warning("Yahoo fetch fail %s: %s", yahoo_sym, e)
             time.sleep(0.4)
     return pd.DataFrame()
 

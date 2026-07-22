@@ -1,8 +1,17 @@
 {
-  "version": "paper-options-zoo-v0",
+  "version": "paper-options-zoo-v1",
   "capital0": 100000.0,
   "notes": "Proxy BS options strategies (VRP / covered call / CSP / spreads). NOT real chain fills. Virtual capital only.",
   "data_label": "proxy_bs",
+  "risk": {
+    "max_portfolio_dd": 0.15,
+    "max_single_day_drop": 0.08,
+    "max_margin_fraction": 0.75,
+    "hard_kill_enabled": true,
+    "cvar_alpha": 0.05,
+    "max_contracts": 20,
+    "notes": "Short-vol gates: size by margin-at-risk; hard kill on DD / gap day."
+  },
   "strategies": [
     {
       "id": "OPT01_covered_call",
@@ -10,7 +19,9 @@
       "kind": "covered_call",
       "underlying": "SPY",
       "dte_days": 30,
-      "otm_pct": 0.05
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.18,
+      "max_margin_fraction": 0.95
     },
     {
       "id": "OPT02_csp",
@@ -18,7 +29,9 @@
       "kind": "cash_secured_put",
       "underlying": "SPY",
       "dte_days": 30,
-      "otm_pct": 0.05
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80
     },
     {
       "id": "OPT02b_csp_10otm",
@@ -26,7 +39,9 @@
       "kind": "cash_secured_put",
       "underlying": "SPY",
       "dte_days": 45,
-      "otm_pct": 0.10
+      "otm_pct": 0.10,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80
     },
     {
       "id": "OPT03_put_credit_spread",
@@ -35,7 +50,11 @@
       "underlying": "SPY",
       "dte_days": 30,
       "otm_pct": 0.05,
-      "wing_otm_pct": 0.15
+      "wing_otm_pct": 0.15,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "notes": "Defined-risk VRP; margin = strike width * 100"
     },
     {
       "id": "OPT04_collar",
@@ -44,7 +63,10 @@
       "underlying": "SPY",
       "dte_days": 30,
       "otm_pct": 0.05,
-      "wing_otm_pct": 0.08
+      "wing_otm_pct": 0.08,
+      "max_portfolio_dd": 0.12,
+      "max_margin_fraction": 0.95,
+      "notes": "Defined-ish risk via long put wing"
     },
     {
       "id": "OPT06_csp_vrp_gate",
@@ -54,6 +76,8 @@
       "dte_days": 30,
       "otm_pct": 0.05,
       "premium_mult": 1.2,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80,
       "meta": {"require_hv_above_median": true}
     },
     {
@@ -62,13 +86,16 @@
       "kind": "covered_call",
       "underlying": "QQQ",
       "dte_days": 30,
-      "otm_pct": 0.05
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.18,
+      "max_margin_fraction": 0.95
     },
     {
       "id": "OPT08_cash",
       "label": "Cash control",
       "kind": "cash",
-      "underlying": "SPY"
+      "underlying": "SPY",
+      "hard_kill_enabled": false
     }
   ]
 }

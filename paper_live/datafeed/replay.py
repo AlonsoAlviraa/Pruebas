@@ -138,6 +138,10 @@ class DailyReplayFeed:
     def days(self) -> List[date]:
         return list(self._days)
 
+    def raw_panels(self) -> Dict[str, pd.DataFrame]:
+        """Public copy of per-ticker OHLCV panels (for stress / export)."""
+        return {k: v.copy() for k, v in self._raw.items()}
+
     def session_days(
         self,
         start: Optional[Union[str, date]] = None,

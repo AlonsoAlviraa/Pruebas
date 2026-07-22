@@ -5,6 +5,7 @@ LIV-04: rule-based paper signals with explicit A/B ``signal_mode`` variants
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
@@ -13,6 +14,39 @@ import numpy as np
 import pandas as pd
 
 from paper_live.datafeed.replay import DailyReplayFeed
+
+logger = logging.getLogger(__name__)
+_UNKNOWN_MODE_WARNED: set[str] = set()
+
+# Modes handled by score_row_for_mode (pipeline specials like qqq_hold are separate).
+KNOWN_SIGNAL_MODES = frozenset(
+    {
+        "trend_mom",
+        "topk_mom",
+        "qqq_gate",
+        "baseline",
+        "no_extension",
+        "combined_v1",
+        "pullback",
+        "combined_v2",
+        "combined_v3",
+        "vol_confirm",
+        "volume_breakout",
+        "vol_breakout",
+        "rsi_mr",
+        "rsi_mean_reversion",
+        "rsi_oversold",
+        "vol_dryup",
+        "volume_dryup",
+        "vol_expand",
+        "volume_expansion",
+        "rvol_trend",
+        "rel_volume_trend",
+        "vol_pullback",
+        "volume_pullback",
+        "combined_ta_v1",
+    }
+)
 
 # Index names used for regime only — never trade by default when exclude_index
 INDEX_TICKERS = frozenset({"SPY", "QQQ", "IWM", "DIA"})
@@ -171,8 +205,203 @@ def pullback_signal_row(row: pd.Series) -> Optional[tuple[float, float, str]]:
     return float(score), p_buy, "rule_pullback"
 
 
+# ---------------------------------------------------------------------------
+# TA / volume signal modes (causal features only — as-of row through signal day)
+# ---------------------------------------------------------------------------
+
+
+def volume_breakout_signal_row(
+    row: pd.Series,
+    *,
+    min_volume_ratio: float = 1.3,
+    min_volume_z: float = 0.75,
+) -> Optional[tuple[float, float, str]]:
+    """Trend + momentum only when volume confirms (ratio or z-score elevated)."""
+    base = default_rule_signal_row(row)
+    if base is None:
+        return None
+    vr = _f(row, "volume_ratio")
+    vz = _f(row, "volume_zscore")
+    vol_ok = (np.isfinite(vr) and vr >= min_volume_ratio) or (
+        np.isfinite(vz) and vz >= min_volume_z
+    )
+    if not vol_ok:
+        return None
+    score, p_buy, _ = base
+    # Prefer stronger relative volume
+    boost = 0.0
+    if np.isfinite(vr):
+        boost += min(max(vr - 1.0, 0.0), 2.0) * 0.15
+    if np.isfinite(vz):
+        boost += min(max(vz, 0.0), 3.0) * 0.05
+    score = float(score) * (1.0 + boost)
+    p_buy = float(np.clip(p_buy + boost * 0.05, 0.0, 0.99))
+    return score, p_buy, "rule_volume_breakout"
+
+
+def rsi_mean_reversion_signal_row(
+    row: pd.Series,
+    *,
+    rsi_max: float = 32.0,
+    require_above_sma200: bool = True,
+) -> Optional[tuple[float, float, str]]:
+    """Oversold RSI long with causal long-term trend filter (above SMA200)."""
+    close = _f(row, "close")
+    sma200 = _f(row, "sma_200")
+    rsi = _f(row, "rsi_14")
+    atr_n = _f(row, "atr_norm")
+    ret_1m = _f(row, "ret_1m")
+    dist = _f(row, "dist_sma_50")
+
+    if not np.isfinite(close) or close <= 0:
+        return None
+    if not np.isfinite(rsi) or rsi > rsi_max:
+        return None
+    if require_above_sma200:
+        if not np.isfinite(sma200) or close < sma200 * 0.98:
+            return None
+    # Avoid free-fall / crash bars
+    if np.isfinite(ret_1m) and ret_1m < -0.18:
+        return None
+    if not np.isfinite(atr_n) or atr_n < 0.005 or atr_n > 0.30:
+        return None
+
+    depth = max(rsi_max - rsi, 0.0) / max(rsi_max, 1.0)
+    stretch = 0.0
+    if np.isfinite(dist):
+        stretch = max(-dist, 0.0)
+    score = 0.08 + depth * 0.6 + stretch * 0.5
+    p_buy = float(np.clip(0.50 + depth * 0.35 + stretch, 0.0, 0.95))
+    return float(score), p_buy, "rule_rsi_mean_reversion"
+
+
+def volume_dryup_signal_row(
+    row: pd.Series,
+    *,
+    max_volume_ratio: float = 0.75,
+    max_volume_z: float = -0.5,
+) -> Optional[tuple[float, float, str]]:
+    """Pullback-in-uptrend with quiet volume (dry-up = less selling pressure)."""
+    pb = pullback_signal_row(row)
+    if pb is None:
+        return None
+    vr = _f(row, "volume_ratio")
+    vz = _f(row, "volume_zscore")
+    dry = (np.isfinite(vr) and vr <= max_volume_ratio) or (
+        np.isfinite(vz) and vz <= max_volume_z
+    )
+    if not dry:
+        return None
+    score, p_buy, _ = pb
+    quiet_boost = 0.0
+    if np.isfinite(vr):
+        quiet_boost += max(1.0 - vr, 0.0) * 0.2
+    score = float(score) * (1.0 + quiet_boost)
+    return score, float(np.clip(p_buy + quiet_boost * 0.1, 0.0, 0.95)), "rule_volume_dryup"
+
+
+def volume_expansion_signal_row(
+    row: pd.Series,
+    *,
+    min_volume_ratio: float = 1.5,
+    max_rsi: float = 70.0,
+) -> Optional[tuple[float, float, str]]:
+    """Uptrend + expanding volume without extreme RSI (participation, not climax)."""
+    close = _f(row, "close")
+    sma50 = _f(row, "sma_50")
+    sma200 = _f(row, "sma_200")
+    ret_1m = _f(row, "ret_1m")
+    atr_n = _f(row, "atr_norm")
+    rsi = _f(row, "rsi_14")
+    vr = _f(row, "volume_ratio")
+    vz = _f(row, "volume_zscore")
+
+    if not np.isfinite(close) or close <= 0:
+        return None
+    if np.isfinite(sma50) and close <= sma50:
+        return None
+    if np.isfinite(sma200) and close <= sma200:
+        return None
+    if not np.isfinite(ret_1m) or ret_1m <= 0:
+        return None
+    if not np.isfinite(vr) or vr < min_volume_ratio:
+        # allow z-score substitute
+        if not (np.isfinite(vz) and vz >= 1.0):
+            return None
+    if np.isfinite(rsi) and rsi > max_rsi:
+        return None
+    if not np.isfinite(atr_n) or atr_n < 0.006 or atr_n > 0.25:
+        return None
+
+    vol_part = 0.0
+    if np.isfinite(vr):
+        vol_part = min(max(vr - 1.0, 0.0), 2.5)
+    elif np.isfinite(vz):
+        vol_part = min(max(vz, 0.0), 3.0) * 0.4
+    score = float(ret_1m) * (1.0 + vol_part * 0.35) + vol_part * 0.05
+    p_buy = float(np.clip(0.55 + ret_1m * 1.5 + vol_part * 0.05, 0.0, 0.98))
+    return score, p_buy, "rule_volume_expansion"
+
+
+def rvol_trend_signal_row(
+    row: pd.Series,
+    *,
+    min_volume_ratio: float = 1.15,
+    max_dist_sma50: float = 0.06,
+    max_rsi: float = 68.0,
+) -> Optional[tuple[float, float, str]]:
+    """Relative-volume + mild trend hybrid (no_extension + volume confirm)."""
+    mild = no_extension_signal_row(
+        row, max_dist_sma50=max_dist_sma50, max_rsi=max_rsi
+    )
+    if mild is None:
+        return None
+    vr = _f(row, "volume_ratio")
+    vz = _f(row, "volume_zscore")
+    if not (
+        (np.isfinite(vr) and vr >= min_volume_ratio)
+        or (np.isfinite(vz) and vz >= 0.5)
+    ):
+        return None
+    score, p_buy, _ = mild
+    rvol = vr if np.isfinite(vr) else 1.0 + max(vz, 0.0) * 0.25
+    score = float(score) * (0.85 + 0.25 * min(max(rvol, 0.5), 2.5))
+    return score, p_buy, "rule_rvol_trend"
+
+
+def vol_pullback_signal_row(row: pd.Series) -> Optional[tuple[float, float, str]]:
+    """Pullback + dry volume; fallback to RSI MR if no pullback soft signal."""
+    dry = volume_dryup_signal_row(row)
+    if dry is not None:
+        s, p, _ = dry
+        return s, p, "rule_vol_pullback"
+    # Mild RSI oversold with dry volume still acceptable
+    rsi = _f(row, "rsi_14")
+    vr = _f(row, "volume_ratio")
+    if np.isfinite(rsi) and rsi <= 38.0 and np.isfinite(vr) and vr <= 0.85:
+        mr = rsi_mean_reversion_signal_row(row, rsi_max=38.0)
+        if mr is not None:
+            s, p, _ = mr
+            return s, p, "rule_vol_pullback"
+    return None
+
+
 def score_row_for_mode(row: pd.Series, mode: str) -> Optional[tuple[float, float, str]]:
+    """Score a feature row for ``mode``.
+
+    Unknown modes fail closed (return ``None``) instead of silently trading
+    as ``trend_mom`` — zoo typos must not become baseline entries.
+    """
     m = (mode or "trend_mom").lower().strip()
+    if m not in KNOWN_SIGNAL_MODES:
+        if m not in _UNKNOWN_MODE_WARNED:
+            _UNKNOWN_MODE_WARNED.add(m)
+            logger.warning(
+                "Unknown signal_mode=%r — rejecting (fail-closed). Known: %s",
+                mode,
+                sorted(KNOWN_SIGNAL_MODES),
+            )
+        return None
     if m in ("trend_mom", "topk_mom", "qqq_gate", "baseline"):
         return default_rule_signal_row(row)
     if m in ("no_extension", "combined_v1"):
@@ -185,7 +414,28 @@ def score_row_for_mode(row: pd.Series, mode: str) -> Optional[tuple[float, float
         if pb is not None:
             return pb
         return no_extension_signal_row(row, max_dist_sma50=0.04, max_rsi=65.0)
-    return default_rule_signal_row(row)
+    # --- TA / volume modes ---
+    if m in ("vol_confirm", "volume_breakout", "vol_breakout"):
+        return volume_breakout_signal_row(row)
+    if m in ("rsi_mr", "rsi_mean_reversion", "rsi_oversold"):
+        return rsi_mean_reversion_signal_row(row)
+    if m in ("vol_dryup", "volume_dryup"):
+        return volume_dryup_signal_row(row)
+    if m in ("vol_expand", "volume_expansion"):
+        return volume_expansion_signal_row(row)
+    if m in ("rvol_trend", "rel_volume_trend"):
+        return rvol_trend_signal_row(row)
+    if m in ("vol_pullback", "volume_pullback"):
+        return vol_pullback_signal_row(row)
+    if m == "combined_ta_v1":
+        # Prefer dry-up pullback, then volume-confirmed mild trend
+        a = volume_dryup_signal_row(row)
+        if a is not None:
+            return a
+        return rvol_trend_signal_row(row)
+    # Defensive: known set should have been fully dispatched above
+    logger.warning("signal_mode=%r in KNOWN_SIGNAL_MODES but unhandled", m)
+    return None
 
 
 class DailySignalPipeline:

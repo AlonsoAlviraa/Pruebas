@@ -1,0 +1,216 @@
+{
+  "version": "paper-options-zoo-ta-v1",
+  "capital0": 100000.0,
+  "notes": "Options strategies gated by causal TA/volume. Marks: BS on vix_surface|proxy_hv; seller mgmt 50% TP / 2x SL / max 1 roll; bid haircut. Virtual capital only. NOT exchange fills.",
+  "data_label": "proxy_bs",
+  "risk": {
+    "max_portfolio_dd": 0.15,
+    "max_single_day_drop": 0.08,
+    "max_margin_fraction": 0.75,
+    "hard_kill_enabled": true,
+    "cvar_alpha": 0.05,
+    "max_contracts": 20,
+    "notes": "Short-vol + TA gates: open only when meta TA conditions pass."
+  },
+  "strategies": [
+    {
+      "id": "OPT_TA01_csp_range",
+      "label": "CSP only in low-ATR range regime (model BS)",
+      "kind": "cash_secured_put",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80,
+      "meta": {
+        "require_range_regime": true,
+        "max_atr_pctile": 0.40,
+        "max_dist_sma50": 0.04
+      },
+      "notes": "Sell put premium when range/low vol — range thesis; marks use vix_surface when VIX available else proxy_hv."
+    },
+    {
+      "id": "OPT_TA02_pcs_compress",
+      "label": "PCS after volume then compression (model BS)",
+      "kind": "put_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.15,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_compression_after_vol": true,
+        "max_atr_pctile": 0.45,
+        "max_volume_ratio": 0.85,
+        "elevated_volume_ratio": 1.25,
+        "vol_lookback": 5
+      },
+      "notes": "Elevated volume then dry-up + low ATR → sell defined-risk premium."
+    },
+    {
+      "id": "OPT_TA03_ic_low_atr",
+      "label": "Iron condor low-ATR regime (model BS)",
+      "kind": "iron_condor",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.06,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_low_atr": true,
+        "max_atr_pctile": 0.35
+      },
+      "notes": "Short strangle-with-wings only in compressed ATR percentile."
+    },
+    {
+      "id": "OPT_TA04_cc_uptrend_vol",
+      "label": "Covered call uptrend + volume confirm (model BS)",
+      "kind": "covered_call",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.18,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.15,
+        "min_volume_z": 0.5
+      },
+      "notes": "CC only when trend OK and volume confirms participation."
+    },
+    {
+      "id": "OPT_TA05_pp_climax",
+      "label": "Protective put on RSI OB / volume climax (model BS)",
+      "kind": "protective_put",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.20,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 68.0,
+        "require_vol_climax": true,
+        "climax_volume_z": 1.2,
+        "climax_volume_ratio": 1.6
+      },
+      "notes": "Risk-off insurance when overbought + climax volume (causal)."
+    },
+    {
+      "id": "OPT_TA06_pcs_pullback_dry",
+      "label": "PCS pullback-in-uptrend + volume dry-up (model BS)",
+      "kind": "put_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 35,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_pullback_uptrend": true,
+        "require_volume_dryup": true,
+        "max_volume_ratio": 0.85,
+        "max_volume_z": -0.3
+      },
+      "notes": "Bull put when dip in uptrend with quiet volume (less panic)."
+    },
+    {
+      "id": "OPT_TA07_csp_hv_range",
+      "label": "CSP HV-rich + range gate (model BS)",
+      "kind": "cash_secured_put",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "premium_mult": 1.2,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80,
+      "meta": {
+        "require_hv_above_median": true,
+        "require_range_regime": true,
+        "max_atr_pctile": 0.50,
+        "max_dist_sma50": 0.05
+      },
+      "notes": "HV-regime gate on underlying + range filter; IV from vix_surface|proxy_hv."
+    },
+    {
+      "id": "OPT_TA08_ccs_overbought",
+      "label": "Call credit spread RSI overbought (model BS)",
+      "kind": "call_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 65.0,
+        "require_low_atr": true,
+        "max_atr_pctile": 0.55
+      },
+      "notes": "Sell call premium when RSI hot but ATR not exploding."
+    },
+    {
+      "id": "OPT_TA09_qqq_cc_trend_vol",
+      "label": "QQQ covered call trend+volume (model BS)",
+      "kind": "covered_call",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.18,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1
+      },
+      "notes": "Same CC TA gate on Nasdaq proxy."
+    },
+    {
+      "id": "OPT_TA10_csp_sma200_dry",
+      "label": "CSP above SMA200 + dry volume (model BS)",
+      "kind": "cash_secured_put",
+      "underlying": "SPY",
+      "dte_days": 45,
+      "otm_pct": 0.08,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80,
+      "meta": {
+        "require_sma200": true,
+        "require_volume_dryup": true,
+        "max_volume_ratio": 0.90
+      },
+      "notes": "Structural bull filter + quiet book for put write."
+    },
+    {
+      "id": "OPT_TA11_pp_rsi_only",
+      "label": "Protective put RSI overbought only (model BS)",
+      "kind": "protective_put",
+      "underlying": "SPY",
+      "dte_days": 21,
+      "otm_pct": 0.04,
+      "max_portfolio_dd": 0.20,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 72.0
+      },
+      "notes": "Simpler risk-off sleeve: buy put insurance when RSI very hot."
+    },
+    {
+      "id": "OPT_TA12_cash",
+      "label": "Cash control (no options)",
+      "kind": "cash",
+      "underlying": "SPY",
+      "hard_kill_enabled": false,
+      "notes": "Floor benchmark."
+    }
+  ]
+}
