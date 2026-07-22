@@ -1,0 +1,48 @@
+{
+  "run_id": "paper_20260722T070515Z_a98fa49202",
+  "day": "2025-12-25",
+  "strategy_id": "S02_no_regime",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99630.33483705099,
+  "cash": 94139.15288622286,
+  "gross_exposure": 5491.181950828135,
+  "dd_from_peak": -0.00966500313517804,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 14.0,
+  "fees": 0.15662501137658336,
+  "slippage_est": 34.689364350519256,
+  "turnover": 5491.181950828135,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 1,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-12-25T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 16.0,
+      "price": 204.0442035066699,
+      "commission": 1.0,
+      "fees": 0.028773658048853745
+    },
+    {
+      "ts": "2025-12-25T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 7.0,
+      "price": 402.7291066032289,
+      "commission": 1.0,
+      "fees": 0.023714829969780818
+    }
+  ],
+  "positions": [],
+  "notes": [
+    "Kill switch events today: 1"
+  ],
+  "generated_at": "2026-07-22T07:05:34.012782+00:00"
+}

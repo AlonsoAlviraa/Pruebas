@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260722T070557Z_e9346e87c6",
+  "day": "2026-02-27",
+  "strategy_id": "S06_diversified",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99901.46994248612,
+  "cash": 99901.46994248612,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.004819580112416011,
+  "n_positions": 0,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 4.0,
+  "fees": 0.03221630546453743,
+  "slippage_est": 6.415099516827382,
+  "turnover": 3757.2881830671795,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-27T15:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "sell",
+      "qty": 4.0,
+      "price": 461.17763314387304,
+      "commission": 1.0,
+      "fees": 0.015421684260603936
+    },
+    {
+      "ts": "2026-02-27T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 9.0,
+      "price": 212.50862783240967,
+      "commission": 1.0,
+      "fees": 0.016794621203933494
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-22T07:06:03.656812+00:00"
+}

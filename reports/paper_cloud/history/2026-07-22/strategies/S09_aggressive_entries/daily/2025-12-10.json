@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260722T070615Z_bbadac3027",
+  "day": "2025-12-10",
+  "strategy_id": "S09_aggressive_entries",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99928.66986352828,
+  "cash": 85130.33219983766,
+  "gross_exposure": 14798.337663690614,
+  "dd_from_peak": -0.006699524619078745,
+  "n_positions": 5,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 7.0,
+  "fees": 0.021185630248672385,
+  "slippage_est": 14.431679476933063,
+  "turnover": 14798.337663690614,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-12-10T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 7.0,
+      "price": 357.5648258691498,
+      "commission": 1.0,
+      "fees": 0.021185630248672385
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-22T07:06:31.215795+00:00"
+}

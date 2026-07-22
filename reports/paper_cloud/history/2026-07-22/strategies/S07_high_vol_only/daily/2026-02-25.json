@@ -1,0 +1,29 @@
+{
+  "run_id": "paper_20260722T070603Z_359bc2e642",
+  "day": "2026-02-25",
+  "strategy_id": "S07_high_vol_only",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99924.9598640208,
+  "cash": 92638.01631185721,
+  "gross_exposure": 7286.94355216359,
+  "dd_from_peak": -0.002219254934232251,
+  "n_positions": 2,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 2.0,
+  "fees": 0.0,
+  "slippage_est": 4.414668277355929,
+  "turnover": 7286.94355216359,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 1,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [],
+  "notes": [
+    "Kill switch events today: 1"
+  ],
+  "generated_at": "2026-07-22T07:06:09.383164+00:00"
+}

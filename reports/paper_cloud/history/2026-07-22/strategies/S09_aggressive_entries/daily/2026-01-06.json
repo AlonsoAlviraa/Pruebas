@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260722T070615Z_bbadac3027",
+  "day": "2026-01-06",
+  "strategy_id": "S09_aggressive_entries",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99596.85696439976,
+  "cash": 96808.88855362491,
+  "gross_exposure": 2787.9684107748535,
+  "dd_from_peak": -0.009997776370973432,
+  "n_positions": 1,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 27.0,
+  "fees": 0.3356078162037186,
+  "slippage_est": 59.25347962719656,
+  "turnover": 2787.9684107748535,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-06T15:45:00+00:00",
+      "ticker": "META",
+      "side": "sell",
+      "qty": 8.0,
+      "price": 374.41842208405063,
+      "commission": 1.0,
+      "fees": 0.025290779013379238
+    },
+    {
+      "ts": "2026-01-06T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 7.0,
+      "price": 369.8684107415273,
+      "commission": 1.0,
+      "fees": 0.021874631001525528
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-22T07:06:31.222911+00:00"
+}

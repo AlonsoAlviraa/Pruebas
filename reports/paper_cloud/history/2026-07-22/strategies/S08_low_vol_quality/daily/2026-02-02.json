@@ -1,0 +1,48 @@
+{
+  "run_id": "paper_20260722T070609Z_c122e23a90",
+  "day": "2026-02-02",
+  "strategy_id": "S08_low_vol_quality",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99914.76620171983,
+  "cash": 92087.1995148372,
+  "gross_exposure": 7827.566686882632,
+  "dd_from_peak": -0.0008523379828017097,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 2.0,
+  "fees": 0.0,
+  "slippage_est": 4.745467424245817,
+  "turnover": 7827.566686882632,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 1,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-02T09:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "buy",
+      "qty": 8.0,
+      "price": 496.68469769979646,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-02-02T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 19.0,
+      "price": 207.22752124023322,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [
+    "Kill switch events today: 1"
+  ],
+  "generated_at": "2026-07-22T07:06:15.447897+00:00"
+}

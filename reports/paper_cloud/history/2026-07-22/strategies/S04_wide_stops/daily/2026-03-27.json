@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260722T070543Z_6c7b030504",
+  "day": "2026-03-27",
+  "strategy_id": "S04_wide_stops",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100009.45468921044,
+  "cash": 100009.45468921044,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.005673446470528143,
+  "n_positions": 0,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 4.0,
+  "fees": 0.05047838638974063,
+  "slippage_est": 9.691839848408279,
+  "turnover": 3276.4995060538627,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-03-27T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 14.0,
+      "price": 234.03567900384732,
+      "commission": 1.0,
+      "fees": 0.0285359960484309
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-22T07:05:49.983214+00:00"
+}
