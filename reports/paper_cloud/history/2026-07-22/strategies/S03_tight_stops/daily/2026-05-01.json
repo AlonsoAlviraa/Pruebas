@@ -1,27 +1,67 @@
 {
-  "run_id": "paper_20260722T070534Z_85b777aa1d",
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
   "day": "2026-05-01",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100285.95751724472,
-  "cash": 100285.95751724472,
-  "gross_exposure": 0.0,
-  "dd_from_peak": -0.0013544995547766225,
-  "n_positions": 0,
-  "n_fills": 0,
-  "n_buys": 0,
+  "equity": 96093.18455178622,
+  "cash": 79622.22422463779,
+  "gross_exposure": 16470.960327148438,
+  "dd_from_peak": -0.04120374870394816,
+  "n_positions": 6,
+  "n_fills": 3,
+  "n_buys": 3,
   "n_sells": 0,
-  "commission": 4.0,
-  "fees": 0.05269042671033737,
-  "slippage_est": 9.991569028209767,
-  "turnover": 0.0,
-  "n_orders": 0,
+  "commission": 112.0,
+  "fees": 1.235836474592555,
+  "slippage_est": 292.4861229636846,
+  "turnover": 16470.960327148438,
+  "n_orders": 3,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
-  "fills": [],
-  "positions": [],
+  "fills": [
+    {
+      "ts": "2026-05-01T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 10.0,
+      "price": 265.73933562448286,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-05-01T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 14.0,
+      "price": 201.40076716105457,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-05-01T09:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "buy",
+      "qty": 4.0,
+      "price": 669.561470423109,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "ticker": "AAPL",
+      "qty": 8.0,
+      "avg_px": 315.47918328737194,
+      "stop": 313.4241976381725,
+      "hard_stop": 299.70522412300335,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
   "notes": [],
-  "generated_at": "2026-07-22T07:05:43.540740+00:00"
+  "generated_at": "2026-07-22T07:24:09.855482+00:00"
 }

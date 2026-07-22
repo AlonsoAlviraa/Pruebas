@@ -1,12 +1,12 @@
-# Paper digests — `paper_20260722T070543Z_6c7b030504`
+# Paper digests — `paper_20260722T072410Z_2b3b2dbe11`
 
 Strategy: `S04_wide_stops` · mode=paper · VIRTUAL capital
 
-- Days: 131
-- HTML: `reports/paper_cloud/history/2026-07-22/strategies/S04_wide_stops/dashboard.html`
+- Days: 181
+- HTML: `reports\paper_cloud\history\2026-07-22\strategies\S04_wide_stops\dashboard.html`
 
-## Latest week 2026-05-25 → 2026-05-31
+## Latest week 2026-07-20 → 2026-07-26
 
-- Return: 0.00%
-- Commission: $20.00
+- Return: 0.11%
+- Commission: $132.00
 - Kill events: 0

@@ -1,0 +1,67 @@
+{
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
+  "day": "2025-11-07",
+  "strategy_id": "S03_tight_stops",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99022.17088857957,
+  "cash": 84938.73091665574,
+  "gross_exposure": 14083.439971923828,
+  "dd_from_peak": -0.011978979716285143,
+  "n_positions": 5,
+  "n_fills": 3,
+  "n_buys": 2,
+  "n_sells": 1,
+  "commission": 19.0,
+  "fees": 0.1604378672829898,
+  "slippage_est": 50.123218775821925,
+  "turnover": 14083.439971923828,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-11-07T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 243.0457349448806,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-07T09:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "buy",
+      "qty": 4.0,
+      "price": 608.6749843699574,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-07T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 254.1078935553037,
+      "commission": 1.0,
+      "fees": 0.024187494632866725
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "ticker": "AAPL",
+      "qty": 8.0,
+      "avg_px": 315.47918328737194,
+      "stop": 313.4241976381725,
+      "hard_stop": 299.70522412300335,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-22T07:24:09.642619+00:00"
+}

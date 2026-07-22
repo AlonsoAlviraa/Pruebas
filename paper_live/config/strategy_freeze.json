@@ -30,6 +30,8 @@
     "dd_soft_trigger_frac": 0.5,
     "kill_dd_from_start": 0.15,
     "kill_rolling_sharpe_20d": -1.0,
+    "min_returns_for_sharpe_kill": 40,
+    "enable_sharpe_kill": true,
     "max_daily_new_entries": 5,
     "ticker_max_capital_pct": 0.12
   },

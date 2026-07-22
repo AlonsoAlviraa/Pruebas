@@ -1,27 +1,67 @@
 {
-  "run_id": "paper_20260722T070534Z_85b777aa1d",
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
   "day": "2026-01-14",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100000.0,
-  "cash": 100000.0,
-  "gross_exposure": 0.0,
-  "dd_from_peak": 0.0,
-  "n_positions": 0,
-  "n_fills": 0,
-  "n_buys": 0,
-  "n_sells": 0,
-  "commission": 0.0,
-  "fees": 0.0,
-  "slippage_est": 0.0,
-  "turnover": 0.0,
-  "n_orders": 0,
+  "equity": 96877.65981739119,
+  "cash": 85840.83997791365,
+  "gross_exposure": 11036.819839477539,
+  "dd_from_peak": -0.03337643038366522,
+  "n_positions": 4,
+  "n_fills": 3,
+  "n_buys": 2,
+  "n_sells": 1,
+  "commission": 68.0,
+  "fees": 0.7442466749250258,
+  "slippage_est": 182.69269097266434,
+  "turnover": 11036.819839477539,
+  "n_orders": 3,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
-  "fills": [],
-  "positions": [],
+  "fills": [
+    {
+      "ts": "2026-01-14T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 8.0,
+      "price": 335.2610354157954,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-14T09:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "buy",
+      "qty": 4.0,
+      "price": 622.6133352731612,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-14T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 12.0,
+      "price": 220.3027694218637,
+      "commission": 1.0,
+      "fees": 0.023141065864498916
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "ticker": "AAPL",
+      "qty": 8.0,
+      "avg_px": 315.47918328737194,
+      "stop": 313.4241976381725,
+      "hard_stop": 299.70522412300335,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
   "notes": [],
-  "generated_at": "2026-07-22T07:05:43.520583+00:00"
+  "generated_at": "2026-07-22T07:24:09.723518+00:00"
 }

@@ -1,0 +1,45 @@
+{
+  "run_id": "paper_20260722T072549Z_923bade106",
+  "week_start": "2026-07-20",
+  "week_end": "2026-07-26",
+  "strategy_id": "S06_diversified",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 96491.28049467164,
+  "end_equity": 96587.81047819214,
+  "week_return": 0.0010004011038680094,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 238.0,
+  "fees": 1.7397317586723955,
+  "slippage_est": 396.1230080785879,
+  "turnover": 16430.98976135254,
+  "cost_drag_bps": 65.9,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "cost drag 65.9 bps \u2014 review slippage/commission"
+  ],
+  "daily": [
+    {
+      "day": "2026-07-20",
+      "equity": 96491.28049467164,
+      "dd_from_peak": -0.03638106254685736,
+      "n_fills": 0,
+      "commission": 119.0
+    },
+    {
+      "day": "2026-07-21",
+      "equity": 96587.81047819214,
+      "dd_from_peak": -0.03541705709812104,
+      "n_fills": 0,
+      "commission": 119.0
+    }
+  ],
+  "generated_at": "2026-07-22T07:26:41.702232+00:00"
+}

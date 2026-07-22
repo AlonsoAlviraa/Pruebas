@@ -1,0 +1,74 @@
+{
+  "run_id": "paper_20260722T072502Z_9e5908ecb0",
+  "day": "2026-06-30",
+  "strategy_id": "S05_concentrated",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 90897.78820995222,
+  "cash": 76005.19827464949,
+  "gross_exposure": 14892.589935302734,
+  "dd_from_peak": -0.09280118869170806,
+  "n_positions": 2,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 74.0,
+  "fees": 2.2551502271293793,
+  "slippage_est": 497.5343253638226,
+  "turnover": 14892.589935302734,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "ticker": "AAPL",
+      "qty": 22.0,
+      "avg_px": 315.47918457768736,
+      "stop": 309.111039118932,
+      "hard_stop": 290.2408498114724,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "ticker": "JPM",
+      "qty": 21.0,
+      "avg_px": 341.18461312449125,
+      "stop": 329.35827206173127,
+      "hard_stop": 313.88984407453194,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "ticker": "META",
+      "qty": 10.0,
+      "avg_px": 661.7768393671417,
+      "stop": 608.8346922177705,
+      "hard_stop": 608.8346922177705,
+      "opened_at": "2026-07-13T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "ticker": "NVDA",
+      "qty": 33.0,
+      "avg_px": 212.0871836871309,
+      "stop": 195.12020899216043,
+      "hard_stop": 195.12020899216043,
+      "opened_at": "2026-07-15T09:45:00+00:00",
+      "bars_held": 5,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [
+    "Soft de-risk zone: DD from peak \u2265 9%"
+  ],
+  "generated_at": "2026-07-22T07:25:48.900469+00:00"
+}

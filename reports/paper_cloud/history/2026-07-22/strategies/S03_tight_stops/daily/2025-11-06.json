@@ -1,0 +1,85 @@
+{
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
+  "day": "2025-11-06",
+  "strategy_id": "S03_tight_stops",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99280.81703186042,
+  "cash": 87497.81703186042,
+  "gross_exposure": 11783.0,
+  "dd_from_peak": -0.009398266487281703,
+  "n_positions": 4,
+  "n_fills": 5,
+  "n_buys": 1,
+  "n_sells": 4,
+  "commission": 16.0,
+  "fees": 0.13625037265012307,
+  "slippage_est": 42.43489446905741,
+  "turnover": 11783.0,
+  "n_orders": 5,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-11-06T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 15.0,
+      "price": 196.53785048334663,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-06T15:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "sell",
+      "qty": 4.0,
+      "price": 603.2061353709629,
+      "commission": 1.0,
+      "fees": 0.01996659633187081
+    },
+    {
+      "ts": "2025-11-06T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 13.0,
+      "price": 215.49108379936138,
+      "commission": 1.0,
+      "fees": 0.02456907271513358
+    },
+    {
+      "ts": "2025-11-06T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 5.0,
+      "price": 501.93308643695667,
+      "commission": 1.0,
+      "fees": 0.020907323457478266
+    },
+    {
+      "ts": "2025-11-06T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 15.0,
+      "price": 186.41222012653978,
+      "commission": 1.0,
+      "fees": 0.02485946641518477
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "ticker": "AAPL",
+      "qty": 8.0,
+      "avg_px": 315.47918328737194,
+      "stop": 313.4241976381725,
+      "hard_stop": 299.70522412300335,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-22T07:24:09.642619+00:00"
+}

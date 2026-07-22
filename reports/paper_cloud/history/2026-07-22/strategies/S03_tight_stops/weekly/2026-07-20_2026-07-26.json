@@ -1,0 +1,45 @@
+{
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
+  "week_start": "2026-07-20",
+  "week_end": "2026-07-26",
+  "strategy_id": "S03_tight_stops",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 93910.52805129674,
+  "end_equity": 93919.72800246862,
+  "week_return": 9.796506699277785e-05,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 306.0,
+  "fees": 3.489103449280702,
+  "slippage_est": 809.6083972573362,
+  "turnover": 5234.639892578125,
+  "cost_drag_bps": 119.17,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "cost drag 119.17 bps \u2014 review slippage/commission"
+  ],
+  "daily": [
+    {
+      "day": "2026-07-20",
+      "equity": 93910.52805129674,
+      "dd_from_peak": -0.06298180591266167,
+      "n_fills": 1,
+      "commission": 153.0
+    },
+    {
+      "day": "2026-07-21",
+      "equity": 93919.72800246862,
+      "dd_from_peak": -0.06289001086250445,
+      "n_fills": 0,
+      "commission": 153.0
+    }
+  ],
+  "generated_at": "2026-07-22T07:24:09.976792+00:00"
+}

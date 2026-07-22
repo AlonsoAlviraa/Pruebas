@@ -20,6 +20,10 @@ class RiskConfig:
     ticker_max_capital_pct: float = 0.12
     rolling_sharpe_window: int = 20
     max_leverage: float = 1.0
+    # Don't trip sharpe kill until we have enough daily returns (avoids false hard-kills)
+    min_returns_for_sharpe_kill: int = 40
+    # Optional: disable sharpe kill entirely (None)
+    enable_sharpe_kill: bool = True
 
     @classmethod
     def from_risk_paper(
@@ -39,6 +43,8 @@ class RiskConfig:
             ticker_max_capital_pct=float(rp.get("ticker_max_capital_pct", 0.12)),
             rolling_sharpe_window=int(rp.get("rolling_sharpe_window", 20)),
             max_leverage=float(max_leverage),
+            min_returns_for_sharpe_kill=int(rp.get("min_returns_for_sharpe_kill", 40)),
+            enable_sharpe_kill=bool(rp.get("enable_sharpe_kill", True)),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -52,6 +58,8 @@ class RiskConfig:
             "ticker_max_capital_pct": self.ticker_max_capital_pct,
             "rolling_sharpe_window": self.rolling_sharpe_window,
             "max_leverage": self.max_leverage,
+            "min_returns_for_sharpe_kill": self.min_returns_for_sharpe_kill,
+            "enable_sharpe_kill": self.enable_sharpe_kill,
         }
 
 
@@ -176,7 +184,12 @@ class PortfolioRisk:
             reasons.append(
                 f"dd_from_start={dd_start:.2%} <= -{abs(self.config.kill_dd_from_start):.0%}"
             )
-        if sh is not None and sh < float(self.config.kill_rolling_sharpe_20d):
+        if (
+            self.config.enable_sharpe_kill
+            and sh is not None
+            and len(self.daily_returns) >= int(self.config.min_returns_for_sharpe_kill)
+            and sh < float(self.config.kill_rolling_sharpe_20d)
+        ):
             block = True
             hard = True
             reasons.append(

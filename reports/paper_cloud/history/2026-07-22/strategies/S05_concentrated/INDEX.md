@@ -1,12 +1,12 @@
-# Paper digests — `paper_20260722T070550Z_704e2f4c61`
+# Paper digests — `paper_20260722T072502Z_9e5908ecb0`
 
 Strategy: `S05_concentrated` · mode=paper · VIRTUAL capital
 
-- Days: 131
-- HTML: `reports/paper_cloud/history/2026-07-22/strategies/S05_concentrated/dashboard.html`
+- Days: 181
+- HTML: `reports\paper_cloud\history\2026-07-22\strategies\S05_concentrated\dashboard.html`
 
-## Latest week 2026-05-25 → 2026-05-31
+## Latest week 2026-07-20 → 2026-07-26
 
-- Return: 0.00%
-- Commission: $20.00
+- Return: 0.30%
+- Commission: $160.00
 - Kill events: 0

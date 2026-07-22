@@ -43,10 +43,11 @@ def _override_freeze(base: PaperFreeze, strat: Dict[str, Any], capital0: float) 
     kn["require_regime"] = bool(strat.get("require_regime", kn.get("require_regime", True)))
     s["knobs"] = kn
     rp = dict(s.get("risk_paper") or {})
-    if "max_portfolio_dd" in strat:
-        rp["max_portfolio_dd"] = float(strat["max_portfolio_dd"])
-    if "kill_dd_from_start" in strat:
-        rp["kill_dd_from_start"] = float(strat["kill_dd_from_start"])
+    # Cloud study defaults: real tape, avoid false sharpe hard-kills mid-sample
+    rp["enable_sharpe_kill"] = bool(strat.get("enable_sharpe_kill", False))
+    rp["min_returns_for_sharpe_kill"] = int(strat.get("min_returns_for_sharpe_kill", 60))
+    rp["max_portfolio_dd"] = float(strat.get("max_portfolio_dd", rp.get("max_portfolio_dd", 0.22)))
+    rp["kill_dd_from_start"] = float(strat.get("kill_dd_from_start", rp.get("kill_dd_from_start", 0.25)))
     if "max_entries_per_day" in strat:
         rp["max_daily_new_entries"] = int(strat["max_entries_per_day"])
     s["risk_paper"] = rp
@@ -169,18 +170,23 @@ def run_cloud_batch(
     latest_dir.mkdir(parents=True, exist_ok=True)
 
     cache_dir = out_root / "data_cache"
+    from paper_live.cloud.free_data import SEED_DIR
+
     feed, sources = build_cloud_feed(
         tickers,
         cache_dir=cache_dir,
+        seed_dir=SEED_DIR,
         lookback_calendar_days=lb,
         force_synthetic=force_synthetic,
+        require_real=not force_synthetic,
+        min_real_tickers=5 if not force_synthetic else 0,
     )
 
     days = feed.days
     if not days:
         raise RuntimeError("No trading days in feed")
 
-    # Default window: last ~120 sessions ending at as_of / last available
+    # Default window: last ~180 sessions (~9m) ending at as_of / last available
     end_d = days[-1]
     if end_date:
         # clamp to available
@@ -191,8 +197,23 @@ def run_cloud_batch(
         sd = __import__("pandas").Timestamp(start_date).date()
         start_d = next((d for d in days if d >= sd), days[0])
     else:
-        # ~6 months of sessions
-        start_d = days[max(0, days.index(end_d) - 130)]
+        start_d = days[max(0, days.index(end_d) - 180)]
+
+    # Sanity: window must not be in the future relative to market data
+    logger.info(
+        "Cloud window %s → %s | sources=%s | n_days_avail=%d",
+        start_d,
+        end_d,
+        sources,
+        len(days),
+    )
+    real_n = sum(
+        1
+        for s in sources.values()
+        if not str(s).startswith("synthetic") and s != "missing"
+    )
+    if not force_synthetic and real_n < 5:
+        raise RuntimeError(f"Refusing synthetic cloud study pack: sources={sources}")
 
     base_freeze = load_freeze()
     summaries: List[StrategyRunSummary] = []
@@ -336,10 +357,23 @@ def _write_master_reports(
     )
 
     # Markdown comparison
+    real_src = {
+        k: v
+        for k, v in batch.data_sources.items()
+        if not str(v).startswith("synthetic") and v != "missing"
+    }
+    data_note = (
+        f"**Data:** REAL free market ({len(real_src)}/{len(batch.data_sources)} tickers) — "
+        f"`{', '.join(sorted(set(real_src.values())) or ['none'])}`"
+        if real_src
+        else "**Data:** WARNING non-real / missing sources"
+    )
     lines = [
         f"# Paper cloud multi-strategy — `{batch.as_of}`",
         "",
         f"**Window:** {start_d} → {end_d} · **Capital:** VIRTUAL ${capital0:,.0f} · **mode:** paper",
+        "",
+        data_note,
         "",
         "Free cloud batch (GitHub Actions). Not financial advice.",
         "",

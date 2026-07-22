@@ -1,27 +1,49 @@
 {
-  "run_id": "paper_20260722T070534Z_85b777aa1d",
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
   "day": "2026-01-07",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100000.0,
-  "cash": 100000.0,
-  "gross_exposure": 0.0,
-  "dd_from_peak": 0.0,
-  "n_positions": 0,
-  "n_fills": 0,
+  "equity": 96928.50859513748,
+  "cash": 83183.31851640213,
+  "gross_exposure": 13745.190078735352,
+  "dd_from_peak": -0.03286907267964567,
+  "n_positions": 5,
+  "n_fills": 1,
   "n_buys": 0,
-  "n_sells": 0,
-  "commission": 0.0,
-  "fees": 0.0,
-  "slippage_est": 0.0,
-  "turnover": 0.0,
-  "n_orders": 0,
+  "n_sells": 1,
+  "commission": 61.0,
+  "fees": 0.6532135741942326,
+  "slippage_est": 166.27664328880175,
+  "turnover": 13745.190078735352,
+  "n_orders": 1,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
-  "fills": [],
-  "positions": [],
+  "fills": [
+    {
+      "ts": "2026-01-07T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 24.0,
+      "price": 112.4338467980744,
+      "commission": 1.0,
+      "fees": 0.02557129858523028
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "ticker": "AAPL",
+      "qty": 8.0,
+      "avg_px": 315.47918328737194,
+      "stop": 313.4241976381725,
+      "hard_stop": 299.70522412300335,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
   "notes": [],
-  "generated_at": "2026-07-22T07:05:43.519438+00:00"
+  "generated_at": "2026-07-22T07:24:09.712113+00:00"
 }

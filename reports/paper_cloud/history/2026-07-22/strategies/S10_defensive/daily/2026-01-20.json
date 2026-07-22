@@ -1,27 +1,67 @@
 {
-  "run_id": "paper_20260722T070631Z_318cc15ea1",
+  "run_id": "paper_20260722T072914Z_8763ed21f3",
   "day": "2026-01-20",
   "strategy_id": "S10_defensive",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100000.0,
-  "cash": 100000.0,
-  "gross_exposure": 0.0,
-  "dd_from_peak": 0.0,
-  "n_positions": 0,
-  "n_fills": 0,
+  "equity": 94485.99404087028,
+  "cash": 87237.65384616813,
+  "gross_exposure": 7248.340194702148,
+  "dd_from_peak": -0.0561661599087826,
+  "n_positions": 2,
+  "n_fills": 3,
   "n_buys": 0,
-  "n_sells": 0,
-  "commission": 0.0,
-  "fees": 0.0,
-  "slippage_est": 0.0,
-  "turnover": 0.0,
-  "n_orders": 0,
+  "n_sells": 3,
+  "commission": 68.0,
+  "fees": 1.0362689376079661,
+  "slippage_est": 258.4009569509325,
+  "turnover": 7248.340194702148,
+  "n_orders": 3,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
-  "fills": [],
-  "positions": [],
+  "fills": [
+    {
+      "ts": "2026-01-20T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 317.98838508643786,
+      "commission": 1.0,
+      "fees": 0.02980897788760653
+    },
+    {
+      "ts": "2026-01-20T15:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "sell",
+      "qty": 6.0,
+      "price": 590.5362952336535,
+      "commission": 1.0,
+      "fees": 0.029341742171215365
+    },
+    {
+      "ts": "2026-01-20T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 20.0,
+      "price": 179.4462033024811,
+      "commission": 1.0,
+      "fees": 0.03203139252839697
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072914Z_8763ed21f3",
+      "ticker": "AAPL",
+      "qty": 9.0,
+      "avg_px": 315.47918337953735,
+      "stop": 316.01209274971677,
+      "hard_stop": 299.70522421056046,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
   "notes": [],
-  "generated_at": "2026-07-22T07:06:37.636167+00:00"
+  "generated_at": "2026-07-22T07:30:04.745544+00:00"
 }

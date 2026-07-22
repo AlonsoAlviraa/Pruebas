@@ -41,30 +41,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 10-strategy paper cloud batch
+      - name: Run 10-strategy paper cloud batch (REAL market data)
         env:
           TRAD_PAPER_ONLY: "1"
           TRAD_TRADING_MODE: paper
         run: |
+          set -e
           SYNTH_FLAG=""
           if [ "${{ github.event.inputs.synthetic }}" = "1" ]; then
             SYNTH_FLAG="--synthetic"
+            echo "WARNING: synthetic mode requested — not real market data"
           fi
-          # First runs / network blocks: also try synthetic fallback inside script
           python scripts/run_paper_cloud_batch.py \
             --out reports/paper_cloud \
             $SYNTH_FLAG \
             $( [ "${{ github.event.inputs.keep_ledgers }}" = "1" ] && echo --keep-ledgers || true )
-
-      - name: Fallback synthetic if no summary
-        if: always()
-        env:
-          TRAD_PAPER_ONLY: "1"
-        run: |
-          if [ ! -f reports/paper_cloud/latest/SUMMARY.md ]; then
-            echo "Primary batch missing summary — synthetic fallback"
-            python scripts/run_paper_cloud_batch.py --out reports/paper_cloud --synthetic
-          fi
+          # Hard gate: refuse silent synthetic study packs
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path("reports/paper_cloud/latest/summary.json")
+          if not p.is_file():
+              print("FAIL: missing latest/summary.json"); sys.exit(1)
+          d = json.loads(p.read_text(encoding="utf-8"))
+          src = d.get("data_sources") or {}
+          bad = {k: v for k, v in src.items() if str(v).startswith("synthetic") or v == "missing"}
+          print("data_sources=", src)
+          if bad and "${{ github.event.inputs.synthetic }}" != "1":
+              print("FAIL: non-real sources:", bad); sys.exit(2)
+          kills = sum(1 for s in d.get("strategies") or [] if s.get("hard_kill"))
+          print(f"hard_kill_count={kills}/{len(d.get('strategies') or [])}")
+          print("REAL_DATA_GATE_OK")
+          PY
 
       - name: Commit results to repo
         run: |

@@ -6,7 +6,7 @@
 |--|--|
 | Capital | **VIRTUAL** $100k · mode=`paper` |
 | Strategies | **10** rule variants (`paper_live/cloud/strategy_zoo.json`) |
-| Data | **Stooq free** daily OHLCV; synthetic fallback if download fails |
+| Data | **Yahoo Finance chart API** (real free OHLCV); seed CSVs in `paper_live/cloud/seed_ohlcv/`; Stooq secondary; synthetic only with explicit flag |
 | Schedule | Weekdays **21:30 UTC** (+ manual “Run workflow”) |
 | Output | `reports/paper_cloud/latest/` + `history/YYYY-MM-DD/` |
 

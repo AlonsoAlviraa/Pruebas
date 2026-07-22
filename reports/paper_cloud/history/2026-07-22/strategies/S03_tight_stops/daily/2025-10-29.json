@@ -1,0 +1,85 @@
+{
+  "run_id": "paper_20260722T072325Z_beb19c92ba",
+  "day": "2025-10-29",
+  "strategy_id": "S03_tight_stops",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100036.79836582643,
+  "cash": 85900.43822788697,
+  "gross_exposure": 14136.360137939453,
+  "dd_from_peak": -0.0001694096773646736,
+  "n_positions": 5,
+  "n_fills": 5,
+  "n_buys": 5,
+  "n_sells": 0,
+  "commission": 5.0,
+  "fees": 0.0,
+  "slippage_est": 8.451725726317306,
+  "turnover": 14136.360137939453,
+  "n_orders": 5,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-10-29T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 14.0,
+      "price": 208.1047840578857,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-10-29T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 267.9106520180762,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-10-29T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 269.44156810629374,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-10-29T09:45:00+00:00",
+      "ticker": "QQQ",
+      "side": "buy",
+      "qty": 4.0,
+      "price": 635.9713817558232,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-10-29T09:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "buy",
+      "qty": 5.0,
+      "price": 545.2669693822548,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "ticker": "AAPL",
+      "qty": 8.0,
+      "avg_px": 315.47918328737194,
+      "stop": 313.4241976381725,
+      "hard_stop": 299.70522412300335,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-22T07:24:09.628305+00:00"
+}

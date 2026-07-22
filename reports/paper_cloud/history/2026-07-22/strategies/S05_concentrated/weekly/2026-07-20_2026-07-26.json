@@ -1,0 +1,45 @@
+{
+  "run_id": "paper_20260722T072502Z_9e5908ecb0",
+  "week_start": "2026-07-20",
+  "week_end": "2026-07-26",
+  "strategy_id": "S05_concentrated",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 90621.02750201567,
+  "end_equity": 90891.81773944243,
+  "week_return": 0.0029881611905220318,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 160.0,
+  "fees": 4.759272911423466,
+  "slippage_est": 1046.1787711455736,
+  "turnover": 55206.769302368164,
+  "cost_drag_bps": 133.63,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "cost drag 133.63 bps \u2014 review slippage/commission"
+  ],
+  "daily": [
+    {
+      "day": "2026-07-20",
+      "equity": 90621.02750201567,
+      "dd_from_peak": -0.09556337895179401,
+      "n_fills": 0,
+      "commission": 80.0
+    },
+    {
+      "day": "2026-07-21",
+      "equity": 90891.81773944243,
+      "dd_from_peak": -0.09286077654149083,
+      "n_fills": 0,
+      "commission": 80.0
+    }
+  ],
+  "generated_at": "2026-07-22T07:25:48.954566+00:00"
+}

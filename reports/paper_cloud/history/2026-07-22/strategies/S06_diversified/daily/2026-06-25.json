@@ -1,0 +1,93 @@
+{
+  "run_id": "paper_20260722T072549Z_923bade106",
+  "day": "2026-06-25",
+  "strategy_id": "S06_diversified",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 96575.73582248777,
+  "cash": 93132.25584201902,
+  "gross_exposure": 3443.47998046875,
+  "dd_from_peak": -0.03553764174411511,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 112.0,
+  "fees": 0.8409560386742814,
+  "slippage_est": 191.04519653745794,
+  "turnover": 3443.47998046875,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-06-25T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 6.0,
+      "price": 275.03232673654867,
+      "commission": 1.0,
+      "fees": 0.014197551683354338
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260722T072549Z_923bade106",
+      "ticker": "AAPL",
+      "qty": 6.0,
+      "avg_px": 315.4791831030412,
+      "stop": 309.111039118932,
+      "hard_stop": 293.3956402858283,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072549Z_923bade106",
+      "ticker": "JPM",
+      "qty": 5.0,
+      "avg_px": 341.1846023575797,
+      "stop": 329.35827206173127,
+      "hard_stop": 317.3016801925491,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072549Z_923bade106",
+      "ticker": "META",
+      "qty": 2.0,
+      "avg_px": 661.7768341820221,
+      "stop": 615.4524557892805,
+      "hard_stop": 615.4524557892805,
+      "opened_at": "2026-07-13T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072549Z_923bade106",
+      "ticker": "NVDA",
+      "qty": 9.0,
+      "avg_px": 208.6651175410316,
+      "stop": 194.05855931315938,
+      "hard_stop": 194.05855931315938,
+      "opened_at": "2026-07-13T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260722T072549Z_923bade106",
+      "ticker": "QQQ",
+      "qty": 2.0,
+      "avg_px": 724.2842862614049,
+      "stop": 679.2406714473552,
+      "hard_stop": 673.5843862231064,
+      "opened_at": "2026-07-15T09:45:00+00:00",
+      "bars_held": 5,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-22T07:26:41.639127+00:00"
+}
