@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072502Z_9e5908ecb0",
+  "run_id": "paper_20260722T075035Z_27ac3d9fe1",
   "day": "2025-12-24",
   "strategy_id": "S05_concentrated",
   "mode": "paper",
@@ -33,7 +33,7 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "run_id": "paper_20260722T075035Z_27ac3d9fe1",
       "ticker": "AAPL",
       "qty": 22.0,
       "avg_px": 315.47918457768736,
@@ -44,7 +44,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "run_id": "paper_20260722T075035Z_27ac3d9fe1",
       "ticker": "JPM",
       "qty": 21.0,
       "avg_px": 341.18461312449125,
@@ -55,7 +55,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "run_id": "paper_20260722T075035Z_27ac3d9fe1",
       "ticker": "META",
       "qty": 10.0,
       "avg_px": 661.7768393671417,
@@ -66,7 +66,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "run_id": "paper_20260722T075035Z_27ac3d9fe1",
       "ticker": "NVDA",
       "qty": 33.0,
       "avg_px": 212.0871836871309,
@@ -78,5 +78,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:25:48.406037+00:00"
+  "generated_at": "2026-07-22T07:50:53.058310+00:00"
 }

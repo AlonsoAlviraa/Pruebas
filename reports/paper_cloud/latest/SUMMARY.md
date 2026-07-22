@@ -39,4 +39,4 @@ Free cloud batch (GitHub Actions). Not financial advice.
 See `strategies/<id>/dashboard.html` and `daily/`.
 
 ---
-_Generated 2026-07-22T07:30:05.327147+00:00 · paper only_
+_Generated 2026-07-22T07:52:11.909059+00:00 · paper only_

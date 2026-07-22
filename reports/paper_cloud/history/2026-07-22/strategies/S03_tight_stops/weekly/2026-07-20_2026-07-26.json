@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072325Z_beb19c92ba",
+  "run_id": "paper_20260722T075001Z_60b7868323",
   "week_start": "2026-07-20",
   "week_end": "2026-07-26",
   "strategy_id": "S03_tight_stops",
@@ -41,5 +41,5 @@
       "commission": 153.0
     }
   ],
-  "generated_at": "2026-07-22T07:24:09.976792+00:00"
+  "generated_at": "2026-07-22T07:50:18.573316+00:00"
 }

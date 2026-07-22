@@ -1,9 +1,9 @@
-# Paper digests — `paper_20260722T072127Z_5b0b7bbe7b`
+# Paper digests — `paper_20260722T074855Z_5200a40e76`
 
 Strategy: `S01_baseline_minalloc` · mode=paper · VIRTUAL capital
 
 - Days: 181
-- HTML: `reports\paper_cloud\history\2026-07-22\strategies\S01_baseline_minalloc\dashboard.html`
+- HTML: `reports/paper_cloud/history/2026-07-22/strategies/S01_baseline_minalloc/dashboard.html`
 
 ## Latest week 2026-07-20 → 2026-07-26
 

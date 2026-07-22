@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072808Z_0f899e677d",
+  "run_id": "paper_20260722T075138Z_01488a673b",
   "week_start": "2026-07-20",
   "week_end": "2026-07-26",
   "strategy_id": "S09_aggressive_entries",
@@ -41,5 +41,5 @@
       "commission": 202.0
     }
   ],
-  "generated_at": "2026-07-22T07:29:14.256030+00:00"
+  "generated_at": "2026-07-22T07:51:58.689852+00:00"
 }

@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072221Z_1e957311a1",
+  "run_id": "paper_20260722T074909Z_830f02e64d",
   "day": "2026-04-10",
   "strategy_id": "S02_no_regime",
   "mode": "paper",
@@ -42,7 +42,7 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "AAPL",
       "qty": 8.0,
       "avg_px": 315.47918328737194,
@@ -53,7 +53,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "AMZN",
       "qty": 11.0,
       "avg_px": 255.2730680291958,
@@ -64,7 +64,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "JPM",
       "qty": 8.0,
       "avg_px": 341.1846043763757,
@@ -75,7 +75,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "META",
       "qty": 4.0,
       "avg_px": 661.776835478302,
@@ -86,7 +86,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "NVDA",
       "qty": 13.0,
       "avg_px": 208.6651176561103,
@@ -97,7 +97,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "QQQ",
       "qty": 3.0,
       "avg_px": 724.2842866064627,
@@ -108,7 +108,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "ticker": "XOM",
       "qty": 19.0,
       "avg_px": 146.587903565575,
@@ -120,5 +120,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:23:25.003328+00:00"
+  "generated_at": "2026-07-22T07:50:01.789467+00:00"
 }

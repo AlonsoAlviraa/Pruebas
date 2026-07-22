@@ -27,7 +27,7 @@
       "total_fees": 1.310325855631412,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072127Z_5b0b7bbe7b",
+      "run_id": "paper_20260722T074855Z_5200a40e76",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -45,7 +45,7 @@
       "total_fees": 1.4205252903397572,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -63,7 +63,7 @@
       "total_fees": 1.744551724640351,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "run_id": "paper_20260722T075001Z_60b7868323",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -81,7 +81,7 @@
       "total_fees": 0.6767494304430869,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072410Z_2b3b2dbe11",
+      "run_id": "paper_20260722T075018Z_f3719576a7",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -99,7 +99,7 @@
       "total_fees": 2.379636455711733,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "run_id": "paper_20260722T075035Z_27ac3d9fe1",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -117,7 +117,7 @@
       "total_fees": 0.8698658793361977,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072549Z_923bade106",
+      "run_id": "paper_20260722T075053Z_5b3b6b3678",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -135,7 +135,7 @@
       "total_fees": 0.3499228158609479,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072641Z_e224abc755",
+      "run_id": "paper_20260722T075111Z_df29ac18b2",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -153,7 +153,7 @@
       "total_fees": 1.6720173238016465,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072718Z_7865036f9a",
+      "run_id": "paper_20260722T075122Z_58f1596ad7",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -171,7 +171,7 @@
       "total_fees": 2.219548462186623,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -189,13 +189,13 @@
       "total_fees": 2.1036907650950964,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072914Z_8763ed21f3",
+      "run_id": "paper_20260722T075158Z_0eceaaa52e",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
     }
   ],
-  "out_dir": "reports\\paper_cloud\\history\\2026-07-22",
+  "out_dir": "reports/paper_cloud/history/2026-07-22",
   "mode": "paper",
   "capital_label": "VIRTUAL",
   "window": {
@@ -217,7 +217,7 @@
       "total_fees": 0.3499228158609479,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072641Z_e224abc755",
+      "run_id": "paper_20260722T075111Z_df29ac18b2",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -235,7 +235,7 @@
       "total_fees": 0.8698658793361977,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072549Z_923bade106",
+      "run_id": "paper_20260722T075053Z_5b3b6b3678",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -253,7 +253,7 @@
       "total_fees": 1.6720173238016465,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072718Z_7865036f9a",
+      "run_id": "paper_20260722T075122Z_58f1596ad7",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -271,7 +271,7 @@
       "total_fees": 1.310325855631412,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072127Z_5b0b7bbe7b",
+      "run_id": "paper_20260722T074855Z_5200a40e76",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -289,7 +289,7 @@
       "total_fees": 1.744551724640351,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "run_id": "paper_20260722T075001Z_60b7868323",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -307,7 +307,7 @@
       "total_fees": 1.4205252903397572,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072221Z_1e957311a1",
+      "run_id": "paper_20260722T074909Z_830f02e64d",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -325,7 +325,7 @@
       "total_fees": 0.6767494304430869,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072410Z_2b3b2dbe11",
+      "run_id": "paper_20260722T075018Z_f3719576a7",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -343,7 +343,7 @@
       "total_fees": 2.219548462186623,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -361,7 +361,7 @@
       "total_fees": 2.1036907650950964,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072914Z_8763ed21f3",
+      "run_id": "paper_20260722T075158Z_0eceaaa52e",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"
@@ -379,7 +379,7 @@
       "total_fees": 2.379636455711733,
       "hard_kill": false,
       "kill_trips": 0,
-      "run_id": "paper_20260722T072502Z_9e5908ecb0",
+      "run_id": "paper_20260722T075035Z_27ac3d9fe1",
       "error": null,
       "mode": "paper",
       "capital_label": "VIRTUAL"

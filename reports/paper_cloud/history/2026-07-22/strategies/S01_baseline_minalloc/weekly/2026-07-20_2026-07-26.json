@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072127Z_5b0b7bbe7b",
+  "run_id": "paper_20260722T074855Z_5200a40e76",
   "week_start": "2026-07-20",
   "week_end": "2026-07-26",
   "strategy_id": "S01_baseline_minalloc",
@@ -41,5 +41,5 @@
       "commission": 119.0
     }
   ],
-  "generated_at": "2026-07-22T07:22:21.367921+00:00"
+  "generated_at": "2026-07-22T07:49:09.181020+00:00"
 }

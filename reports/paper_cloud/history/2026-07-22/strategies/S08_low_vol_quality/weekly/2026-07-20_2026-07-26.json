@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072718Z_7865036f9a",
+  "run_id": "paper_20260722T075122Z_58f1596ad7",
   "week_start": "2026-07-20",
   "week_end": "2026-07-26",
   "strategy_id": "S08_low_vol_quality",
@@ -41,5 +41,5 @@
       "commission": 111.0
     }
   ],
-  "generated_at": "2026-07-22T07:28:08.150616+00:00"
+  "generated_at": "2026-07-22T07:51:38.468186+00:00"
 }

@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072410Z_2b3b2dbe11",
+  "run_id": "paper_20260722T075018Z_f3719576a7",
   "week_start": "2026-07-20",
   "week_end": "2026-07-26",
   "strategy_id": "S04_wide_stops",
@@ -41,5 +41,5 @@
       "commission": 66.0
     }
   ],
-  "generated_at": "2026-07-22T07:25:02.214720+00:00"
+  "generated_at": "2026-07-22T07:50:35.933365+00:00"
 }

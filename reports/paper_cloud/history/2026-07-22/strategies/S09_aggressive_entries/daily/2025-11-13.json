@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072808Z_0f899e677d",
+  "run_id": "paper_20260722T075138Z_01488a673b",
   "day": "2025-11-13",
   "strategy_id": "S09_aggressive_entries",
   "mode": "paper",
@@ -23,7 +23,7 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "ticker": "AAPL",
       "qty": 8.0,
       "avg_px": 323.3238836737203,
@@ -34,7 +34,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "ticker": "AMZN",
       "qty": 10.0,
       "avg_px": 255.27306794601964,
@@ -45,7 +45,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "ticker": "JPM",
       "qty": 8.0,
       "avg_px": 339.23342163466896,
@@ -56,7 +56,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "ticker": "META",
       "qty": 4.0,
       "avg_px": 661.776835478302,
@@ -67,7 +67,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "ticker": "NVDA",
       "qty": 13.0,
       "avg_px": 208.6651176561103,
@@ -78,7 +78,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072808Z_0f899e677d",
+      "run_id": "paper_20260722T075138Z_01488a673b",
       "ticker": "XOM",
       "qty": 18.0,
       "avg_px": 146.58790337791316,
@@ -90,5 +90,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:29:13.546275+00:00"
+  "generated_at": "2026-07-22T07:51:58.567298+00:00"
 }

@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072325Z_beb19c92ba",
+  "run_id": "paper_20260722T075001Z_60b7868323",
   "day": "2025-10-29",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
@@ -69,7 +69,7 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T072325Z_beb19c92ba",
+      "run_id": "paper_20260722T075001Z_60b7868323",
       "ticker": "AAPL",
       "qty": 8.0,
       "avg_px": 315.47918328737194,
@@ -81,5 +81,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:24:09.628305+00:00"
+  "generated_at": "2026-07-22T07:50:18.475355+00:00"
 }

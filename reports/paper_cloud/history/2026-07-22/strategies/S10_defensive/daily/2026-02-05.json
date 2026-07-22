@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072914Z_8763ed21f3",
+  "run_id": "paper_20260722T075158Z_0eceaaa52e",
   "day": "2026-02-05",
   "strategy_id": "S10_defensive",
   "mode": "paper",
@@ -23,7 +23,7 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T072914Z_8763ed21f3",
+      "run_id": "paper_20260722T075158Z_0eceaaa52e",
       "ticker": "AAPL",
       "qty": 9.0,
       "avg_px": 315.47918337953735,
@@ -35,5 +35,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:30:04.787423+00:00"
+  "generated_at": "2026-07-22T07:52:11.841146+00:00"
 }

@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072641Z_e224abc755",
+  "run_id": "paper_20260722T075111Z_df29ac18b2",
   "day": "2026-03-02",
   "strategy_id": "S07_high_vol_only",
   "mode": "paper",
@@ -23,7 +23,7 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T072641Z_e224abc755",
+      "run_id": "paper_20260722T075111Z_df29ac18b2",
       "ticker": "META",
       "qty": 5.0,
       "avg_px": 661.776836126442,
@@ -34,7 +34,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T072641Z_e224abc755",
+      "run_id": "paper_20260722T075111Z_df29ac18b2",
       "ticker": "NVDA",
       "qty": 18.0,
       "avg_px": 208.66511779995875,
@@ -46,5 +46,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:27:18.265133+00:00"
+  "generated_at": "2026-07-22T07:51:22.160940+00:00"
 }

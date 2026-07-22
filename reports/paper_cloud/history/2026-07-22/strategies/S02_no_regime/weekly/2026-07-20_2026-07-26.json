@@ -1,5 +1,5 @@
 {
-  "run_id": "paper_20260722T072221Z_1e957311a1",
+  "run_id": "paper_20260722T074909Z_830f02e64d",
   "week_start": "2026-07-20",
   "week_end": "2026-07-26",
   "strategy_id": "S02_no_regime",
@@ -41,5 +41,5 @@
       "commission": 131.0
     }
   ],
-  "generated_at": "2026-07-22T07:23:25.274473+00:00"
+  "generated_at": "2026-07-22T07:50:01.836102+00:00"
 }

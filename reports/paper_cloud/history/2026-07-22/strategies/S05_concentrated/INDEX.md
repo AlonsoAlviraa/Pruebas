@@ -1,9 +1,9 @@
-# Paper digests — `paper_20260722T072502Z_9e5908ecb0`
+# Paper digests — `paper_20260722T075035Z_27ac3d9fe1`
 
 Strategy: `S05_concentrated` · mode=paper · VIRTUAL capital
 
 - Days: 181
-- HTML: `reports\paper_cloud\history\2026-07-22\strategies\S05_concentrated\dashboard.html`
+- HTML: `reports/paper_cloud/history/2026-07-22/strategies/S05_concentrated/dashboard.html`
 
 ## Latest week 2026-07-20 → 2026-07-26
 
