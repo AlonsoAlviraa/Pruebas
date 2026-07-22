@@ -1,21 +1,21 @@
 {
-  "run_id": "paper_20260722T075001Z_60b7868323",
+  "run_id": "paper_20260722T080609Z_08fe40c0ce",
   "day": "2026-02-09",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 96326.2565483935,
-  "cash": 93302.05641411616,
-  "gross_exposure": 3024.2001342773438,
-  "dd_from_peak": -0.038878208576711426,
+  "equity": 98889.34001283857,
+  "cash": 95713.92987184736,
+  "gross_exposure": 3175.410140991211,
+  "dd_from_peak": -0.011623441358113662,
   "n_positions": 1,
   "n_fills": 0,
   "n_buys": 0,
   "n_sells": 0,
-  "commission": 85.0,
-  "fees": 0.9730495343469051,
-  "slippage_est": 229.88660474068698,
-  "turnover": 3024.2001342773438,
+  "commission": 29.0,
+  "fees": 0.33207502328436206,
+  "slippage_est": 82.81580998259038,
+  "turnover": 3175.410140991211,
   "n_orders": 0,
   "n_rejects": 0,
   "n_kill_events": 0,
@@ -23,17 +23,17 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T075001Z_60b7868323",
+      "run_id": "paper_20260722T080609Z_08fe40c0ce",
       "ticker": "AAPL",
-      "qty": 8.0,
-      "avg_px": 315.47918328737194,
+      "qty": 9.0,
+      "avg_px": 315.47918337953735,
       "stop": 313.4241976381725,
-      "hard_stop": 299.70522412300335,
+      "hard_stop": 299.70522421056046,
       "opened_at": "2026-07-07T09:45:00+00:00",
       "bars_held": 11,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:18.513926+00:00"
+  "generated_at": "2026-07-22T08:06:20.705784+00:00"
 }

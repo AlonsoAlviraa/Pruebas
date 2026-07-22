@@ -1,21 +1,21 @@
 {
-  "run_id": "paper_20260722T075158Z_0eceaaa52e",
+  "run_id": "paper_20260722T080727Z_c0ac5074a1",
   "day": "2026-07-10",
   "strategy_id": "S10_defensive",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 91724.42735617001,
-  "cash": 83292.74724142392,
-  "gross_exposure": 8431.680114746094,
-  "dd_from_peak": -0.08375183665534036,
+  "equity": 95381.05568374865,
+  "cash": 84268.49553360217,
+  "gross_exposure": 11112.560150146484,
+  "dd_from_peak": -0.046321689944881284,
   "n_positions": 3,
   "n_fills": 1,
   "n_buys": 1,
   "n_sells": 0,
-  "commission": 135.0,
-  "fees": 2.0128964760645434,
-  "slippage_est": 486.4229701859909,
-  "turnover": 8431.680114746094,
+  "commission": 87.0,
+  "fees": 1.334769974852383,
+  "slippage_est": 322.86724229335795,
+  "turnover": 11112.560150146484,
   "n_orders": 1,
   "n_rejects": 0,
   "n_kill_events": 0,
@@ -25,25 +25,25 @@
       "ts": "2026-07-10T09:45:00+00:00",
       "ticker": "QQQ",
       "side": "buy",
-      "qty": 4.0,
-      "price": 721.1324334813047,
+      "qty": 5.0,
+      "price": 721.132433798042,
       "commission": 1.0,
       "fees": 0.0
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T075158Z_0eceaaa52e",
+      "run_id": "paper_20260722T080727Z_c0ac5074a1",
       "ticker": "AAPL",
-      "qty": 9.0,
-      "avg_px": 315.47918337953735,
+      "qty": 12.0,
+      "avg_px": 315.47918365603346,
       "stop": 316.01209274971677,
-      "hard_stop": 299.70522421056046,
+      "hard_stop": 299.7052244732318,
       "opened_at": "2026-07-07T09:45:00+00:00",
       "bars_held": 11,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:52:11.892562+00:00"
+  "generated_at": "2026-07-22T08:07:38.173009+00:00"
 }

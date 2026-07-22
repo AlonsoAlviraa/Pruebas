@@ -1,21 +1,21 @@
 {
-  "run_id": "paper_20260722T075018Z_f3719576a7",
+  "run_id": "paper_20260722T080620Z_1edebc1c2e",
   "day": "2026-07-07",
   "strategy_id": "S04_wide_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 92604.73540149661,
-  "cash": 84966.74538074466,
-  "gross_exposure": 7637.990020751953,
-  "dd_from_peak": -0.07707349738312474,
+  "equity": 94762.45708969785,
+  "cash": 86785.2470677252,
+  "gross_exposure": 7977.210021972656,
+  "dd_from_peak": -0.05280381370341802,
   "n_positions": 3,
   "n_fills": 0,
   "n_buys": 0,
   "n_sells": 0,
-  "commission": 63.0,
-  "fees": 0.6611064579957476,
-  "slippage_est": 158.42893210454167,
-  "turnover": 7637.990020751953,
+  "commission": 43.0,
+  "fees": 0.44224164043486003,
+  "slippage_est": 110.57606354616416,
+  "turnover": 7977.210021972656,
   "n_orders": 0,
   "n_rejects": 0,
   "n_kill_events": 0,
@@ -23,7 +23,7 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "AAPL",
       "qty": 9.0,
       "avg_px": 296.2076178340346,
@@ -34,18 +34,18 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "JPM",
-      "qty": 8.0,
-      "avg_px": 314.4785882333643,
+      "qty": 9.0,
+      "avg_px": 314.4785889437787,
       "stop": 325.592205084096,
-      "hard_stop": 276.7411576453606,
+      "hard_stop": 276.74115827052526,
       "opened_at": "2026-06-05T09:45:00+00:00",
       "bars_held": 31,
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "META",
       "qty": 4.0,
       "avg_px": 661.776835478302,
@@ -56,7 +56,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "NVDA",
       "qty": 13.0,
       "avg_px": 208.6651176561103,
@@ -68,5 +68,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:35.927055+00:00"
+  "generated_at": "2026-07-22T08:06:31.327053+00:00"
 }

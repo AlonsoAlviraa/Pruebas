@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T075053Z_5b3b6b3678",
+  "run_id": "paper_20260722T080641Z_aac60fda83",
   "day": "2026-06-02",
   "strategy_id": "S06_diversified",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 97497.26069789227,
-  "cash": 86738.2306685954,
+  "equity": 99303.58301660274,
+  "cash": 88544.55298730587,
   "gross_exposure": 10759.030029296875,
-  "dd_from_peak": -0.026334749869103002,
+  "dd_from_peak": -0.007726167663958949,
   "n_positions": 6,
   "n_fills": 1,
   "n_buys": 1,
   "n_sells": 0,
-  "commission": 100.0,
-  "fees": 0.7306075169137571,
-  "slippage_est": 166.3837900594645,
+  "commission": 54.0,
+  "fees": 0.37916678498602185,
+  "slippage_est": 89.59400714982746,
   "turnover": 10759.030029296875,
   "n_orders": 1,
   "n_rejects": 0,
@@ -33,7 +33,7 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "AAPL",
       "qty": 6.0,
       "avg_px": 315.4791831030412,
@@ -44,7 +44,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "JPM",
       "qty": 5.0,
       "avg_px": 341.1846023575797,
@@ -55,7 +55,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "META",
       "qty": 2.0,
       "avg_px": 661.7768341820221,
@@ -66,7 +66,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "NVDA",
       "qty": 9.0,
       "avg_px": 208.6651175410316,
@@ -77,7 +77,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "QQQ",
       "qty": 2.0,
       "avg_px": 724.2842862614049,
@@ -89,5 +89,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:51:11.103228+00:00"
+  "generated_at": "2026-07-22T08:06:52.221957+00:00"
 }

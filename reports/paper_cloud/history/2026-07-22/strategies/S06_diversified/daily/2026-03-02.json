@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T075053Z_5b3b6b3678",
+  "run_id": "paper_20260722T080641Z_aac60fda83",
   "day": "2026-03-02",
   "strategy_id": "S06_diversified",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 97413.25251939734,
-  "cash": 93555.35249498328,
+  "equity": 99219.57483810782,
+  "cash": 95361.67481369375,
   "gross_exposure": 3857.9000244140625,
-  "dd_from_peak": -0.027173705174532214,
+  "dd_from_peak": -0.008565604819099626,
   "n_positions": 2,
   "n_fills": 0,
   "n_buys": 0,
   "n_sells": 0,
-  "commission": 68.0,
-  "fees": 0.5086286297676893,
-  "slippage_est": 116.64860847616993,
+  "commission": 22.0,
+  "fees": 0.1571878978399542,
+  "slippage_est": 39.858825566532886,
   "turnover": 3857.9000244140625,
   "n_orders": 0,
   "n_rejects": 0,
@@ -23,7 +23,7 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "AAPL",
       "qty": 6.0,
       "avg_px": 315.4791831030412,
@@ -34,7 +34,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "JPM",
       "qty": 5.0,
       "avg_px": 341.1846023575797,
@@ -45,7 +45,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "META",
       "qty": 2.0,
       "avg_px": 661.7768341820221,
@@ -56,7 +56,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "NVDA",
       "qty": 9.0,
       "avg_px": 208.6651175410316,
@@ -67,7 +67,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "QQQ",
       "qty": 2.0,
       "avg_px": 724.2842862614049,
@@ -79,5 +79,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:51:11.066812+00:00"
+  "generated_at": "2026-07-22T08:06:52.174669+00:00"
 }

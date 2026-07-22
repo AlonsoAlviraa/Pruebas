@@ -1,21 +1,21 @@
 {
-  "run_id": "paper_20260722T075018Z_f3719576a7",
+  "run_id": "paper_20260722T080620Z_1edebc1c2e",
   "day": "2026-05-04",
   "strategy_id": "S04_wide_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 94755.62320689547,
-  "cash": 80623.9733350693,
-  "gross_exposure": 14131.649871826172,
-  "dd_from_peak": -0.05563710591619364,
+  "equity": 97061.07103083059,
+  "cash": 82120.43116877004,
+  "gross_exposure": 14940.639862060547,
+  "dd_from_peak": -0.029828065441126705,
   "n_positions": 5,
   "n_fills": 1,
   "n_buys": 0,
   "n_sells": 1,
-  "commission": 49.0,
-  "fees": 0.4876002735286519,
-  "slippage_est": 125.33380856331861,
-  "turnover": 14131.649871826172,
+  "commission": 29.0,
+  "fees": 0.2631452316627148,
+  "slippage_est": 76.42454862990712,
+  "turnover": 14940.639862060547,
   "n_orders": 1,
   "n_rejects": 0,
   "n_kill_events": 0,
@@ -33,7 +33,7 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "AAPL",
       "qty": 9.0,
       "avg_px": 296.2076178340346,
@@ -44,18 +44,18 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "JPM",
-      "qty": 8.0,
-      "avg_px": 314.4785882333643,
+      "qty": 9.0,
+      "avg_px": 314.4785889437787,
       "stop": 325.592205084096,
-      "hard_stop": 276.7411576453606,
+      "hard_stop": 276.74115827052526,
       "opened_at": "2026-06-05T09:45:00+00:00",
       "bars_held": 31,
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "META",
       "qty": 4.0,
       "avg_px": 661.776835478302,
@@ -66,7 +66,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "NVDA",
       "qty": 13.0,
       "avg_px": 208.6651176561103,
@@ -78,5 +78,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:35.902784+00:00"
+  "generated_at": "2026-07-22T08:06:31.296621+00:00"
 }

@@ -1,26 +1,35 @@
 {
-  "run_id": "paper_20260722T075001Z_60b7868323",
+  "run_id": "paper_20260722T080609Z_08fe40c0ce",
   "day": "2026-01-22",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 96549.5374874261,
-  "cash": 88214.81739465267,
-  "gross_exposure": 8334.720092773438,
-  "dd_from_peak": -0.036650361426792566,
+  "equity": 99135.59000178233,
+  "cash": 90667.22990961924,
+  "gross_exposure": 8468.360092163086,
+  "dd_from_peak": -0.009162228485156465,
   "n_positions": 3,
-  "n_fills": 1,
-  "n_buys": 1,
+  "n_fills": 2,
+  "n_buys": 2,
   "n_sells": 0,
-  "commission": 75.0,
-  "fees": 0.8365491392385485,
-  "slippage_est": 201.76132595999695,
-  "turnover": 8334.720092773438,
-  "n_orders": 1,
+  "commission": 19.0,
+  "fees": 0.1886328070136245,
+  "slippage_est": 52.987415961829825,
+  "turnover": 8468.360092163086,
+  "n_orders": 2,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
   "fills": [
+    {
+      "ts": "2026-01-22T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 8.0,
+      "price": 334.6506841664947,
+      "commission": 1.0,
+      "fees": 0.0
+    },
     {
       "ts": "2026-01-22T09:45:00+00:00",
       "ticker": "QQQ",
@@ -33,17 +42,17 @@
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T075001Z_60b7868323",
+      "run_id": "paper_20260722T080609Z_08fe40c0ce",
       "ticker": "AAPL",
-      "qty": 8.0,
-      "avg_px": 315.47918328737194,
+      "qty": 9.0,
+      "avg_px": 315.47918337953735,
       "stop": 313.4241976381725,
-      "hard_stop": 299.70522412300335,
+      "hard_stop": 299.70522421056046,
       "opened_at": "2026-07-07T09:45:00+00:00",
       "bars_held": 11,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:18.507428+00:00"
+  "generated_at": "2026-07-22T08:06:20.698038+00:00"
 }

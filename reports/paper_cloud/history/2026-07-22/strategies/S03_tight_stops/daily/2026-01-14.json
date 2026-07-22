@@ -1,67 +1,58 @@
 {
-  "run_id": "paper_20260722T075001Z_60b7868323",
+  "run_id": "paper_20260722T080609Z_08fe40c0ce",
   "day": "2026-01-14",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 96877.65981739119,
-  "cash": 85840.83997791365,
-  "gross_exposure": 11036.819839477539,
-  "dd_from_peak": -0.03337643038366522,
-  "n_positions": 4,
-  "n_fills": 3,
-  "n_buys": 2,
-  "n_sells": 1,
-  "commission": 68.0,
-  "fees": 0.7442466749250258,
-  "slippage_est": 182.69269097266434,
-  "turnover": 11036.819839477539,
-  "n_orders": 3,
+  "equity": 99718.36844671742,
+  "cash": 90962.60860479847,
+  "gross_exposure": 8755.759841918945,
+  "dd_from_peak": -0.0033374899058431495,
+  "n_positions": 3,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 11.0,
+  "fees": 0.09725555521049217,
+  "slippage_est": 29.48896622434414,
+  "turnover": 8755.759841918945,
+  "n_orders": 2,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
   "fills": [
     {
-      "ts": "2026-01-14T09:45:00+00:00",
-      "ticker": "GOOGL",
-      "side": "buy",
-      "qty": 8.0,
-      "price": 335.2610354157954,
+      "ts": "2026-01-14T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 15.0,
+      "price": 180.81283628425587,
       "commission": 1.0,
-      "fees": 0.0
-    },
-    {
-      "ts": "2026-01-14T09:45:00+00:00",
-      "ticker": "QQQ",
-      "side": "buy",
-      "qty": 4.0,
-      "price": 622.6133352731612,
-      "commission": 1.0,
-      "fees": 0.0
+      "fees": 0.024187540354110703
     },
     {
       "ts": "2026-01-14T15:45:00+00:00",
       "ticker": "AMZN",
       "side": "sell",
       "qty": 12.0,
-      "price": 220.3027694218637,
+      "price": 220.2742991539259,
       "commission": 1.0,
-      "fees": 0.023141065864498916
+      "fees": 0.023138332718776886
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T075001Z_60b7868323",
+      "run_id": "paper_20260722T080609Z_08fe40c0ce",
       "ticker": "AAPL",
-      "qty": 8.0,
-      "avg_px": 315.47918328737194,
+      "qty": 9.0,
+      "avg_px": 315.47918337953735,
       "stop": 313.4241976381725,
-      "hard_stop": 299.70522412300335,
+      "hard_stop": 299.70522421056046,
       "opened_at": "2026-07-07T09:45:00+00:00",
       "bars_held": 11,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:18.504608+00:00"
+  "generated_at": "2026-07-22T08:06:20.694670+00:00"
 }

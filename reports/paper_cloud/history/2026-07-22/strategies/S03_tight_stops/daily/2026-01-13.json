@@ -1,67 +1,49 @@
 {
-  "run_id": "paper_20260722T075001Z_60b7868323",
+  "run_id": "paper_20260722T080609Z_08fe40c0ce",
   "day": "2026-01-13",
   "strategy_id": "S03_tight_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 97108.0815689299,
-  "cash": 88372.77151033616,
-  "gross_exposure": 8735.31005859375,
-  "dd_from_peak": -0.031077333807535856,
-  "n_positions": 3,
-  "n_fills": 3,
+  "equity": 99999.7118279937,
+  "cash": 85609.1717965606,
+  "gross_exposure": 14390.540031433105,
+  "dd_from_peak": -0.000525526523880826,
+  "n_positions": 5,
+  "n_fills": 1,
   "n_buys": 0,
-  "n_sells": 3,
-  "commission": 65.0,
-  "fees": 0.7211056090605269,
-  "slippage_est": 175.35439951338745,
-  "turnover": 8735.31005859375,
-  "n_orders": 3,
+  "n_sells": 1,
+  "commission": 9.0,
+  "fees": 0.04992968213760459,
+  "slippage_est": 20.90643768031488,
+  "turnover": 14390.540031433105,
+  "n_orders": 1,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
   "fills": [
     {
       "ts": "2026-01-13T15:45:00+00:00",
-      "ticker": "GOOGL",
-      "side": "sell",
-      "qty": 9.0,
-      "price": 335.7684171255658,
-      "commission": 1.0,
-      "fees": 0.025669326033040736
-    },
-    {
-      "ts": "2026-01-13T15:45:00+00:00",
-      "ticker": "QQQ",
-      "side": "sell",
-      "qty": 4.0,
-      "price": 625.8642451628028,
-      "commission": 1.0,
-      "fees": 0.02069165584520969
-    },
-    {
-      "ts": "2026-01-13T15:45:00+00:00",
       "ticker": "JPM",
       "side": "sell",
-      "qty": 8.0,
-      "price": 315.672702938184,
+      "qty": 9.0,
+      "price": 315.67270292839055,
       "commission": 1.0,
-      "fees": 0.021531052988043774
+      "fees": 0.02422243461084412
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260722T075001Z_60b7868323",
+      "run_id": "paper_20260722T080609Z_08fe40c0ce",
       "ticker": "AAPL",
-      "qty": 8.0,
-      "avg_px": 315.47918328737194,
+      "qty": 9.0,
+      "avg_px": 315.47918337953735,
       "stop": 313.4241976381725,
-      "hard_stop": 299.70522412300335,
+      "hard_stop": 299.70522421056046,
       "opened_at": "2026-07-07T09:45:00+00:00",
       "bars_held": 11,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:18.503987+00:00"
+  "generated_at": "2026-07-22T08:06:20.694023+00:00"
 }

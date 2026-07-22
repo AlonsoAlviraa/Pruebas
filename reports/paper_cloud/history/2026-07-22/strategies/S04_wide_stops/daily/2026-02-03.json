@@ -1,39 +1,29 @@
 {
-  "run_id": "paper_20260722T075018Z_f3719576a7",
+  "run_id": "paper_20260722T080620Z_1edebc1c2e",
   "day": "2026-02-03",
   "strategy_id": "S04_wide_stops",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 97331.45329652037,
-  "cash": 82489.203540661,
-  "gross_exposure": 14842.249755859375,
-  "dd_from_peak": -0.02996561249152363,
-  "n_positions": 5,
-  "n_fills": 1,
+  "equity": 99519.13043311956,
+  "cash": 82354.53059486272,
+  "gross_exposure": 17164.599838256836,
+  "dd_from_peak": -0.005258583358842328,
+  "n_positions": 6,
+  "n_fills": 0,
   "n_buys": 0,
-  "n_sells": 1,
-  "commission": 31.0,
-  "fees": 0.2895271968045428,
-  "slippage_est": 75.27613087693051,
-  "turnover": 14842.249755859375,
-  "n_orders": 1,
+  "n_sells": 0,
+  "commission": 10.0,
+  "fees": 0.04412788973740184,
+  "slippage_est": 21.76290062807199,
+  "turnover": 17164.599838256836,
+  "n_orders": 0,
   "n_rejects": 0,
   "n_kill_events": 0,
   "reject_reasons": {},
-  "fills": [
-    {
-      "ts": "2026-02-03T15:45:00+00:00",
-      "ticker": "QQQ",
-      "side": "sell",
-      "qty": 4.0,
-      "price": 616.1501066283266,
-      "commission": 1.0,
-      "fees": 0.020380803412106453
-    }
-  ],
+  "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "AAPL",
       "qty": 9.0,
       "avg_px": 296.2076178340346,
@@ -44,18 +34,18 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "JPM",
-      "qty": 8.0,
-      "avg_px": 314.4785882333643,
+      "qty": 9.0,
+      "avg_px": 314.4785889437787,
       "stop": 325.592205084096,
-      "hard_stop": 276.7411576453606,
+      "hard_stop": 276.74115827052526,
       "opened_at": "2026-06-05T09:45:00+00:00",
       "bars_held": 31,
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "META",
       "qty": 4.0,
       "avg_px": 661.776835478302,
@@ -66,7 +56,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075018Z_f3719576a7",
+      "run_id": "paper_20260722T080620Z_1edebc1c2e",
       "ticker": "NVDA",
       "qty": 13.0,
       "avg_px": 208.6651176561103,
@@ -78,5 +68,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:50:35.868082+00:00"
+  "generated_at": "2026-07-22T08:06:31.253742+00:00"
 }

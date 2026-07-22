@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260722T075053Z_5b3b6b3678",
+  "run_id": "paper_20260722T080641Z_aac60fda83",
   "day": "2026-01-14",
   "strategy_id": "S06_diversified",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 98091.73571558847,
-  "cash": 88410.24587794198,
+  "equity": 99880.88058066017,
+  "cash": 90199.39074301369,
   "gross_exposure": 9681.489837646484,
-  "dd_from_peak": -0.020397971105694634,
+  "dd_from_peak": -0.001224723997446886,
   "n_positions": 5,
   "n_fills": 0,
   "n_buys": 0,
   "n_sells": 0,
-  "commission": 51.0,
-  "fees": 0.35298244571821624,
-  "slippage_est": 86.65683804165471,
+  "commission": 9.0,
+  "fees": 0.03229435151215271,
+  "slippage_est": 13.80182397122698,
   "turnover": 9681.489837646484,
   "n_orders": 0,
   "n_rejects": 0,
@@ -23,7 +23,7 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "AAPL",
       "qty": 6.0,
       "avg_px": 315.4791831030412,
@@ -34,7 +34,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "JPM",
       "qty": 5.0,
       "avg_px": 341.1846023575797,
@@ -45,7 +45,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "META",
       "qty": 2.0,
       "avg_px": 661.7768341820221,
@@ -56,7 +56,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "NVDA",
       "qty": 9.0,
       "avg_px": 208.6651175410316,
@@ -67,7 +67,7 @@
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260722T075053Z_5b3b6b3678",
+      "run_id": "paper_20260722T080641Z_aac60fda83",
       "ticker": "QQQ",
       "qty": 2.0,
       "avg_px": 724.2842862614049,
@@ -79,5 +79,5 @@
     }
   ],
   "notes": [],
-  "generated_at": "2026-07-22T07:51:11.049268+00:00"
+  "generated_at": "2026-07-22T08:06:52.152071+00:00"
 }
