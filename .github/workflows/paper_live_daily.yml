@@ -70,11 +70,17 @@ jobs:
         run: |
           git config user.name "paper-cloud-bot"
           git config user.email "paper-cloud-bot@users.noreply.github.com"
-          git add reports/paper_cloud || true
-          # ignore bulky caches if any slipped in
+          # Force-add: parent /reports/* is gitignored; paper_cloud is the exception
+          git add -f reports/paper_cloud || true
           git reset reports/paper_cloud/data_cache 2>/dev/null || true
+          # Drop any sqlite/audit bulk if present
+          find reports/paper_cloud -name 'paper_year.db' -delete 2>/dev/null || true
+          find reports/paper_cloud -type d -name 'audit' -exec rm -rf {} + 2>/dev/null || true
+          git add -f reports/paper_cloud || true
           if git diff --staged --quiet; then
             echo "No paper cloud changes to commit"
+            ls -la reports/paper_cloud/latest || true
+            git check-ignore -v reports/paper_cloud/latest/SUMMARY.md || true
           else
             git commit -m "paper-cloud: daily multi-strategy study pack [skip ci]"
             git push

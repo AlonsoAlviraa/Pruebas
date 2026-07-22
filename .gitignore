@@ -21,12 +21,14 @@ shap_analysis/*.png
 lean_strategy/storage/*.joblib
 backtests/
 # Research dashboards (repo root only — do not ignore paper_live/reports/)
-/reports/
-# Keep free cloud paper study pack in git (GitHub Actions writes here)
+# Note: ignore contents of /reports, then re-include paper_cloud (gitignore dir gotcha)
+/reports/*
 !/reports/paper_cloud/
 !/reports/paper_cloud/**
+# Keep free cloud paper study pack in git (GitHub Actions writes here)
 /reports/paper_cloud/data_cache/
 /reports/paper_cloud/**/ledgers/
+/reports/paper_cloud/**/ledgers/**
 outputs/
 *.checkpoint
 mlruns/
