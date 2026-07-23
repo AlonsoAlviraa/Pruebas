@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20260723T223259Z_219306e4c5",
+  "day": "2026-05-06",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100056.28795030758,
+  "cash": 90684.17793443844,
+  "gross_exposure": 9372.11001586914,
+  "dd_from_peak": 0.0,
+  "n_positions": 3,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 69.0,
+  "fees": 0.8145548020471051,
+  "slippage_est": 179.75199617131167,
+  "turnover": 9372.11001586914,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-06T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 9.0,
+      "price": 314.7110467177093,
+      "commission": 1.0,
+      "fees": 0.024153195363675068
+    },
+    {
+      "ts": "2026-05-06T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 9.0,
+      "price": 397.8011819018632,
+      "commission": 1.0,
+      "fees": 0.030135685096934144
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260723T223259Z_219306e4c5",
+      "ticker": "AAPL",
+      "qty": 9.0,
+      "avg_px": 315.47918337953735,
+      "stop": 309.11103909879273,
+      "hard_stop": 293.3956405429697,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 13,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260723T223259Z_219306e4c5",
+      "ticker": "JPM",
+      "qty": 8.0,
+      "avg_px": 341.1846043763757,
+      "stop": 329.3582720579882,
+      "hard_stop": 317.3016820700294,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 13,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260723T223259Z_219306e4c5",
+      "ticker": "NVDA",
+      "qty": 14.0,
+      "avg_px": 208.66511768488,
+      "stop": 194.05855944693838,
+      "hard_stop": 194.05855944693838,
+      "opened_at": "2026-07-13T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-23T22:33:12.957373+00:00"
+}
