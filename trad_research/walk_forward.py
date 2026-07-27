@@ -107,6 +107,24 @@ def _build_training_frame(
     return pd.concat(chunks, ignore_index=True)
 
 
+def _xgb_device_kwargs() -> Dict[str, Any]:
+    """Optional GPU for XGBoost 2.x (Kaggle T4 / local CUDA).
+
+    Set env ``XGB_DEVICE=cuda`` (or ``cuda:0``) to enable. Default CPU hist.
+    """
+    import os
+
+    dev = (os.environ.get("XGB_DEVICE") or "").strip()
+    if not dev or dev.lower() in ("cpu", "none", "0", "false"):
+        return {"tree_method": "hist", "n_jobs": 4}
+    # XGBoost 2.0+: device=cuda|cuda:0, tree_method=hist
+    return {
+        "tree_method": "hist",
+        "device": dev if dev.startswith("cuda") else "cuda",
+        "n_jobs": 1,
+    }
+
+
 def train_meta_model(
     train_df: pd.DataFrame,
     primary: XGBClassifier,
@@ -132,6 +150,7 @@ def train_meta_model(
         return None
     pos = max(int(ym.sum()), 1)
     neg = max(int((ym == 0).sum()), 1)
+    kw = _xgb_device_kwargs()
     model = XGBClassifier(
         n_estimators=100,
         max_depth=3,
@@ -142,9 +161,8 @@ def train_meta_model(
         reg_lambda=3.0,
         objective="binary:logistic",
         scale_pos_weight=min(neg / pos, 5.0),
-        n_jobs=4,
         random_state=random_state,
-        tree_method="hist",
+        **kw,
     )
     model.fit(Xm, ym)
     return model
@@ -162,6 +180,7 @@ def train_side_model(
     """
     X = feature_matrix(train_df, feature_names)
     y_raw = train_df["y_side"].astype(int)
+    kw = _xgb_device_kwargs()
     if binary_buy:
         y = (y_raw == 2).astype(int)
         pos = max(int(y.sum()), 1)
@@ -177,10 +196,9 @@ def train_side_model(
             reg_lambda=4.0,
             objective="binary:logistic",
             scale_pos_weight=min(spw, 6.0),
-            n_jobs=4,
             random_state=random_state,
-            tree_method="hist",
             eval_metric="logloss",
+            **kw,
         )
         model.fit(X, y)
         return model
@@ -199,10 +217,9 @@ def train_side_model(
         reg_lambda=2.0,
         objective="multi:softprob",
         num_class=3,
-        n_jobs=4,
         random_state=random_state,
-        tree_method="hist",
         eval_metric="mlogloss",
+        **kw,
     )
     model.fit(X, y_raw, sample_weight=sw)
     return model

@@ -1,0 +1,1118 @@
+{
+  "version": "options-amplify-zoo-v1",
+  "capital0": 100000.0,
+  "data_label": "proxy_bs",
+  "notes": "Gain-amplify options research: long calls/puts, debit spreads, PMCC. Marks: proxy_bs|vix_surface. Chain history NOT used. VIRTUAL only.",
+  "risk": {
+    "max_portfolio_dd": 0.4,
+    "max_single_day_drop": 0.2,
+    "max_margin_fraction": 0.25,
+    "hard_kill_enabled": true,
+    "max_contracts": 15,
+    "notes": "Debit budget sized via max_premium_budget_frac meta"
+  },
+  "strategies": [
+    {
+      "id": "AMP_CASH",
+      "label": "Cash control",
+      "kind": "cash",
+      "underlying": "SPY",
+      "hard_kill_enabled": false
+    },
+    {
+      "id": "AMP_LC_SPY_5otm_30d",
+      "label": "SPY long call 5% OTM 30D uptrend",
+      "kind": "long_call",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.12,
+        "require_vrp_proxy_below": true,
+        "max_vrp_proxy": 0.12
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_SPY_0otm_21d",
+      "label": "SPY long ATM-ish call 21D",
+      "kind": "long_call",
+      "underlying": "SPY",
+      "dte_days": 21,
+      "otm_pct": 0.01,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_sma200": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_SPY_bull",
+      "label": "SPY bull call debit spread uptrend",
+      "kind": "call_debit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.02,
+      "wing_otm_pct": 0.1,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.12
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_SPY_tail",
+      "label": "SPY long put tail 8% OTM",
+      "kind": "long_put",
+      "underlying": "SPY",
+      "dte_days": 45,
+      "otm_pct": 0.08,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 68,
+        "max_premium_budget_frac": 0.05
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PDS_SPY_bear",
+      "label": "SPY bear put debit spread",
+      "kind": "put_debit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.03,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 65,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_SPY",
+      "label": "SPY PMCC LEAP+short call",
+      "kind": "pmcc",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 180,
+        "leap_otm_pct": 0.05,
+        "max_premium_budget_frac": 0.2
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LEAP_SPY_180d",
+      "label": "SPY LEAP-like long call 180D 10% OTM",
+      "kind": "long_call",
+      "underlying": "SPY",
+      "dte_days": 180,
+      "otm_pct": 0.1,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_sma200": true,
+        "max_premium_budget_frac": 0.15
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_QQQ_5otm_30d",
+      "label": "QQQ long call 5% OTM 30D uptrend",
+      "kind": "long_call",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.12,
+        "require_vrp_proxy_below": true,
+        "max_vrp_proxy": 0.12
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_QQQ_0otm_21d",
+      "label": "QQQ long ATM-ish call 21D",
+      "kind": "long_call",
+      "underlying": "QQQ",
+      "dte_days": 21,
+      "otm_pct": 0.01,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_sma200": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_QQQ_bull",
+      "label": "QQQ bull call debit spread uptrend",
+      "kind": "call_debit_spread",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.02,
+      "wing_otm_pct": 0.1,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.12
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_QQQ_tail",
+      "label": "QQQ long put tail 8% OTM",
+      "kind": "long_put",
+      "underlying": "QQQ",
+      "dte_days": 45,
+      "otm_pct": 0.08,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 68,
+        "max_premium_budget_frac": 0.05
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PDS_QQQ_bear",
+      "label": "QQQ bear put debit spread",
+      "kind": "put_debit_spread",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.03,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 65,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_QQQ",
+      "label": "QQQ PMCC LEAP+short call",
+      "kind": "pmcc",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 180,
+        "leap_otm_pct": 0.05,
+        "max_premium_budget_frac": 0.2
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LEAP_QQQ_180d",
+      "label": "QQQ LEAP-like long call 180D 10% OTM",
+      "kind": "long_call",
+      "underlying": "QQQ",
+      "dte_days": 180,
+      "otm_pct": 0.1,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_sma200": true,
+        "max_premium_budget_frac": 0.15
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_IWM_5otm_30d",
+      "label": "IWM long call 5% OTM 30D uptrend",
+      "kind": "long_call",
+      "underlying": "IWM",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.12,
+        "require_vrp_proxy_below": true,
+        "max_vrp_proxy": 0.12
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_IWM_0otm_21d",
+      "label": "IWM long ATM-ish call 21D",
+      "kind": "long_call",
+      "underlying": "IWM",
+      "dte_days": 21,
+      "otm_pct": 0.01,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_sma200": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_IWM_bull",
+      "label": "IWM bull call debit spread uptrend",
+      "kind": "call_debit_spread",
+      "underlying": "IWM",
+      "dte_days": 30,
+      "otm_pct": 0.02,
+      "wing_otm_pct": 0.1,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.12
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_IWM_tail",
+      "label": "IWM long put tail 8% OTM",
+      "kind": "long_put",
+      "underlying": "IWM",
+      "dte_days": 45,
+      "otm_pct": 0.08,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 68,
+        "max_premium_budget_frac": 0.05
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PDS_IWM_bear",
+      "label": "IWM bear put debit spread",
+      "kind": "put_debit_spread",
+      "underlying": "IWM",
+      "dte_days": 30,
+      "otm_pct": 0.03,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 65,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_IWM",
+      "label": "IWM PMCC LEAP+short call",
+      "kind": "pmcc",
+      "underlying": "IWM",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 180,
+        "leap_otm_pct": 0.05,
+        "max_premium_budget_frac": 0.2
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LEAP_IWM_180d",
+      "label": "IWM LEAP-like long call 180D 10% OTM",
+      "kind": "long_call",
+      "underlying": "IWM",
+      "dte_days": 180,
+      "otm_pct": 0.1,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_sma200": true,
+        "max_premium_budget_frac": 0.15
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_AAPL_mom",
+      "label": "AAPL long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "AAPL",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_AAPL",
+      "label": "AAPL bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "AAPL",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_AAPL",
+      "label": "AAPL PMCC",
+      "kind": "pmcc",
+      "underlying": "AAPL",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_AAPL_hedge",
+      "label": "AAPL long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "AAPL",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_NVDA_mom",
+      "label": "NVDA long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "NVDA",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_NVDA",
+      "label": "NVDA bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "NVDA",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_NVDA",
+      "label": "NVDA PMCC",
+      "kind": "pmcc",
+      "underlying": "NVDA",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_NVDA_hedge",
+      "label": "NVDA long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "NVDA",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_MSFT_mom",
+      "label": "MSFT long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "MSFT",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_MSFT",
+      "label": "MSFT bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "MSFT",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_MSFT",
+      "label": "MSFT PMCC",
+      "kind": "pmcc",
+      "underlying": "MSFT",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_MSFT_hedge",
+      "label": "MSFT long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "MSFT",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_META_mom",
+      "label": "META long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "META",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_META",
+      "label": "META bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "META",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_META",
+      "label": "META PMCC",
+      "kind": "pmcc",
+      "underlying": "META",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_META_hedge",
+      "label": "META long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "META",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_AMZN_mom",
+      "label": "AMZN long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "AMZN",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_AMZN",
+      "label": "AMZN bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "AMZN",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_AMZN",
+      "label": "AMZN PMCC",
+      "kind": "pmcc",
+      "underlying": "AMZN",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_AMZN_hedge",
+      "label": "AMZN long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "AMZN",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_GOOGL_mom",
+      "label": "GOOGL long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "GOOGL",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_GOOGL",
+      "label": "GOOGL bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "GOOGL",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_GOOGL",
+      "label": "GOOGL PMCC",
+      "kind": "pmcc",
+      "underlying": "GOOGL",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_GOOGL_hedge",
+      "label": "GOOGL long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "GOOGL",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_TSLA_mom",
+      "label": "TSLA long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "TSLA",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_TSLA",
+      "label": "TSLA bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "TSLA",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_TSLA",
+      "label": "TSLA PMCC",
+      "kind": "pmcc",
+      "underlying": "TSLA",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_TSLA_hedge",
+      "label": "TSLA long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "TSLA",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_AMD_mom",
+      "label": "AMD long call uptrend+vol",
+      "kind": "long_call",
+      "underlying": "AMD",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "require_volume_confirm": true,
+        "min_volume_ratio": 1.1,
+        "max_premium_budget_frac": 0.08
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_AMD",
+      "label": "AMD bull call debit spread",
+      "kind": "call_debit_spread",
+      "underlying": "AMD",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "max_premium_budget_frac": 0.1
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_PMCC_AMD",
+      "label": "AMD PMCC",
+      "kind": "pmcc",
+      "underlying": "AMD",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.4,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_uptrend": true,
+        "leap_dte_days": 150,
+        "max_premium_budget_frac": 0.18
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LP_AMD_hedge",
+      "label": "AMD long put hedge RSI OB",
+      "kind": "long_put",
+      "underlying": "AMD",
+      "dte_days": 30,
+      "otm_pct": 0.07,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "require_rsi_overbought": true,
+        "min_rsi": 70,
+        "max_premium_budget_frac": 0.04
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_LC_QQQ_always",
+      "label": "QQQ long call always (no TA gate)",
+      "kind": "long_call",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "max_premium_budget_frac": 0.15
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CDS_QQQ_always",
+      "label": "QQQ CDS always",
+      "kind": "call_debit_spread",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "contracts": 5,
+      "max_portfolio_dd": 0.35,
+      "max_margin_fraction": 0.25,
+      "max_single_day_drop": 0.15,
+      "meta": {
+        "max_premium_budget_frac": 0.15
+      },
+      "notes": "Amplify research; proxy_bs|vix_surface"
+    },
+    {
+      "id": "AMP_CTRL_CC_SPY",
+      "label": "SPY covered call control (income)",
+      "kind": "covered_call",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_uptrend": true
+      },
+      "notes": "Income control \u2014 not amplify"
+    },
+    {
+      "id": "AMP_CTRL_PCS_SPY",
+      "label": "SPY PCS control (income)",
+      "kind": "put_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_margin_fraction": 0.4,
+      "meta": {
+        "require_range_regime": true,
+        "max_atr_pctile": 0.45
+      },
+      "notes": "Income control \u2014 not amplify"
+    },
+    {
+      "id": "AMP_CTRL_CC_QQQ",
+      "label": "QQQ covered call control (income)",
+      "kind": "covered_call",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_uptrend": true
+      },
+      "notes": "Income control \u2014 not amplify"
+    },
+    {
+      "id": "AMP_CTRL_PCS_QQQ",
+      "label": "QQQ PCS control (income)",
+      "kind": "put_credit_spread",
+      "underlying": "QQQ",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_margin_fraction": 0.4,
+      "meta": {
+        "require_range_regime": true,
+        "max_atr_pctile": 0.45
+      },
+      "notes": "Income control \u2014 not amplify"
+    }
+  ],
+  "n_strategies": 60
+}

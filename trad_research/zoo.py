@@ -61,42 +61,57 @@ def deflated_sharpe_note(
     skew: float = 0.0,
     kurtosis: float = 3.0,
 ) -> Dict[str, Any]:
-    """Approximate DSR haircut intuition (not a full Bailey–LdP implementation).
+    """Bailey–López de Prado DSR note (delegates to ``trad_research.falsify``).
 
-    Returns a note dict for MD reports: expected max Sharpe under N independent
-    trials ~ rough order sqrt(2 log N) * sigma, plus haircut suggestion.
+    ``n_trials`` is required for honest multi-test accounting. Prefer importing
+    ``deflated_sharpe_ratio`` from ``trad_research.falsify`` for full fields.
     """
-    n_trials = max(int(n_trials), 1)
-    # Very rough multiple-testing haircut: expected max of N N(0,1) ≈ sqrt(2 ln N)
-    e_max_z = math.sqrt(2.0 * math.log(n_trials)) if n_trials > 1 else 0.0
-    # Annualized Sharpe noise scale ~ 1/sqrt(T) for independent daily returns
-    sigma_sh = 1.0 / math.sqrt(max(n_obs, 1))
-    expected_max_noise_sharpe = e_max_z * sigma_sh * math.sqrt(252) / math.sqrt(252)
-    # Keep simple: haircut = observed - c * sqrt(2 ln N) / sqrt(T_years)
-    t_years = max(n_obs / 252.0, 1.0)
-    haircut = e_max_z / math.sqrt(t_years)
-    deflated = observed_sharpe - haircut
-    return {
-        "observed_sharpe": observed_sharpe,
-        "n_trials": n_trials,
-        "n_obs_approx": n_obs,
-        "rough_haircut": haircut,
-        "deflated_sharpe_approx": deflated,
-        "note": (
-            "Approximate Deflated Sharpe haircut for multiple testing "
-            f"(N={n_trials} trials). Not a full Bailey & López de Prado DSR "
-            "implementation — use as research honesty bound, not a p-value."
-        ),
-        "skew_assumed": skew,
-        "kurtosis_assumed": kurtosis,
-    }
+    try:
+        from trad_research.falsify.deflated_sharpe import (
+            deflated_sharpe_note as _dsr_note,
+        )
+
+        return _dsr_note(
+            observed_sharpe,
+            n_trials=n_trials,
+            n_obs=n_obs,
+            skew=skew,
+            kurtosis=kurtosis,
+        )
+    except Exception:
+        # Fallback: rough haircut if falsify import fails
+        n_trials = max(int(n_trials), 1)
+        e_max_z = math.sqrt(2.0 * math.log(n_trials)) if n_trials > 1 else 0.0
+        t_years = max(n_obs / 252.0, 1.0)
+        haircut = e_max_z / math.sqrt(t_years)
+        deflated = observed_sharpe - haircut
+        return {
+            "observed_sharpe": observed_sharpe,
+            "n_trials": n_trials,
+            "n_obs_approx": n_obs,
+            "rough_haircut": haircut,
+            "deflated_sharpe_approx": deflated,
+            "note": (
+                "Fallback DSR haircut (falsify unavailable). "
+                f"N={n_trials} trials."
+            ),
+            "skew_assumed": skew,
+            "kurtosis_assumed": kurtosis,
+        }
 
 
 def format_dsr_markdown(dsr: Dict[str, Any]) -> str:
-    return (
-        f"- Observed Sharpe: **{dsr['observed_sharpe']:.2f}**\n"
-        f"- N trials in zoo: **{dsr['n_trials']}**\n"
-        f"- Rough multi-test haircut: **{dsr['rough_haircut']:.2f}**\n"
-        f"- Deflated Sharpe (approx): **{dsr['deflated_sharpe_approx']:.2f}**\n"
-        f"- {dsr['note']}\n"
-    )
+    try:
+        from trad_research.falsify.deflated_sharpe import (
+            format_dsr_markdown as _fmt,
+        )
+
+        return _fmt(dsr)
+    except Exception:
+        return (
+            f"- Observed Sharpe: **{dsr['observed_sharpe']:.2f}**\n"
+            f"- N trials in zoo: **{dsr['n_trials']}**\n"
+            f"- Rough multi-test haircut: **{dsr.get('rough_haircut', float('nan')):.2f}**\n"
+            f"- Deflated Sharpe (approx): **{dsr.get('deflated_sharpe_approx', float('nan')):.2f}**\n"
+            f"- {dsr.get('note', '')}\n"
+        )

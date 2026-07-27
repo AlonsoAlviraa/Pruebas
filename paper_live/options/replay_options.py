@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+import numpy as np
 import pandas as pd
 
 from paper_live.options.bs import black_scholes_price, bs_delta
@@ -80,8 +81,10 @@ class OptionsRunResult:
     approx_delta_avg: Optional[float] = None
     n_tp: int = 0
     n_sl: int = 0
+    n_time_exit: int = 0
     n_assign: int = 0
     management: Dict[str, Any] = field(default_factory=dict)
+    exit_breakdown: Dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -114,7 +117,9 @@ class OptionsRunResult:
             "approx_delta_avg": self.approx_delta_avg,
             "n_tp": self.n_tp,
             "n_sl": self.n_sl,
+            "n_time_exit": self.n_time_exit,
             "n_assign": self.n_assign,
+            "exit_breakdown": self.exit_breakdown,
             "management": self.management,
             "notes": self.notes,
             "mode": "paper",
@@ -123,10 +128,105 @@ class OptionsRunResult:
 
 
 def _closes_series(feed, ticker: str, through: date) -> pd.Series:
+    # Prefer fast numpy path on DailyReplayFeed
+    if hasattr(feed, "closes_through"):
+        arr = feed.closes_through(ticker, through, include_through=True)
+        if arr is not None and len(arr) > 0:
+            return pd.Series(arr, dtype=float)
     hist = feed.history(ticker, through=through, include_through=True)
     if hist is None or hist.empty:
         return pd.Series(dtype=float)
     return hist.set_index("date")["close"].astype(float)
+
+
+def _precompute_day_macro(
+    feed,
+    und: str,
+    days: Sequence[date],
+) -> Tuple[Dict[date, float], Dict[date, Optional[float]], Dict[date, Optional[float]], Dict[date, Optional[float]], Dict[date, np.ndarray]]:
+    """Precompute HV20 + VIX levels + close prefixes for a session range."""
+    hv_map: Dict[date, float] = {}
+    vix_map: Dict[date, Optional[float]] = {}
+    vix3m_map: Dict[date, Optional[float]] = {}
+    vxst_map: Dict[date, Optional[float]] = {}
+    closes_map: Dict[date, np.ndarray] = {}
+
+    # Full closes once; rolling HV via numpy
+    if hasattr(feed, "closes_through") and days:
+        full = np.asarray(
+            feed.closes_through(und, days[-1], include_through=True), dtype=float
+        )
+    else:
+        ser = _closes_series(feed, und, days[-1] if days else date.today())
+        full = ser.to_numpy(dtype=float) if len(ser) else np.asarray([], dtype=float)
+
+    # Map day -> end exclusive index into full using feed day list if present
+    day_to_idx: Dict[date, int] = {}
+    if hasattr(feed, "_day_list") and und.upper() in getattr(feed, "_day_list", {}):
+        for i, d in enumerate(feed._day_list[und.upper()]):
+            day_to_idx[d] = i + 1  # exclusive
+    else:
+        # rebuild from history dates
+        hist = feed.history(und, through=days[-1], include_through=True) if days else None
+        if hist is not None and not hist.empty:
+            for i, raw_d in enumerate(hist["date"]):
+                dd = pd.Timestamp(raw_d).date()
+                day_to_idx[dd] = i + 1
+
+    logret = np.full(len(full), np.nan, dtype=float)
+    if len(full) > 1:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            logret[1:] = np.log(full[1:] / full[:-1])
+
+    for day in days:
+        idx = day_to_idx.get(day)
+        if idx is None:
+            # nearest prior
+            candidates = [d for d in day_to_idx if d <= day]
+            if not candidates:
+                hv_map[day] = 0.20
+                closes_map[day] = np.asarray([], dtype=float)
+                vix_map[day] = resolve_vix_level(feed, day, aliases=VIX_TICKERS)
+                vix3m_map[day] = resolve_vix_level(feed, day, aliases=VIX3M_TICKERS)
+                vxst_map[day] = resolve_vix_level(feed, day, aliases=VXST_TICKERS)
+                continue
+            idx = day_to_idx[max(candidates)]
+        prefix = full[:idx]
+        closes_map[day] = prefix
+        if idx >= 21:
+            window = logret[idx - 20 : idx]
+            s = float(np.nanstd(window, ddof=1))
+            hv = s * math.sqrt(252.0) if math.isfinite(s) and s > 0 else 0.20
+        else:
+            hv = 0.20
+        hv_map[day] = hv if math.isfinite(hv) and hv > 0 else 0.20
+        # VIX from bars only (avoid history rebuild)
+        vix_map[day] = None
+        for t in VIX_TICKERS:
+            b = feed.bar(t, day)
+            if b is not None and float(b.close) > 0:
+                vix_map[day] = float(b.close)
+                break
+        if vix_map[day] is None:
+            vix_map[day] = resolve_vix_level(feed, day, aliases=VIX_TICKERS)
+        vix3m_map[day] = None
+        for t in VIX3M_TICKERS:
+            b = feed.bar(t, day)
+            if b is not None and float(b.close) > 0:
+                vix3m_map[day] = float(b.close)
+                break
+        if vix3m_map[day] is None:
+            vix3m_map[day] = resolve_vix_level(feed, day, aliases=VIX3M_TICKERS)
+        vxst_map[day] = None
+        for t in VXST_TICKERS:
+            b = feed.bar(t, day)
+            if b is not None and float(b.close) > 0:
+                vxst_map[day] = float(b.close)
+                break
+        if vxst_map[day] is None:
+            vxst_map[day] = resolve_vix_level(feed, day, aliases=VXST_TICKERS)
+
+    return hv_map, vix_map, vix3m_map, vxst_map, closes_map
 
 
 def _is_defined_risk(kind: str) -> bool:
@@ -136,6 +236,11 @@ def _is_defined_risk(kind: str) -> bool:
         "iron_condor",
         "collar",
         "cash",
+        "call_debit_spread",
+        "put_debit_spread",
+        "long_call",
+        "long_put",
+        "pmcc",
     )
 
 
@@ -224,8 +329,14 @@ def run_options_strategy(
     capital0: float = 100_000.0,
     risk: Optional[OptionsRiskConfig] = None,
     data_label: str = "proxy_bs",
+    compute_delta: bool = True,
+    store_curve: bool = True,
 ) -> OptionsRunResult:
-    """Replay a single options strategy with BS proxy marks + risk gates."""
+    """Replay a single options strategy with BS proxy marks + risk gates.
+
+    ``compute_delta=False`` skips daily BS-delta (large speedup for bulk studies).
+    ``store_curve=False`` keeps only lightweight metrics (less memory/JSON bloat).
+    """
     risk_cfg = _risk_for_spec(spec, risk)
     mgmt = management_from_meta(spec.meta, kind=spec.kind)
     days = feed.session_days(start, end)
@@ -269,7 +380,9 @@ def run_options_strategy(
     long_put_k: Optional[float] = None
     long_call_k: Optional[float] = None
     expiry: Optional[date] = None
+    long_expiry: Optional[date] = None  # LEAP / far leg (PMCC); None → use expiry
     open_contracts = 0
+    initial_debit = 0.0  # cash paid for long-premium structures
     max_contracts_used = 0
     last_margin = 0.0
     n_opens = 0  # every successful open
@@ -279,6 +392,7 @@ def run_options_strategy(
     initial_credit = 0.0  # cash credit received at open (after haircut), dollars
     n_tp = 0
     n_sl = 0
+    n_time_exit = 0
     n_assign = 0
     curve: List[Dict[str, Any]] = []
     peak = float(capital0)
@@ -386,10 +500,11 @@ def run_options_strategy(
             eq -= mark_option(spot, short_call_k, expiry, day, "call", hv, vix, vix3m, vxst) * 100.0 * n
         if short_put_k is not None:
             eq -= mark_option(spot, short_put_k, expiry, day, "put", hv, vix, vix3m, vxst) * 100.0 * n
+        lexp = long_expiry or expiry
         if long_put_k is not None:
-            eq += mark_option(spot, long_put_k, expiry, day, "put", hv, vix, vix3m, vxst) * 100.0 * n
+            eq += mark_option(spot, long_put_k, lexp, day, "put", hv, vix, vix3m, vxst) * 100.0 * n
         if long_call_k is not None:
-            eq += mark_option(spot, long_call_k, expiry, day, "call", hv, vix, vix3m, vxst) * 100.0 * n
+            eq += mark_option(spot, long_call_k, lexp, day, "call", hv, vix, vix3m, vxst) * 100.0 * n
         return eq
 
     def book_delta(
@@ -405,20 +520,26 @@ def run_options_strategy(
         n = max(open_contracts, 0)
         if n <= 0 or expiry is None:
             return d
-        t_years = max((expiry - day).days, 0) / 365.0
+        t_near = max((expiry - day).days, 0) / 365.0
+        lexp = long_expiry or expiry
+        t_long = max((lexp - day).days, 0) / 365.0 if lexp else t_near
 
-        def _d(k: Optional[float], otype: str, sign: float) -> float:
+        def _d(k: Optional[float], otype: str, sign: float, *, far: bool = False) -> float:
             if k is None:
                 return 0.0
-            iv = _quote_iv(spot, k, expiry, day, otype, hv, vix, vix3m, vxst)
+            exp_u = lexp if far and lexp is not None else expiry
+            if exp_u is None:
+                return 0.0
+            t_y = t_long if far else t_near
+            iv = _quote_iv(spot, k, exp_u, day, otype, hv, vix, vix3m, vxst)
             return sign * bs_delta(
-                spot, k, t_years, iv, r=spec.r, option_type=otype  # type: ignore[arg-type]
+                spot, k, t_y, iv, r=spec.r, option_type=otype  # type: ignore[arg-type]
             ) * 100.0 * n
 
-        d += _d(short_call_k, "call", -1.0)
-        d += _d(short_put_k, "put", -1.0)
-        d += _d(long_put_k, "put", +1.0)
-        d += _d(long_call_k, "call", +1.0)
+        d += _d(short_call_k, "call", -1.0, far=False)
+        d += _d(short_put_k, "put", -1.0, far=False)
+        d += _d(long_put_k, "put", +1.0, far=True)
+        d += _d(long_call_k, "call", +1.0, far=True)
         return d
 
     def mark_close_debit(
@@ -429,24 +550,28 @@ def run_options_strategy(
         vix3m: Optional[float],
         vxst: Optional[float],
     ) -> float:
+        lexp = long_expiry or expiry
         return structure_mark_to_close(
             short_call_mid=mid_leg(spot, short_call_k, expiry, day, "call", hv, vix, vix3m, vxst),
             short_put_mid=mid_leg(spot, short_put_k, expiry, day, "put", hv, vix, vix3m, vxst),
-            long_call_mid=mid_leg(spot, long_call_k, expiry, day, "call", hv, vix, vix3m, vxst),
-            long_put_mid=mid_leg(spot, long_put_k, expiry, day, "put", hv, vix, vix3m, vxst),
+            long_call_mid=mid_leg(spot, long_call_k, lexp, day, "call", hv, vix, vix3m, vxst),
+            long_put_mid=mid_leg(spot, long_put_k, lexp, day, "put", hv, vix, vix3m, vxst),
             contracts=open_contracts,
         )
 
     def clear_option_legs() -> None:
         nonlocal short_call_k, short_put_k, long_put_k, long_call_k
-        nonlocal expiry, open_contracts, initial_credit, rolls_this_structure
+        nonlocal expiry, long_expiry, open_contracts, initial_credit, initial_debit
+        nonlocal rolls_this_structure
         short_call_k = None
         short_put_k = None
         long_put_k = None
         long_call_k = None
         open_contracts = 0
         expiry = None
+        long_expiry = None
         initial_credit = 0.0
+        initial_debit = 0.0
         rolls_this_structure = 0
 
     def close_structure(
@@ -460,9 +585,11 @@ def run_options_strategy(
         keep_structure_count: bool = False,
     ) -> None:
         nonlocal cash, short_call_k, short_put_k, long_put_k, long_call_k
-        nonlocal expiry, open_contracts, initial_credit, rolls_this_structure
+        nonlocal expiry, long_expiry, open_contracts, initial_credit, initial_debit
+        nonlocal rolls_this_structure
         if (
             expiry is None
+            and long_expiry is None
             and short_call_k is None
             and short_put_k is None
             and long_put_k is None
@@ -470,23 +597,24 @@ def run_options_strategy(
         ):
             return
         n = max(open_contracts, 0)
-        if n > 0 and expiry is not None:
+        lexp = long_expiry or expiry
+        if n > 0:
             # Close at mid (research default); haircut already hit entry credit
-            if short_call_k is not None:
+            if short_call_k is not None and expiry is not None:
                 cash -= mark_option(
                     spot, short_call_k, expiry, day, "call", hv, vix, vix3m, vxst, side="mid"
                 ) * 100.0 * n
-            if short_put_k is not None:
+            if short_put_k is not None and expiry is not None:
                 cash -= mark_option(
                     spot, short_put_k, expiry, day, "put", hv, vix, vix3m, vxst, side="mid"
                 ) * 100.0 * n
-            if long_put_k is not None:
+            if long_put_k is not None and lexp is not None:
                 cash += mark_option(
-                    spot, long_put_k, expiry, day, "put", hv, vix, vix3m, vxst, side="mid"
+                    spot, long_put_k, lexp, day, "put", hv, vix, vix3m, vxst, side="mid"
                 ) * 100.0 * n
-            if long_call_k is not None:
+            if long_call_k is not None and lexp is not None:
                 cash += mark_option(
-                    spot, long_call_k, expiry, day, "call", hv, vix, vix3m, vxst, side="mid"
+                    spot, long_call_k, lexp, day, "call", hv, vix, vix3m, vxst, side="mid"
                 ) * 100.0 * n
         short_call_k = None
         short_put_k = None
@@ -494,7 +622,9 @@ def run_options_strategy(
         long_call_k = None
         open_contracts = 0
         expiry = None
+        long_expiry = None
         initial_credit = 0.0
+        initial_debit = 0.0
         if not keep_structure_count:
             rolls_this_structure = 0
 
@@ -645,11 +775,13 @@ def run_options_strategy(
         is_roll: bool = False,
     ) -> None:
         nonlocal cash, stock_qty, short_call_k, short_put_k, long_put_k, long_call_k
-        nonlocal expiry, open_contracts, max_contracts_used, last_margin
-        nonlocal initial_credit, rolls_this_structure
+        nonlocal expiry, long_expiry, open_contracts, max_contracts_used, last_margin
+        nonlocal initial_credit, initial_debit, rolls_this_structure
         if hard_kill:
             return
         expiry = day + timedelta(days=int(spec.dte_days))
+        long_expiry = None
+        initial_debit = 0.0
         if spec.kind == "cash":
             open_contracts = 0
             return
@@ -1031,14 +1163,217 @@ def run_options_strategy(
                 return
             cash -= pprem
             initial_credit = 0.0  # long premium
+            initial_debit = pprem
+            long_expiry = expiry
             open_contracts = n
             last_margin = lot_cost * n
             max_contracts_used = max(max_contracts_used, n)
             _record_open(is_roll=is_roll)
             return
 
+        # --- Amplify family: long premium / debit spreads / PMCC ---
+        budget_frac = float(spec.meta.get("max_premium_budget_frac") or 0.10)
+
+        if spec.kind == "long_call":
+            k = spot * (1.0 + abs(spec.otm_pct))
+            # size by premium budget
+            unit = mark_option(spot, k, expiry, day, "call", hv, vix, vix3m, vxst, side="buy") * 100.0
+            if unit <= 0 or not math.isfinite(unit):
+                expiry = None
+                return
+            budget = float(capital0) * budget_frac
+            n = min(
+                requested,
+                int(risk_cfg.max_contracts),
+                int(budget // unit) if unit > 0 else 0,
+                int(cash // unit) if unit > 0 else 0,
+            )
+            if n <= 0:
+                _log_skip(f"{day.isoformat()}: long_call skip — budget/cash")
+                expiry = None
+                return
+            debit = unit * n
+            cash -= debit
+            long_call_k = k
+            long_expiry = expiry
+            initial_debit = debit
+            initial_credit = 0.0
+            open_contracts = n
+            last_margin = debit
+            max_contracts_used = max(max_contracts_used, n)
+            _record_open(is_roll=is_roll)
+            return
+
+        if spec.kind == "long_put":
+            k = spot * (1.0 - abs(spec.otm_pct))
+            unit = mark_option(spot, k, expiry, day, "put", hv, vix, vix3m, vxst, side="buy") * 100.0
+            if unit <= 0 or not math.isfinite(unit):
+                expiry = None
+                return
+            budget = float(capital0) * budget_frac
+            n = min(
+                requested,
+                int(risk_cfg.max_contracts),
+                int(budget // unit) if unit > 0 else 0,
+                int(cash // unit) if unit > 0 else 0,
+            )
+            if n <= 0:
+                _log_skip(f"{day.isoformat()}: long_put skip — budget/cash")
+                expiry = None
+                return
+            debit = unit * n
+            cash -= debit
+            long_put_k = k
+            long_expiry = expiry
+            initial_debit = debit
+            initial_credit = 0.0
+            open_contracts = n
+            last_margin = debit
+            max_contracts_used = max(max_contracts_used, n)
+            _record_open(is_roll=is_roll)
+            return
+
+        if spec.kind == "call_debit_spread":
+            # long lower strike call, short higher (bull call)
+            lk = spot * (1.0 + abs(spec.otm_pct) * 0.5)  # closer ATM long
+            sk = spot * (1.0 + abs(spec.wing_otm_pct))
+            if sk <= lk:
+                sk = lk * 1.05
+            long_u = mark_option(spot, lk, expiry, day, "call", hv, vix, vix3m, vxst, side="buy")
+            short_u = mark_option(spot, sk, expiry, day, "call", hv, vix, vix3m, vxst, side="sell")
+            net = (long_u - short_u) * 100.0
+            if net <= 0 or not math.isfinite(net):
+                _log_skip(f"{day.isoformat()}: CDS skip — non-positive debit")
+                expiry = None
+                return
+            width = abs(sk - lk) * 100.0
+            budget = float(capital0) * budget_frac
+            n = min(
+                requested,
+                int(risk_cfg.max_contracts),
+                int(budget // net) if net > 0 else 0,
+                int(cash // net) if net > 0 else 0,
+            )
+            if n <= 0:
+                expiry = None
+                return
+            debit = net * n
+            cash -= debit
+            long_call_k = lk
+            short_call_k = sk
+            long_expiry = expiry
+            initial_debit = debit
+            initial_credit = 0.0
+            open_contracts = n
+            last_margin = width * n
+            max_contracts_used = max(max_contracts_used, n)
+            _record_open(is_roll=is_roll)
+            return
+
+        if spec.kind == "put_debit_spread":
+            # long higher put, short lower put (bear put)
+            lk = spot * (1.0 - abs(spec.otm_pct) * 0.5)
+            sk = spot * (1.0 - abs(spec.wing_otm_pct))
+            if sk >= lk:
+                sk = lk * 0.95
+            long_u = mark_option(spot, lk, expiry, day, "put", hv, vix, vix3m, vxst, side="buy")
+            short_u = mark_option(spot, sk, expiry, day, "put", hv, vix, vix3m, vxst, side="sell")
+            net = (long_u - short_u) * 100.0
+            if net <= 0 or not math.isfinite(net):
+                expiry = None
+                return
+            width = abs(lk - sk) * 100.0
+            budget = float(capital0) * budget_frac
+            n = min(
+                requested,
+                int(risk_cfg.max_contracts),
+                int(budget // net) if net > 0 else 0,
+                int(cash // net) if net > 0 else 0,
+            )
+            if n <= 0:
+                expiry = None
+                return
+            debit = net * n
+            cash -= debit
+            long_put_k = lk
+            short_put_k = sk
+            long_expiry = expiry
+            initial_debit = debit
+            initial_credit = 0.0
+            open_contracts = n
+            last_margin = width * n
+            max_contracts_used = max(max_contracts_used, n)
+            _record_open(is_roll=is_roll)
+            return
+
+        if spec.kind == "pmcc":
+            # Poor man's covered call: long LEAP call + short near call
+            leap_dte = int(spec.meta.get("leap_dte_days") or 180)
+            leap_exp = day + timedelta(days=leap_dte)
+            near_k = spot * (1.0 + abs(spec.otm_pct))
+            far_k = spot * (1.0 + float(spec.meta.get("leap_otm_pct") or 0.05))
+            long_u = mark_option(spot, far_k, leap_exp, day, "call", hv, vix, vix3m, vxst, side="buy")
+            short_u = mark_option(spot, near_k, expiry, day, "call", hv, vix, vix3m, vxst, side="sell")
+            net = (long_u - short_u) * 100.0
+            if net <= 0 or not math.isfinite(net):
+                # still allow pure long LEAP if short worthless
+                net = long_u * 100.0
+            budget = float(capital0) * max(budget_frac, 0.15)
+            n = min(
+                requested,
+                int(risk_cfg.max_contracts),
+                int(budget // net) if net > 0 else 0,
+                int(cash // net) if net > 0 else 0,
+            )
+            if n <= 0:
+                _log_skip(f"{day.isoformat()}: pmcc skip — budget")
+                expiry = None
+                return
+            debit = net * n
+            cash -= debit
+            long_call_k = far_k
+            short_call_k = near_k
+            long_expiry = leap_exp
+            # near expiry stays as expiry for short roll
+            initial_debit = debit
+            initial_credit = max(short_u * 100.0 * n, 0.0)  # short credit portion for mgmt
+            open_contracts = n
+            last_margin = debit
+            max_contracts_used = max(max_contracts_used, n)
+            _record_open(is_roll=is_roll)
+            return
+
         notes.append(f"unknown kind={spec.kind}; no open")
         expiry = None
+
+    hv_map, vix_map, vix3m_map, vxst_map, closes_map = _precompute_day_macro(
+        feed, und, days
+    )
+    # Warm featured cache once if any TA gate is active (avoids per-day re-engineer)
+    _ta_keys = (
+        "require_uptrend",
+        "require_sma200",
+        "require_volume_confirm",
+        "require_volume_dryup",
+        "require_rsi_oversold",
+        "require_rsi_overbought",
+        "require_low_atr",
+        "require_range_regime",
+        "require_vol_climax",
+        "require_compression_after_vol",
+        "require_pullback_uptrend",
+        "require_iv_rank_above",
+        "require_iv_rank_below",
+        "require_vrp_proxy_above",
+        "require_vrp_proxy_below",
+        "require_vix_term_contango",
+    )
+    has_ta = bool(spec.meta) and any(spec.meta.get(k) for k in _ta_keys)
+    if has_ta and hasattr(feed, "featured") and days:
+        try:
+            feed.featured(und, through=days[-1])
+        except Exception:
+            pass
 
     for day in days:
         bar = feed.bar(und, day)
@@ -1049,21 +1384,26 @@ def run_options_strategy(
         spot = float(bar.close)
         session_gap = bool(gap_pending)
         gap_pending = False
-        closes = _closes_series(feed, und, day)
-        hv = historical_vol(closes, window=20)
+        closes_arr = closes_map.get(day)
+        if closes_arr is None:
+            closes = _closes_series(feed, und, day)
+            closes_arr = closes.to_numpy(dtype=float) if len(closes) else np.asarray([], dtype=float)
+        else:
+            closes = pd.Series(closes_arr, dtype=float)
+        hv = float(hv_map.get(day) or 0.20)
         if not math.isfinite(hv) or hv <= 0:
             hv = 0.20
 
-        vix = resolve_vix_level(feed, day, aliases=VIX_TICKERS)
-        vix3m = resolve_vix_level(feed, day, aliases=VIX3M_TICKERS)
-        vxst = resolve_vix_level(feed, day, aliases=VXST_TICKERS)
+        vix = vix_map.get(day)
+        vix3m = vix3m_map.get(day)
+        vxst = vxst_map.get(day)
 
         skip_new = False
-        if spec.meta.get("require_hv_above_median") and len(closes) > 60:
+        if spec.meta.get("require_hv_above_median") and len(closes_arr) > 60:
             hv_long = historical_vol(closes, window=60)
             if math.isfinite(hv_long) and hv < hv_long * 0.9:
                 skip_new = True
-        if not skip_new and spec.meta:
+        if not skip_new and has_ta:
             ta = evaluate_ta_gates(feed, und, day, spec.meta)
             if not ta.allow:
                 skip_new = True
@@ -1107,6 +1447,7 @@ def run_options_strategy(
             continue
 
         # --- Expiry / deep ITM assignment proxy ---
+        # Near-leg expiry (short premium / debit spreads); LEAP long may remain via long_expiry
         if expiry is not None and open_contracts > 0:
             at_exp = day >= expiry
             if at_exp or mgmt.enable_assignment_proxy:
@@ -1119,7 +1460,7 @@ def run_options_strategy(
                     close_structure(spot, day, hv, vix, vix3m, vxst)
                 # If assigned: structure already fully flattened with long-wing cash settle
 
-        # --- Premium seller TP / SL ---
+        # --- Premium seller TP / SL / time exit ---
         if (
             expiry is not None
             and open_contracts > 0
@@ -1127,11 +1468,13 @@ def run_options_strategy(
             and spec.kind in SHORT_PREMIUM_KINDS
         ):
             mtc = mark_close_debit(spot, day, hv, vix, vix3m, vxst)
+            dte_now = max((expiry - day).days, 0)
             act = management_action(
                 kind=spec.kind,
                 initial_credit=initial_credit,
                 mark_to_close=mtc,
                 cfg=mgmt,
+                dte=dte_now,
             )
             if act == "take_profit":
                 close_structure(spot, day, hv, vix, vix3m, vxst)
@@ -1142,6 +1485,13 @@ def run_options_strategy(
                 n_sl += 1
                 notes.append(
                     f"SL {day.isoformat()}: loss ≥ {mgmt.stop_loss_credit_mult}× initial credit"
+                )
+            elif act == "time_exit":
+                close_structure(spot, day, hv, vix, vix3m, vxst)
+                n_time_exit += 1
+                notes.append(
+                    f"TIME_EXIT {day.isoformat()}: DTE≤{mgmt.time_exit_dte} "
+                    f"residual≤{mgmt.time_exit_residual_credit_frac:.0%}"
                 )
 
         # --- Roll / open ---
@@ -1162,8 +1512,10 @@ def run_options_strategy(
             open_structure(spot, day, hv, vix, vix3m, vxst, is_roll=is_roll)
 
         eq = equity(spot, day, hv, vix, vix3m, vxst)
-        dlt = book_delta(spot, day, hv, vix, vix3m, vxst)
-        delta_samples.append(dlt)
+        dlt = 0.0
+        if compute_delta:
+            dlt = book_delta(spot, day, hv, vix, vix3m, vxst)
+            delta_samples.append(dlt)
         peak = max(peak, eq)
         max_dd = min(max_dd, eq / peak - 1.0 if peak > 0 else 0.0)
 
@@ -1177,17 +1529,23 @@ def run_options_strategy(
             eq = cash + stock_qty * spot
             notes.append(f"HARD_KILL {day.isoformat()}: {reason}")
 
-        curve.append(
-            {
-                "date": day.isoformat(),
-                "equity": eq,
-                "contracts": open_contracts if not hard_kill else 0,
-                "hard_kill": hard_kill,
-                "session_gap": session_gap,
-                "delta": dlt if not hard_kill else 0.0,
-                "vix": vix,
-            }
-        )
+        if store_curve:
+            curve.append(
+                {
+                    "date": day.isoformat(),
+                    "equity": eq,
+                    "contracts": open_contracts if not hard_kill else 0,
+                    "hard_kill": hard_kill,
+                    "session_gap": session_gap,
+                    "delta": dlt if not hard_kill else 0.0,
+                    "vix": vix,
+                }
+            )
+        else:
+            # Minimal curve points for metrics_from_curve (start + each day ret)
+            if not curve:
+                curve.append({"date": day.isoformat(), "equity": float(capital0)})
+            curve.append({"date": day.isoformat(), "equity": eq})
         prev_eq = eq
 
     iv_src = aggregate_surface_label(iv_sources_seen)
@@ -1231,7 +1589,16 @@ def run_options_strategy(
         approx_delta_avg=delta_avg,
         n_tp=n_tp,
         n_sl=n_sl,
+        n_time_exit=n_time_exit,
         n_assign=n_assign,
+        exit_breakdown={
+            "take_profit": n_tp,
+            "stop_loss": n_sl,
+            "time_exit": n_time_exit,
+            "assignment": n_assign,
+            "dte_rolls": n_dte_rolls,
+            "opens": n_opens,
+        },
         management=mgmt.to_dict(),
     )
 

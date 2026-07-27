@@ -113,6 +113,11 @@ jobs:
             --out reports/paper_options_ta_matrix \
             --lookback-days 1600
           test -f reports/paper_options_ta_matrix/latest/SUMMARY.md
+          test -f reports/paper_options_ta_matrix/SCORECARD.md
+          # Offline scorecard re-run (idempotent)
+          python scripts/score_options_matrix.py \
+            --in reports/paper_options_ta_matrix/latest \
+            --out reports/paper_options_ta_matrix/SCORECARD.md
           echo "OPT_TA_MATRIX_OK"
 
       - name: Commit results to repo

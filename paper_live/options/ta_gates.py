@@ -2,6 +2,8 @@
 
 All gates use feed history **through** the evaluation day only (no look-ahead).
 Option marks remain ``proxy_bs``; these gates only decide whether to open new risk.
+
+Also supports surface meta keys (IV rank / VRP proxy / VIX term structure).
 """
 from __future__ import annotations
 
@@ -12,7 +14,33 @@ from typing import Any, Dict, Mapping, Optional, Union
 import numpy as np
 import pandas as pd
 
+from paper_live.options.vol_proxy import historical_vol
+from paper_live.options.vol_surface import (
+    VIX3M_TICKERS,
+    VIX_TICKERS,
+    atm_iv_proxy_for_day,
+    iv_rank_from_hv,
+    iv_rank_from_vix,
+    resolve_vix_level,
+    vix_term_contango,
+    vrp_proxy,
+)
 from paper_live.signals.daily_pipeline import _f, _last_row
+
+
+def _hv20(feed: Any, ticker: str, day: Union[str, date]) -> Optional[float]:
+    """Causal HV20 from feed closes through day."""
+    try:
+        hist = feed.history(ticker, through=day, include_through=True)
+    except Exception:
+        return None
+    if hist is None or hist.empty:
+        return None
+    closes = hist.set_index("date")["close"].astype(float)
+    hv = historical_vol(closes, window=20)
+    if hv is None or not np.isfinite(hv):
+        return None
+    return float(hv)
 
 
 @dataclass(frozen=True)
@@ -103,6 +131,11 @@ def evaluate_ta_gates(
     * ``require_pullback_uptrend`` — close > sma200 and (near/under sma50 or soft RSI)
     * ``min_volume_ratio``, ``max_volume_ratio``, ``min_volume_z``, ``max_volume_z``
     * ``max_rsi``, ``min_rsi``, ``max_atr_pctile``, ``max_dist_sma50``
+    * ``require_iv_rank_above`` — VIX (or HV) percentile ≥ ``min_iv_rank`` (default 0.50)
+    * ``require_iv_rank_below`` — VIX/HV percentile ≤ ``max_iv_rank`` (default 0.80)
+    * ``require_vrp_proxy_above`` — (surface IV − HV20) ≥ ``min_vrp_proxy`` (default 0.02)
+    * ``require_vrp_proxy_below`` — VRP proxy ≤ ``max_vrp_proxy`` (avoid selling into extreme IV)
+    * ``require_vix_term_contango`` — VIX3M/VIX ≥ ``min_vix_term_ratio`` (default 1.0)
     """
     meta = dict(meta or {})
     # Legacy HV gate is handled in replay_options; skip if no TA keys
@@ -118,6 +151,11 @@ def evaluate_ta_gates(
         "require_vol_climax",
         "require_compression_after_vol",
         "require_pullback_uptrend",
+        "require_iv_rank_above",
+        "require_iv_rank_below",
+        "require_vrp_proxy_above",
+        "require_vrp_proxy_below",
+        "require_vix_term_contango",
     }
     if not any(meta.get(k) for k in ta_keys):
         return TaGateResult(allow=True, reason="no_ta_gates")
@@ -231,6 +269,73 @@ def evaluate_ta_gates(
         low_atr = pctile is not None and pctile <= max_atr_pctile
         if not (recent and dry_now and low_atr):
             return TaGateResult(False, "no_compression_after_vol", feats)
+
+    # --- Surface / VRP proxy gates (research labels) ---
+    need_surface = any(
+        meta.get(k)
+        for k in (
+            "require_iv_rank_above",
+            "require_iv_rank_below",
+            "require_vrp_proxy_above",
+            "require_vrp_proxy_below",
+            "require_vix_term_contango",
+        )
+    )
+    if need_surface:
+        lookback_iv = int(meta.get("iv_rank_lookback") or 252)
+        ivr = iv_rank_from_vix(feed, day if isinstance(day, date) else pd.Timestamp(day).date(), lookback=lookback_iv)
+        if ivr is None:
+            ivr = iv_rank_from_hv(
+                feed,
+                ticker,
+                day if isinstance(day, date) else pd.Timestamp(day).date(),
+                lookback=lookback_iv,
+            )
+        feats["iv_rank"] = ivr
+
+        d = day if isinstance(day, date) else pd.Timestamp(day).date()
+        vix = resolve_vix_level(feed, d, aliases=VIX_TICKERS)
+        vix3m = resolve_vix_level(feed, d, aliases=VIX3M_TICKERS)
+        hv = _hv20(feed, ticker, d)
+        feats["vix"] = vix
+        feats["vix3m"] = vix3m
+        feats["hv20"] = hv
+        atm_iv, iv_src = atm_iv_proxy_for_day(vix=vix, vix3m=vix3m, hv=hv)
+        feats["atm_iv_proxy"] = atm_iv
+        feats["atm_iv_source"] = iv_src
+        vrp = vrp_proxy(
+            atm_iv,
+            float(hv) if hv is not None and np.isfinite(hv) else float("nan"),
+        )
+        feats["vrp_proxy"] = vrp
+        feats["vrp_proxy_label"] = "vrp_proxy"  # not true exchange VRP
+
+        if meta.get("require_iv_rank_above"):
+            min_ivr = float(meta.get("min_iv_rank") or 0.50)
+            if ivr is None or ivr + 1e-12 < min_ivr:
+                return TaGateResult(False, "iv_rank_too_low", feats)
+
+        if meta.get("require_iv_rank_below"):
+            max_ivr = float(meta.get("max_iv_rank") or 0.80)
+            if ivr is None or ivr - 1e-12 > max_ivr:
+                return TaGateResult(False, "iv_rank_too_high", feats)
+
+        if meta.get("require_vrp_proxy_above"):
+            min_vrp = float(meta.get("min_vrp_proxy") or 0.02)
+            if vrp is None or vrp + 1e-12 < min_vrp:
+                return TaGateResult(False, "vrp_proxy_too_low", feats)
+
+        if meta.get("require_vrp_proxy_below"):
+            max_vrp = float(meta.get("max_vrp_proxy") or 0.12)
+            if vrp is None or vrp - 1e-12 > max_vrp:
+                return TaGateResult(False, "vrp_proxy_too_high", feats)
+
+        if meta.get("require_vix_term_contango"):
+            min_ratio = float(meta.get("min_vix_term_ratio") or 1.0)
+            cont = vix_term_contango(vix, vix3m, min_ratio=min_ratio)
+            feats["vix_term_contango"] = cont
+            if cont is not True:
+                return TaGateResult(False, "vix_term_not_contango", feats)
 
     return TaGateResult(allow=True, reason="ta_gates_pass", features=feats)
 

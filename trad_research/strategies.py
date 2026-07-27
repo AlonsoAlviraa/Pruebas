@@ -117,7 +117,10 @@ class ChampionMLStrategy(Strategy):
         buy_i = classes.index(1) if 1 in classes else 0
         p_buy = proba[:, buy_i]
         sig = p_buy >= cfg.min_confidence
-        if cfg.require_trend and "sma_50" in df.columns:
+        from trad_research.backtest import _apply_entry_overlays, _winrate_soft_trend_active
+
+        # Soft-trend WR pack replaces hard SMA50 (applied later in overlays)
+        if cfg.require_trend and "sma_50" in df.columns and not _winrate_soft_trend_active(cfg):
             sig = sig & (df["close"].to_numpy() > df["sma_50"].to_numpy())
         if cfg.require_momentum and "ret_1m" in df.columns:
             sig = sig & (df["ret_1m"].to_numpy() >= cfg.momentum_min)
@@ -128,9 +131,20 @@ class ChampionMLStrategy(Strategy):
         score = p_buy.copy()
         if self._meta is not None and hasattr(self._meta, "predict_proba"):
             p_meta = self._meta.predict_proba(X)[:, 1]
-            sig = sig & (p_meta >= cfg.meta_threshold)
+            thr_meta = float(cfg.meta_threshold)
+            wr = getattr(cfg, "winrate_filter_cfg", None)
+            if wr is not None and getattr(wr, "min_meta_conf", None) is not None:
+                thr_meta = max(thr_meta, float(wr.min_meta_conf))
+            sig = sig & (p_meta >= thr_meta)
             score = p_buy * p_meta
-        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+        return _apply_entry_overlays(
+            df,
+            pd.Series(sig, index=df.index),
+            pd.Series(score, index=df.index),
+            np.asarray(p_buy, dtype=float),
+            cfg,
+        )
 
 
 @dataclass
@@ -210,7 +224,10 @@ class AggressiveMLStrategy(Strategy):
         buy_i = classes.index(1) if 1 in classes else 0
         p_buy = proba[:, buy_i]
         sig = p_buy >= cfg.min_confidence
-        if cfg.require_trend and "sma_50" in df.columns:
+        from trad_research.backtest import _apply_entry_overlays, _winrate_soft_trend_active
+
+        # Soft-trend WR pack replaces hard SMA50 (applied later in overlays)
+        if cfg.require_trend and "sma_50" in df.columns and not _winrate_soft_trend_active(cfg):
             sig = sig & (df["close"].to_numpy() > df["sma_50"].to_numpy())
         if cfg.require_momentum and "ret_1m" in df.columns:
             sig = sig & (df["ret_1m"].to_numpy() >= cfg.momentum_min)
@@ -221,9 +238,20 @@ class AggressiveMLStrategy(Strategy):
         score = p_buy.copy()
         if self._meta is not None and hasattr(self._meta, "predict_proba"):
             p_meta = self._meta.predict_proba(X)[:, 1]
-            sig = sig & (p_meta >= cfg.meta_threshold)
+            thr_meta = float(cfg.meta_threshold)
+            wr = getattr(cfg, "winrate_filter_cfg", None)
+            if wr is not None and getattr(wr, "min_meta_conf", None) is not None:
+                thr_meta = max(thr_meta, float(wr.min_meta_conf))
+            sig = sig & (p_meta >= thr_meta)
             score = p_buy * p_meta
-        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+        return _apply_entry_overlays(
+            df,
+            pd.Series(sig, index=df.index),
+            pd.Series(score, index=df.index),
+            np.asarray(p_buy, dtype=float),
+            cfg,
+        )
 
 
 @dataclass
@@ -335,6 +363,21 @@ class HighVolTurboStrategy(AggressiveTurboStrategy):
     regime_hard_size_scale: Optional[float] = None
     hard_stop_pct: float = 0.11
     hard_stop_atr_mult: Optional[float] = None
+    # Crash / WR research overlays (optional; wired by strategy_runner)
+    crash_entry_enabled: bool = False
+    crash_entry_mode: str = "rsi"
+    crash_rsi_threshold: float = 30.0
+    crash_dd_threshold: float = -0.15
+    crash_min_confidence: Optional[float] = 0.22
+    crash_relax_regime: bool = True
+    crash_relax_trend: bool = True
+    crash_require_rsi_rising: bool = False
+    crash_score_boost: float = 1.15
+    # Win-rate levers
+    hard_stop_cooldown_days: int = 0
+    max_atr_pct_tight: Optional[float] = None
+    soft_trend_non_crash: bool = False
+    min_meta_conf: Optional[float] = None
 
     def backtest_overrides(self) -> Dict[str, Any]:
         o = super().backtest_overrides()
@@ -346,7 +389,50 @@ class HighVolTurboStrategy(AggressiveTurboStrategy):
             o["regime_hard_size_scale"] = float(self.regime_hard_size_scale)
         if self.hard_stop_atr_mult is not None:
             o["hard_stop_atr_mult"] = float(self.hard_stop_atr_mult)
+        o["hard_stop_cooldown_days"] = int(self.hard_stop_cooldown_days or 0)
+        o["crash_relax_regime"] = bool(self.crash_relax_regime)
+        o["crash_score_boost"] = float(self.crash_score_boost or 1.0)
+        if self.max_atr_pct_tight is not None:
+            o["max_atr_pct_entry"] = float(self.max_atr_pct_tight)
         return o
+
+    def crash_entry_config(self):
+        """Build CrashEntryConfig from strategy knobs (or disabled)."""
+        from trad_research.crash_entry import CrashEntryConfig
+
+        if not self.crash_entry_enabled:
+            return CrashEntryConfig(enabled=False)
+        mode = self.crash_entry_mode
+        if self.crash_require_rsi_rising and mode == "rsi":
+            mode = "rsi_recover"
+        return CrashEntryConfig(
+            enabled=True,
+            mode=mode,
+            rsi_threshold=float(self.crash_rsi_threshold),
+            dd_threshold=float(self.crash_dd_threshold),
+            require_rsi_rising=bool(self.crash_require_rsi_rising),
+            relax_regime=bool(self.crash_relax_regime),
+            crash_min_confidence=self.crash_min_confidence,
+            crash_relax_trend=bool(self.crash_relax_trend),
+            crash_score_boost=float(self.crash_score_boost or 1.0),
+        )
+
+    def winrate_filter_config(self):
+        from trad_research.crash_entry import WinRateFilterConfig
+
+        if (
+            self.max_atr_pct_tight is None
+            and int(self.hard_stop_cooldown_days or 0) <= 0
+            and not self.soft_trend_non_crash
+            and self.min_meta_conf is None
+        ):
+            return None
+        return WinRateFilterConfig(
+            max_atr_pct_tight=self.max_atr_pct_tight,
+            min_meta_conf=self.min_meta_conf,
+            hard_stop_cooldown_days=int(self.hard_stop_cooldown_days or 0),
+            soft_trend_non_crash=bool(self.soft_trend_non_crash),
+        )
 
     def generate_signals(
         self, df: pd.DataFrame, cfg: BacktestConfig
@@ -497,6 +583,58 @@ class HighVolSoftTrendStrategy(HighVolTurboStrategy):
     description: str = "Highvol + soft trend (SMA50|SMA20) + min_dist_sma200=-0.18"
     soft_trend: bool = True
     min_dist_sma200: float = -0.18
+
+
+@dataclass
+class HighVolCrashRsiStrategy(HighVolTurboStrategy):
+    """turbo_highvol + crash RSI overlay (enter earlier in index oversold).
+
+    Research variant: when SPY/QQQ RSI(14) < 30, relax regime block and soften
+    entry filters so the stock-picker can act during deep selloffs.
+    """
+
+    name: str = "turbo_highvol_crash_rsi"
+    description: str = "Highvol + crash RSI enter (thr=30, relax regime/trend)"
+    crash_entry_enabled: bool = True
+    crash_entry_mode: str = "rsi"
+    crash_rsi_threshold: float = 30.0
+    crash_min_confidence: Optional[float] = 0.22
+    crash_relax_regime: bool = True
+    crash_relax_trend: bool = True
+
+
+@dataclass
+class HighVolCrashRsiWRStrategy(HighVolTurboStrategy):
+    """Crash RSI overlay + win-rate pack (cooldown, tighter ATR non-crash)."""
+
+    name: str = "turbo_highvol_crash_rsi_wr"
+    description: str = (
+        "Highvol + crash RSI + WR pack (hard_stop cooldown 10d, ATR tight 0.16)"
+    )
+    crash_entry_enabled: bool = True
+    crash_entry_mode: str = "rsi"
+    crash_rsi_threshold: float = 30.0
+    crash_min_confidence: Optional[float] = 0.22
+    crash_relax_regime: bool = True
+    crash_relax_trend: bool = True
+    hard_stop_cooldown_days: int = 10
+    max_atr_pct_tight: Optional[float] = 0.16
+    soft_trend_non_crash: bool = True
+
+
+@dataclass
+class HighVolMinAllocCrashRsiStrategy(HighVolMinAllocStrategy):
+    """minalloc baseline + crash RSI enter."""
+
+    name: str = "turbo_highvol_minalloc_crash_rsi"
+    description: str = "minalloc + crash RSI enter (thr=30)"
+    crash_entry_enabled: bool = True
+    crash_entry_mode: str = "rsi"
+    crash_rsi_threshold: float = 30.0
+    crash_min_confidence: Optional[float] = 0.22
+    crash_relax_regime: bool = True
+    crash_relax_trend: bool = True
+    hard_stop_cooldown_days: int = 10
 
 
 @dataclass
@@ -740,6 +878,143 @@ class QualityHighVolTurboStrategy(QualityTurboStrategy):
     min_atr_norm: float = 0.015
     vol_target: float = 0.038
 
+
+# ---------------------------------------------------------------------------
+# Growth L0 strategies (DAT-05 / UNI-01 / STR-G*) — design 2026-07-24
+# Operate on a pre-built growth ticker file (top-N double-digit growers).
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class GrowthEWStrategy(Strategy):
+    """S1: equal-weight-ish long all L0 growth names (filter is the edge)."""
+
+    name: str = "growth_ew"
+    description: str = "Growth L0 EW control — always long liquid names in growth universe"
+    needs_training: bool = False
+    needs_fundamentals: bool = False
+    universe_source_file: str = "universe_growth_top80.txt"
+    universe_n: int = 80
+    regime_filter: str = "none"
+    min_alloc_pct: float = 0.015
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        n = len(df)
+        sig = np.ones(n, dtype=bool)
+        score = np.ones(n, dtype=float)
+        if "volume_ratio" in df.columns:
+            score = np.nan_to_num(df["volume_ratio"].to_numpy(dtype=float), nan=1.0)
+        if "close" in df.columns:
+            # avoid zero/penny glitches
+            sig = sig & (df["close"].to_numpy(dtype=float) > 1.0)
+        score = np.where(sig, score, 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return {
+            "min_confidence": 0.0,
+            "require_trend": False,
+            "require_momentum": False,
+            "momentum_min": 0.0,
+            "min_dist_sma200": -1.0,
+            "max_atr_pct": 0.35,
+            "k_atr": 3.0,
+            "max_horizon": 45,
+            "volatility_target_pct": 0.035,
+            "max_position_pct": 0.12,
+            "max_positions": 20,
+            "risk_off_scale": 1.0,
+            "require_regime": False,
+            "max_entries_per_day": 12,
+            "meta_threshold": 0.0,
+            "hard_stop_pct": 0.15,
+            "min_alloc_pct": float(self.min_alloc_pct),
+            "soft_hard_regime": False,
+        }
+
+
+@dataclass
+class GrowthTrendMomStrategy(GrowthEWStrategy):
+    """S2: growth L0 + SMA50 + positive 1m momentum."""
+
+    name: str = "growth_trend_mom"
+    description: str = "Growth L0 + SMA50 trend + ret_1m>0"
+    regime_filter: str = "none"
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        n = len(df)
+        need = ("close", "sma_50", "ret_1m")
+        if any(c not in df.columns for c in need):
+            z = np.zeros(n, dtype=bool)
+            return pd.Series(z, index=df.index), pd.Series(0.0, index=df.index)
+        close = df["close"].to_numpy(dtype=float)
+        sma = df["sma_50"].to_numpy(dtype=float)
+        ret = df["ret_1m"].to_numpy(dtype=float)
+        sig = np.isfinite(sma) & np.isfinite(ret) & (close > sma) & (ret > 0.0)
+        if "dist_sma_50" in df.columns:
+            score = np.nan_to_num(df["dist_sma_50"].to_numpy(dtype=float), nan=0.0) + np.clip(
+                ret, -0.5, 2.0
+            )
+        else:
+            score = np.clip(ret, -0.5, 2.0)
+        score = np.where(sig, score + 0.05, 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+@dataclass
+class GrowthCSMomStrategy(GrowthEWStrategy):
+    """S4: cross-sectional style — long strongest 1m mom within growth L0 (score=ret_1m)."""
+
+    name: str = "growth_cs_mom"
+    description: str = "Growth L0 CS momentum rank proxy (score=ret_1m, trend filter soft)"
+    regime_filter: str = "none"
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        n = len(df)
+        if "ret_1m" not in df.columns:
+            z = np.zeros(n, dtype=bool)
+            return pd.Series(z, index=df.index), pd.Series(0.0, index=df.index)
+        ret = df["ret_1m"].to_numpy(dtype=float)
+        sig = np.isfinite(ret) & (ret > 0.02)
+        if "sma_50" in df.columns and "close" in df.columns:
+            # soft: prefer uptrend but do not hard-require if mom strong
+            up = df["close"].to_numpy(dtype=float) > df["sma_50"].to_numpy(dtype=float)
+            sig = sig & (up | (ret > 0.08))
+        score = np.nan_to_num(ret, nan=0.0)
+        score = np.where(sig, score, 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+@dataclass
+class GrowthTurboMinAllocStrategy(HighVolMinAllocStrategy):
+    """S3: turbo minalloc ML restricted to growth L0 ticker file."""
+
+    name: str = "growth_turbo_minalloc"
+    description: str = "Turbo highvol minalloc signals on growth L0 only"
+    universe_source_file: str = "universe_growth_top80.txt"
+    universe_n: int = 80
+
+
+@dataclass
+class GrowthQualityStrictStrategy(QualityTurboStrategy):
+    """S5: fund quality bar + strict dual golden on growth L0."""
+
+    name: str = "growth_quality_strict"
+    description: str = "Growth L0 + fund quality gate + strict_dual_golden"
+    universe_source_file: str = "universe_growth_top80.txt"
+    universe_n: int = 80
+    regime_filter: str = "strict_dual_golden"
+    needs_fundamentals: bool = True
+    require_positive_rev_yoy: bool = True
+    min_fund_quality: float = 0.8
+    use_price_quality_fallback: bool = False  # fund-first; fail closed if no fund
+
     def generate_signals(
         self, df: pd.DataFrame, cfg: BacktestConfig
     ) -> Tuple[pd.Series, pd.Series]:
@@ -750,6 +1025,210 @@ class QualityHighVolTurboStrategy(QualityTurboStrategy):
             score = score * (1.0 + np.clip(atr, 0, 0.15) / 0.05)
         if "volatility_20" in df.columns:
             score = score * (1.0 + np.clip(df["volatility_20"].to_numpy(), 0, 1.0))
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+# --- Redesign v2 research strategies (rules + new features; not Lean parity) ---
+
+
+def _r2_feat(df: pd.DataFrame) -> pd.DataFrame:
+    from trad_research.redesign_v2.features_ext import engineer_redesign_v2_features
+
+    return engineer_redesign_v2_features(df)
+
+
+def _r2_base_overrides(**kw: Any) -> Dict[str, Any]:
+    o: Dict[str, Any] = {
+        "min_confidence": 0.0,
+        "require_trend": False,
+        "require_momentum": False,
+        "momentum_min": 0.0,
+        "min_dist_sma200": -1.0,
+        "max_atr_pct": 0.20,
+        "k_atr": 2.8,
+        "max_horizon": 30,
+        "volatility_target_pct": 0.03,
+        "max_position_pct": 0.14,
+        "max_positions": 12,
+        "risk_off_scale": 0.40,
+        "require_regime": True,
+        "max_entries_per_day": 6,
+        "meta_threshold": 0.0,
+        "hard_stop_pct": 0.12,
+        "min_alloc_pct": 0.015,
+        "soft_hard_regime": False,
+        "commission": 0.001,
+        "slippage": 0.0005,
+    }
+    o.update(kw)
+    return o
+
+
+@dataclass
+class R2ResidualMomStrategy(Strategy):
+    """Residual (or raw) 20d momentum with trend stack ≥2 and not deep own-DD."""
+
+    name: str = "r2_residual_mom"
+    description: str = "Redesign v2: resid/raw ret_20 mom + trend_stack + dd floor"
+    needs_training: bool = False
+    regime_filter: str = "strict_dual_golden"
+    universe_source_file: str = "universe_longhist2010_pass.txt"
+    universe_n: int = 80
+    min_resid: float = 0.03
+    max_dd_entry: float = -0.35
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return _r2_base_overrides(volatility_target_pct=0.032, max_positions=10)
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        f = _r2_feat(df)
+        resid = f["resid_ret_20"].to_numpy(dtype=float)
+        stack = f["trend_stack"].to_numpy(dtype=float)
+        dd = f["dd_from_peak_252"].to_numpy(dtype=float)
+        sig = (
+            np.isfinite(resid)
+            & (resid >= float(self.min_resid))
+            & (stack >= 2.0)
+            & (np.isfinite(dd) & (dd >= float(self.max_dd_entry)))
+        )
+        if "close" in f.columns:
+            sig = sig & (f["close"].to_numpy(dtype=float) > 2.0)
+        score = np.where(sig, resid * (1.0 + 0.15 * stack), 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+@dataclass
+class R2MomSharpeStrategy(Strategy):
+    """Risk-adjusted 20d momentum (ret / vol)."""
+
+    name: str = "r2_mom_sharpe"
+    description: str = "Redesign v2: mom_sharpe_20 rank score + mild trend"
+    needs_training: bool = False
+    regime_filter: str = "strict_dual_golden"
+    universe_source_file: str = "universe_longhist2010_pass.txt"
+    universe_n: int = 80
+    min_ms: float = 0.35
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return _r2_base_overrides(volatility_target_pct=0.028, max_position_pct=0.12)
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        f = _r2_feat(df)
+        ms = f["mom_sharpe_20"].to_numpy(dtype=float)
+        stack = f["trend_stack"].to_numpy(dtype=float)
+        vov = f["vol_of_vol_20"].to_numpy(dtype=float)
+        sig = (
+            np.isfinite(ms)
+            & (ms >= float(self.min_ms))
+            & (stack >= 1.0)
+            & (~np.isfinite(vov) | (vov < 0.08))
+        )
+        score = np.where(sig, ms, 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+@dataclass
+class R2TrendStackStrategy(Strategy):
+    """Discrete trend stack 3/3 only — quality over activity."""
+
+    name: str = "r2_trend_stack"
+    description: str = "Redesign v2: trend_stack==3 + positive ret_1m"
+    needs_training: bool = False
+    regime_filter: str = "strict_dual_golden"
+    universe_source_file: str = "universe_longhist2010_pass.txt"
+    universe_n: int = 80
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return _r2_base_overrides(
+            volatility_target_pct=0.025,
+            max_positions=8,
+            max_position_pct=0.16,
+            hard_stop_pct=0.10,
+        )
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        f = _r2_feat(df)
+        stack = f["trend_stack"].to_numpy(dtype=float)
+        r1m = f["ret_1m"].to_numpy(dtype=float) if "ret_1m" in f.columns else np.zeros(len(f))
+        sig = (stack >= 2.999) & np.isfinite(r1m) & (r1m > 0.0)
+        score = np.where(sig, stack + np.clip(r1m, 0, 1.0), 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+@dataclass
+class R2DefensiveVTStrategy(Strategy):
+    """Defensive: tight vol target, hard regime, mild residual mom, avoid high vol-of-vol."""
+
+    name: str = "r2_defensive_vt"
+    description: str = "Redesign v2: defensive VT + residual mom floor + low vov"
+    needs_training: bool = False
+    regime_filter: str = "strict_dual_golden"
+    universe_source_file: str = "universe_longhist2010_pass.txt"
+    universe_n: int = 80
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return _r2_base_overrides(
+            volatility_target_pct=0.018,
+            max_position_pct=0.10,
+            max_positions=8,
+            hard_stop_pct=0.09,
+            max_horizon=25,
+            risk_off_scale=0.25,
+        )
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        f = _r2_feat(df)
+        resid = f["resid_ret_20"].to_numpy(dtype=float)
+        stack = f["trend_stack"].to_numpy(dtype=float)
+        vov = f["vol_of_vol_20"].to_numpy(dtype=float)
+        dd = f["dd_from_peak_252"].to_numpy(dtype=float)
+        sig = (
+            np.isfinite(resid)
+            & (resid > 0.0)
+            & (stack >= 2.0)
+            & (~np.isfinite(vov) | (vov < 0.05))
+            & (~np.isfinite(dd) | (dd > -0.25))
+        )
+        score = np.where(sig, np.clip(resid, 0, 1.0) + 0.1 * stack, 0.0)
+        return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
+
+
+@dataclass
+class R2RsiReclaimStrategy(Strategy):
+    """Mean-rev entry: RSI reclaim after oversold while trend_stack ≥ 1."""
+
+    name: str = "r2_rsi_reclaim"
+    description: str = "Redesign v2: RSI reclaim post-oversold in soft uptrend"
+    needs_training: bool = False
+    regime_filter: str = "strict_dual_golden"
+    universe_source_file: str = "universe_longhist2010_pass.txt"
+    universe_n: int = 80
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return _r2_base_overrides(
+            volatility_target_pct=0.022,
+            max_horizon=20,
+            hard_stop_pct=0.08,
+            max_positions=10,
+        )
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        f = _r2_feat(df)
+        reclaim = f["rsi_reclaim"].to_numpy(dtype=float) > 0.5
+        stack = f["trend_stack"].to_numpy(dtype=float)
+        sig = reclaim & (stack >= 1.0)
+        rsi = f["rsi_14"].to_numpy(dtype=float) if "rsi_14" in f.columns else np.full(len(f), 50.0)
+        score = np.where(sig, (rsi - 40.0) / 20.0 + 0.1 * stack, 0.0)
         return pd.Series(sig, index=df.index), pd.Series(score, index=df.index)
 
 
@@ -916,6 +1395,64 @@ class DefensiveTrendStrategy(Strategy):
 
 
 @dataclass
+class OrbHtfDailyProxyStrategy(Strategy):
+    """Sistema A: prior-day high break + HTF dual-MA (EOD proxy, not 15m ORB).
+
+    data_label=eod_proxy. Design: docs/design/2026-07-27_orb_htf_falsification.md
+    """
+
+    name: str = "orb_htf_daily_proxy"
+    description: str = (
+        "EOD proxy: dual-MA bias + break prior-day high + close>open; "
+        "risk 0.75%, TP 2R, time 10 (not session ORB)"
+    )
+    needs_training: bool = False
+    regime_filter: str = "legacy_sma50"  # ignored when require_regime=False
+    bias_mode: str = "dual_ma"  # dual_ma | sma200_only
+    risk_per_trade_pct: float = 0.0075
+    take_profit_r: float = 2.0
+    max_horizon: int = 10
+    k_atr: float = 1.5
+    hard_stop_atr_mult: float = 1.5
+    hard_stop_pct: float = 0.03
+    min_alloc_pct: float = 0.015
+    max_positions: int = 8
+    max_position_pct: float = 0.12
+
+    def backtest_overrides(self) -> Dict[str, Any]:
+        return {
+            "min_confidence": 0.0,
+            "require_trend": False,
+            "require_momentum": False,
+            "require_regime": False,
+            "k_atr": float(self.k_atr),
+            "max_horizon": int(self.max_horizon),
+            "hard_stop_pct": float(self.hard_stop_pct),
+            "hard_stop_atr_mult": float(self.hard_stop_atr_mult),
+            "risk_per_trade_pct": float(self.risk_per_trade_pct),
+            "take_profit_r": float(self.take_profit_r),
+            "volatility_target_pct": 0.0,  # unused when risk_per_trade set
+            "max_position_pct": float(self.max_position_pct),
+            "max_positions": int(self.max_positions),
+            "min_alloc_pct": float(self.min_alloc_pct),
+            "max_entries_per_day": 5,
+            "max_atr_pct": 0.15,
+            "min_dist_sma200": -1.0,  # bias handled in signal
+            "commission": 0.001,
+            "slippage": 0.0005,
+            "adaptive_exit": False,
+        }
+
+    def generate_signals(
+        self, df: pd.DataFrame, cfg: BacktestConfig
+    ) -> Tuple[pd.Series, pd.Series]:
+        from trad_research.orb_htf import compute_orb_htf_signals
+
+        mode = "sma200_only" if self.bias_mode == "sma200_only" else "dual_ma"
+        return compute_orb_htf_signals(df, bias_mode=mode)
+
+
+@dataclass
 class HybridTrendMLStrategy(Strategy):
     """ML primary + hard rule overlay (trend + not overextended RSI)."""
 
@@ -999,21 +1536,43 @@ def all_strategies() -> List[Strategy]:
         HighVolSoftRegimeStrategy(),
         HighVolAtrStopStrategy(),
         HighVolSoftTrendStrategy(),
+        HighVolCrashRsiStrategy(),
+        HighVolCrashRsiWRStrategy(),
+        HighVolMinAllocCrashRsiStrategy(),
         HighVolFixpackStrategy(),
         AdaptiveHighVolTurboStrategy(),
         AdaptiveTurboStrictStrategy(),
         RobustHighVolDynamicStrategy(),
         QualityTurboStrategy(),
         QualityHighVolTurboStrategy(),
+        GrowthEWStrategy(),
+        GrowthTrendMomStrategy(),
+        GrowthCSMomStrategy(),
+        GrowthTurboMinAllocStrategy(),
+        GrowthQualityStrictStrategy(),
         HybridTrendMLStrategy(),
         TrendMomentumStrategy(),
         RsiPullbackStrategy(),
         VolBreakoutStrategy(),
         DefensiveTrendStrategy(),
+        # Sistema A falsification (EOD proxy — not 15m ORB)
+        OrbHtfDailyProxyStrategy(),
+        OrbHtfDailyProxyStrategy(
+            name="orb_htf_daily_proxy_a1",
+            description="A1: SMA200-only bias + prior-day high break (EOD proxy)",
+            bias_mode="sma200_only",
+        ),
+        # Redesign v2 research zoo
+        R2ResidualMomStrategy(),
+        R2MomSharpeStrategy(),
+        R2TrendStackStrategy(),
+        R2DefensiveVTStrategy(),
+        R2RsiReclaimStrategy(),
     ]
 
 
 # US research baseline alias (promote minalloc — not live trading).
+# STYLE-US control only under structural redesign (2026-07-23); not ALPHA-PORTABLE.
 RESEARCH_BASELINE_US: str = "turbo_highvol_minalloc"
 _STRATEGY_ALIASES: Dict[str, str] = {
     "us_research_baseline": RESEARCH_BASELINE_US,
@@ -1028,4 +1587,11 @@ def get_strategy(name: str) -> Strategy:
     for s in all_strategies():
         if s.name == key:
             return s
+    # Style clones (STR-04) — dumb L1 on highvol L0 shell
+    try:
+        from trad_research.style_clone import get_style_clone
+
+        return get_style_clone(key)
+    except KeyError:
+        pass
     raise KeyError(f"Unknown strategy: {name}. Available: {[s.name for s in all_strategies()]}")

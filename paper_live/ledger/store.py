@@ -160,6 +160,13 @@ class PaperLedger:
 
     JSONL files are append-only under ``audit/YYYY-MM-DD.jsonl``.
     Closed-day files must not be rewritten; use event_type=correction.
+
+    Lean mode (``lean=True`` in :meth:`create_run`):
+      - in-memory SQLite (no paper_year.db on disk)
+      - no JSONL audit files
+      - no freeze snapshot file
+      Intended for bulk research matrices (e.g. mega annual alpha) where
+      only end metrics matter. Full audit remains the default for paper runs.
     """
 
     root: Path
@@ -170,6 +177,10 @@ class PaperLedger:
     audit_dir: Path
     snapshots_dir: Path
     _conn: sqlite3.Connection
+    lean: bool = False
+    skip_jsonl: bool = False
+    _pending_writes: int = 0
+    _commit_every: int = 1
 
     @classmethod
     def create_run(
@@ -179,25 +190,48 @@ class PaperLedger:
         *,
         run_id: Optional[str] = None,
         meta: Optional[Mapping[str, Any]] = None,
+        lean: bool = False,
     ) -> "PaperLedger":
-        """Initialize a new paper run under root (creates dirs + DB row)."""
+        """Initialize a new paper run under root (creates dirs + DB row).
+
+        Parameters
+        ----------
+        lean:
+            Fast path for research matrices: memory DB, no JSONL, no freeze file.
+        """
         assert_paper_only(require_env=False)
         root = Path(root)
         root.mkdir(parents=True, exist_ok=True)
-        db_path = root / "paper_year.db"
         audit_dir = root / "audit"
         snapshots_dir = root / "snapshots"
-        audit_dir.mkdir(parents=True, exist_ok=True)
-        snapshots_dir.mkdir(parents=True, exist_ok=True)
-
         rid = run_id or new_run_id()
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
+
+        if lean:
+            # In-memory DB; optional on-disk root only if caller wants a marker dir
+            db_path = root / ":memory:"
+            conn = sqlite3.connect(":memory:")
+            conn.row_factory = sqlite3.Row
+            # Speed pragmas (no durability needed for ephemeral study runs)
+            conn.execute("PRAGMA synchronous = OFF")
+            conn.execute("PRAGMA journal_mode = MEMORY")
+            conn.execute("PRAGMA temp_store = MEMORY")
+        else:
+            db_path = root / "paper_year.db"
+            audit_dir.mkdir(parents=True, exist_ok=True)
+            snapshots_dir.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+
         conn.executescript(_SCHEMA_SQL)
         conn.execute(
             "INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
             ("schema_version", str(SCHEMA_VERSION)),
         )
+        if lean:
+            conn.execute(
+                "INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
+                ("lean", "1"),
+            )
         started = _iso()
         try:
             conn.execute(
@@ -229,13 +263,20 @@ class PaperLedger:
             audit_dir=audit_dir,
             snapshots_dir=snapshots_dir,
             _conn=conn,
+            lean=bool(lean),
+            skip_jsonl=bool(lean),
+            _pending_writes=0,
+            _commit_every=50 if lean else 1,
         )
-        # Persist freeze snapshot with the run (immutable reference)
-        freeze_path = root / f"freeze_{rid}.json"
-        freeze_path.write_text(
-            _json_dumps(freeze.to_public_dict()),
-            encoding="utf-8",
-        )
+        freeze_name = "lean_no_freeze"
+        if not lean:
+            # Persist freeze snapshot with the run (immutable reference)
+            freeze_path = root / f"freeze_{rid}.json"
+            freeze_path.write_text(
+                _json_dumps(freeze.to_public_dict()),
+                encoding="utf-8",
+            )
+            freeze_name = str(freeze_path.name)
         ledger.append_event(
             EventType.RUN_INIT,
             {
@@ -244,7 +285,8 @@ class PaperLedger:
                 "config_hash": freeze.config_hash,
                 "capital0": freeze.strategy.capital0,
                 "mode": "paper",
-                "freeze_path": str(freeze_path.name),
+                "freeze_path": freeze_name,
+                "lean": bool(lean),
             },
             ts=datetime.fromisoformat(started),
         )
@@ -283,6 +325,12 @@ class PaperLedger:
         )
 
     def close(self) -> None:
+        try:
+            if self._pending_writes:
+                self._conn.commit()
+                self._pending_writes = 0
+        except Exception:
+            pass
         self._conn.close()
 
     def __enter__(self) -> "PaperLedger":
@@ -290,6 +338,13 @@ class PaperLedger:
 
     def __exit__(self, *args: Any) -> None:
         self.close()
+
+    def _commit(self, *, force: bool = False) -> None:
+        """Commit SQLite; batch when lean to cut fsync overhead."""
+        self._pending_writes += 1
+        if force or self._pending_writes >= max(1, int(self._commit_every)):
+            self._conn.commit()
+            self._pending_writes = 0
 
     # --- core event log ---
 
@@ -331,12 +386,14 @@ class PaperLedger:
                 _json_dumps(payload_d),
             ),
         )
-        self._conn.commit()
+        self._commit()
         self._append_jsonl(row)
         return eid
 
     def _append_jsonl(self, row: Mapping[str, Any]) -> None:
-        """Append one audit line. Never truncates the file."""
+        """Append one audit line. Never truncates the file. No-op in lean mode."""
+        if self.skip_jsonl or self.lean:
+            return
         day = str(row["ts"])[:10]
         path = self.audit_dir / f"{day}.jsonl"
         line = _json_dumps(row) + "\n"
@@ -421,7 +478,7 @@ class PaperLedger:
                 _json_dumps(dict(meta or {})),
             ),
         )
-        self._conn.commit()
+        self._commit()
         self.append_event(
             EventType.ORDER_SUBMITTED,
             {
@@ -453,7 +510,7 @@ class PaperLedger:
             "UPDATE orders SET status = ?, reason = COALESCE(?, reason) WHERE order_id = ? AND run_id = ?",
             (status, reason, order_id, self.run_id),
         )
-        self._conn.commit()
+        self._commit()
         if event is not None:
             self.append_event(
                 event,
@@ -512,7 +569,7 @@ class PaperLedger:
             "UPDATE orders SET status = ? WHERE order_id = ? AND run_id = ?",
             (order_status, order_id, self.run_id),
         )
-        self._conn.commit()
+        self._commit()
         gross = float(qty) * float(price)
         self.append_event(
             EventType.FILL,
@@ -576,7 +633,7 @@ class PaperLedger:
                 _json_dumps(dict(meta or {})),
             ),
         )
-        self._conn.commit()
+        self._commit()
         et = event or (
             EventType.POSITION_OPENED if qty > 0 else EventType.POSITION_CLOSED
         )
@@ -598,7 +655,7 @@ class PaperLedger:
             "DELETE FROM positions WHERE run_id = ? AND ticker = ?",
             (self.run_id, t),
         )
-        self._conn.commit()
+        self._commit()
         self.append_event(
             EventType.POSITION_CLOSED,
             {"ticker": t, "qty": 0.0, **dict(meta or {})},
@@ -641,7 +698,7 @@ class PaperLedger:
                 self.config_hash,
             ),
         )
-        self._conn.commit()
+        self._commit()
         et = (
             EventType.ENTRY_CANDIDATE
             if action in ("enter", "candidate", "buy")
@@ -698,7 +755,7 @@ class PaperLedger:
                 peak_equity,
             ),
         )
-        self._conn.commit()
+        self._commit()
         self.append_event(
             EventType.DAILY_NAV,
             {
@@ -742,7 +799,7 @@ class PaperLedger:
                 float(turnover),
             ),
         )
-        self._conn.commit()
+        self._commit()
 
     def write_snapshot(self, label: Optional[str] = None) -> Path:
         """Write end-of-day style portfolio snapshot JSON (recovery aid)."""

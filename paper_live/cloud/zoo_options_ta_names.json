@@ -21,7 +21,7 @@
       "dte_days": 30,
       "otm_pct": 0.06,
       "max_portfolio_dd": 0.15,
-      "max_margin_fraction": 0.70,
+      "max_margin_fraction": 0.50,
       "meta": {
         "require_range_regime": true,
         "max_atr_pctile": 0.45,
@@ -31,9 +31,11 @@
         "take_profit_credit_frac": 0.50,
         "stop_loss_credit_mult": 2.0,
         "max_rolls": 1,
-        "bid_haircut": 0.06
+        "bid_haircut": 0.06,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25
       },
-      "notes": "Single-name put write only in quiet volume range."
+      "notes": "Single-name CSP only quiet range; collateral cap tighter (prefer PCS when possible)."
     },
     {
       "id": "OPT_NAME_AAPL_cc_trend_vol",
@@ -87,7 +89,7 @@
       "dte_days": 30,
       "otm_pct": 0.08,
       "max_portfolio_dd": 0.15,
-      "max_margin_fraction": 0.60,
+      "max_margin_fraction": 0.45,
       "meta": {
         "require_hv_above_median": true,
         "require_volume_dryup": true,
@@ -95,9 +97,11 @@
         "take_profit_credit_frac": 0.50,
         "stop_loss_credit_mult": 2.0,
         "max_rolls": 1,
-        "bid_haircut": 0.07
+        "bid_haircut": 0.07,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25
       },
-      "notes": "NVDA put-write farther OTM; higher haircut for name spreads."
+      "notes": "NVDA put-write farther OTM; tighter collateral; prefer OPT_NAME_NVDA_pcs_vrp."
     },
     {
       "id": "OPT_NAME_NVDA_cc_trend_vol",
@@ -188,6 +192,59 @@
       "underlying": "SPY",
       "hard_kill_enabled": false,
       "notes": "Floor benchmark."
+    },
+    {
+      "id": "OPT_NAME_AAPL_pcs_vrp",
+      "label": "AAPL PCS VRP proxy + volume dry (preferred defined-risk)",
+      "kind": "put_credit_spread",
+      "underlying": "AAPL",
+      "dte_days": 30,
+      "otm_pct": 0.06,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.30,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.02,
+        "require_volume_dryup": true,
+        "max_volume_ratio": 0.90,
+        "max_atr_pctile": 0.55,
+        "require_low_atr": true,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25,
+        "take_profit_credit_frac": 0.50,
+        "stop_loss_credit_mult": 2.0,
+        "max_rolls": 1,
+        "bid_haircut": 0.06
+      },
+      "notes": "Single-name short premium prefers defined-risk + VRP proxy gate."
+    },
+    {
+      "id": "OPT_NAME_NVDA_pcs_vrp",
+      "label": "NVDA PCS VRP proxy + range (preferred defined-risk)",
+      "kind": "put_credit_spread",
+      "underlying": "NVDA",
+      "dte_days": 30,
+      "otm_pct": 0.08,
+      "wing_otm_pct": 0.14,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.07,
+      "max_margin_fraction": 0.25,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.025,
+        "require_range_regime": true,
+        "max_atr_pctile": 0.50,
+        "max_dist_sma50": 0.08,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25,
+        "take_profit_credit_frac": 0.50,
+        "stop_loss_credit_mult": 2.0,
+        "max_rolls": 1,
+        "bid_haircut": 0.07
+      },
+      "notes": "NVDA defined-risk only when VRP proxy rich + range (no naked CSP)."
     }
   ]
 }

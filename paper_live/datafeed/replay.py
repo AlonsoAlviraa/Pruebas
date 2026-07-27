@@ -50,6 +50,11 @@ class DailyReplayFeed:
         self._raw: Dict[str, pd.DataFrame] = {}
         self._by_day: Dict[date, Dict[str, Bar]] = {}
         self._days: List[date] = []
+        # Fast causal slices: normalized date ns + prebuilt close series
+        self._date_ns: Dict[str, np.ndarray] = {}
+        self._close_arr: Dict[str, np.ndarray] = {}
+        self._day_list: Dict[str, List[date]] = {}
+        self._featured_full: Dict[str, pd.DataFrame] = {}
 
         all_days = set()
         for t, df in panels.items():
@@ -73,11 +78,30 @@ class DailyReplayFeed:
                 continue
             key = t.upper()
             self._raw[key] = d
-            for _, row in d.iterrows():
-                bar = _row_to_bar(key, row)
-                day = bar.day
+            dns = d["date"].dt.normalize().astype("int64").to_numpy()
+            self._date_ns[key] = dns
+            self._close_arr[key] = d["close"].astype(float).to_numpy()
+            # Vectorized bar index (avoid slow iterrows on multi-year panels)
+            day_list: List[date] = [pd.Timestamp(x).date() for x in d["date"].to_numpy()]
+            opens = d["open"].to_numpy(dtype=float)
+            highs = d["high"].to_numpy(dtype=float)
+            lows = d["low"].to_numpy(dtype=float)
+            closes = d["close"].to_numpy(dtype=float)
+            vols = d["volume"].to_numpy(dtype=float) if "volume" in d.columns else np.zeros(len(d))
+            for i, day in enumerate(day_list):
+                ts = pd.Timestamp(day).tz_localize("UTC").to_pydatetime()
+                bar = Bar(
+                    ticker=key,
+                    ts=ts,
+                    open=float(opens[i]),
+                    high=float(highs[i]),
+                    low=float(lows[i]),
+                    close=float(closes[i]),
+                    volume=float(vols[i]),
+                )
                 self._by_day.setdefault(day, {})[key] = bar
                 all_days.add(day)
+            self._day_list[key] = day_list
 
         self._days = sorted(all_days)
 
@@ -163,6 +187,17 @@ class DailyReplayFeed:
     def bar(self, ticker: str, day: Union[str, date]) -> Optional[Bar]:
         return self.asof(day).get(ticker)
 
+    def _end_index(self, ticker: str, through: Union[str, date], *, include_through: bool) -> int:
+        """Exclusive end index into raw panel for causal slice (searchsorted)."""
+        t = ticker.upper()
+        dns = self._date_ns.get(t)
+        if dns is None or len(dns) == 0:
+            return 0
+        end = _to_utc_ts(through).normalize()
+        end_ns = np.int64(end.value)
+        side = "right" if include_through else "left"
+        return int(np.searchsorted(dns, end_ns, side=side))
+
     def history(
         self,
         ticker: str,
@@ -175,13 +210,26 @@ class DailyReplayFeed:
         raw = self._raw.get(t)
         if raw is None or raw.empty:
             return pd.DataFrame()
-        end = _to_utc_ts(through).normalize()
-        d = raw.copy()
-        if include_through:
-            d = d[d["date"].dt.normalize() <= end]
-        else:
-            d = d[d["date"].dt.normalize() < end]
-        return d.reset_index(drop=True)
+        idx = self._end_index(t, through, include_through=include_through)
+        if idx <= 0:
+            return pd.DataFrame(columns=raw.columns)
+        # iloc view-like slice; reset_index only for API stability
+        return raw.iloc[:idx].reset_index(drop=True)
+
+    def closes_through(
+        self,
+        ticker: str,
+        through: Union[str, date],
+        *,
+        include_through: bool = True,
+    ) -> np.ndarray:
+        """Fast causal close array (no pandas rebuild)."""
+        t = ticker.upper()
+        arr = self._close_arr.get(t)
+        if arr is None or len(arr) == 0:
+            return np.asarray([], dtype=float)
+        idx = self._end_index(t, through, include_through=include_through)
+        return arr[:idx]
 
     def featured(
         self,
@@ -191,17 +239,37 @@ class DailyReplayFeed:
         min_history: Optional[int] = None,
     ) -> pd.DataFrame:
         """Feature frame causal through ``through`` (inclusive)."""
-        hist = self.history(ticker, through=through, include_through=True)
+        t = ticker.upper()
         need = int(min_history if min_history is not None else self.min_history)
-        if hist.empty or len(hist) < need:
+        raw = self._raw.get(t)
+        if raw is None or raw.empty:
             return pd.DataFrame()
-        feat = engineer_m2_features(hist)
-        # Keep rows with usable signal fields when possible (still causal)
-        if "ret_1m" in feat.columns and "sma_50" in feat.columns:
-            usable = feat.dropna(subset=["close", "ret_1m", "sma_50"], how="any")
-            if len(usable) >= max(30, need // 3):
-                feat = usable
-        return feat.reset_index(drop=True)
+        # Build full featured once per ticker (same as causal prefix of full hist)
+        if t not in self._featured_full:
+            full = engineer_m2_features(raw)
+            if "ret_1m" in full.columns and "sma_50" in full.columns:
+                usable = full.dropna(subset=["close", "ret_1m", "sma_50"], how="any")
+                if len(usable) >= max(30, need // 3):
+                    full = usable
+            self._featured_full[t] = full.reset_index(drop=True)
+        feat = self._featured_full[t]
+        if feat.empty:
+            return pd.DataFrame()
+        # Slice by date <= through (causal)
+        if "date" not in feat.columns:
+            return feat
+        end = _to_utc_ts(through).normalize()
+        # feat dates may already be datetime
+        dates = pd.to_datetime(feat["date"], utc=True, errors="coerce")
+        mask = dates.dt.normalize() <= end
+        out = feat.loc[mask]
+        if out.empty or len(out) < need:
+            # fall back to short causal hist if full cache alignment odd
+            hist = self.history(ticker, through=through, include_through=True)
+            if hist.empty or len(hist) < need:
+                return pd.DataFrame()
+            return engineer_m2_features(hist)
+        return out.reset_index(drop=True)
 
     def next_session(self, day: Union[str, date]) -> Optional[date]:
         d = pd.Timestamp(day).date()

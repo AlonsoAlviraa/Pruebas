@@ -1,0 +1,17 @@
+{
+  "version": "options-scorecard-v1",
+  "notes": "Promote / watch / kill rules for OPT_TA multi-window matrix. VIRTUAL research only.",
+  "index_underlyings": ["SPY", "QQQ", "IWM", "DIA"],
+  "bull_windows": ["2023", "2024", "2025_study"],
+  "bear_windows": ["2022_bear"],
+  "stress_window": "stress_primary",
+  "cash_strategy_ids": ["OPT_TA12_cash", "OPT_NAME_cash", "cash"],
+  "thresholds": {
+    "max_dd_kill": 0.25,
+    "stress_max_dd_promote": 0.20,
+    "min_windows_vs_cash_promote": 3,
+    "min_bull_worse_than_cash_for_kill": 2,
+    "min_opens_for_verdict": 0
+  },
+  "priority": ["KILL", "PROMOTE_RESEARCH", "WATCH", "HOLD"]
+}

@@ -36,6 +36,9 @@ class ManagementConfig:
     enable_assignment_proxy: bool = True
     deep_itm_assign_pct: float = 0.08
     manage_long_premium: bool = False  # protective put / long wings not TP'd as sellers
+    # Mgmt 2.0 — time exit (premium seller discipline)
+    time_exit_dte: int = 0  # 0 = disabled; else close when DTE ≤ N and residual low
+    time_exit_residual_credit_frac: float = 0.25  # residual credit / initial ≤ this
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -46,6 +49,8 @@ class ManagementConfig:
             "enable_assignment_proxy": self.enable_assignment_proxy,
             "deep_itm_assign_pct": self.deep_itm_assign_pct,
             "manage_long_premium": self.manage_long_premium,
+            "time_exit_dte": self.time_exit_dte,
+            "time_exit_residual_credit_frac": self.time_exit_residual_credit_frac,
         }
 
 
@@ -74,6 +79,10 @@ def management_from_meta(
         ),
         deep_itm_assign_pct=float(m.get("deep_itm_assign_pct", d.deep_itm_assign_pct)),
         manage_long_premium=bool(m.get("manage_long_premium", False)),
+        time_exit_dte=int(m.get("time_exit_dte", d.time_exit_dte)),
+        time_exit_residual_credit_frac=float(
+            m.get("time_exit_residual_credit_frac", d.time_exit_residual_credit_frac)
+        ),
     )
 
 
@@ -261,15 +270,45 @@ def structure_mark_to_close(
     return float(per) * 100.0 * n
 
 
+def residual_credit_frac(initial_credit: float, mark_to_close: float) -> float:
+    """Fraction of initial credit still 'in the market' (1 − capture)."""
+    cap = credit_captured_frac(initial_credit, mark_to_close)
+    return max(1.0 - cap, 0.0)
+
+
+def should_time_exit(
+    *,
+    dte: int,
+    initial_credit: float,
+    mark_to_close: float,
+    time_exit_dte: int = 7,
+    residual_frac: float = 0.25,
+) -> bool:
+    """
+    Close short premium when DTE ≤ N and residual credit ≤ residual_frac of initial.
+
+    Example: DTE≤7 and only 25% of credit left to capture → time exit (theta decay
+    no longer worth gamma risk near expiry).
+    """
+    if int(time_exit_dte) <= 0:
+        return False
+    if int(dte) > int(time_exit_dte):
+        return False
+    if initial_credit <= 1e-12:
+        return False
+    return residual_credit_frac(initial_credit, mark_to_close) <= float(residual_frac) + 1e-12
+
+
 def management_action(
     *,
     kind: str,
     initial_credit: float,
     mark_to_close: float,
     cfg: ManagementConfig,
+    dte: Optional[int] = None,
 ) -> Optional[str]:
     """
-    Return 'take_profit' | 'stop_loss' | None for short-premium kinds.
+    Return 'take_profit' | 'stop_loss' | 'time_exit' | None for short-premium kinds.
     """
     if kind not in SHORT_PREMIUM_KINDS:
         return None
@@ -286,4 +325,12 @@ def management_action(
         initial_credit, mark_to_close, mult=cfg.stop_loss_credit_mult
     ):
         return "stop_loss"
+    if dte is not None and should_time_exit(
+        dte=int(dte),
+        initial_credit=initial_credit,
+        mark_to_close=mark_to_close,
+        time_exit_dte=cfg.time_exit_dte,
+        residual_frac=cfg.time_exit_residual_credit_frac,
+    ):
+        return "time_exit"
     return None

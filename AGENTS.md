@@ -57,9 +57,20 @@ Goal is **robust out-of-sample edge**, not in-sample Sharpe maximization.
 
 - Report **OOS** metrics: Sharpe, Sortino, max DD, Calmar, hit rate, profit factor, turnover, capacity notes.
 - Always compare vs **buy-and-hold benchmark** (SPY or equal-weight universe) on the same period.
+- When the portfolio is partially in cash, also report **w·SPY + (1−w)·cash** with the same invested weight `w` (fair cash-aware benchmark). Keep full SPY/QQQ BH as secondary.
 - Stress at least one crisis window (e.g. 2020, 2022) separately.
 - Walk-forward or expanding window required before claiming an edge.
 - Reject strategies that only work with razor-thin parameter optima.
+
+### Options marks honesty (permanent)
+
+- **Real marks always** for short-vol research claims. Codified as `marks_mode` / `data_label`:
+  - `real_chain` (or `yahoo_chain` / `eodhd_options_eod` / OPRA-class) = exchange or marketplace option quotes/fills
+  - `proxy_bs` / `vix_surface` / `proxy_bs|vix_surface` = model Black–Scholes on proxy IV (**not** fills)
+- **Never claim OPRA edge from `proxy_bs`.** If real option marks are unavailable, do **not** evaluate short-premium as if real.
+- When `marks_mode` is proxy: **exclude** pure short-vol kinds from portfolio meta-study evaluation and research claims: `put_credit_spread`, `call_credit_spread`, `iron_condor`, `cash_secured_put` (grid zoo ban + meta gate). `covered_call` may remain as equity-linked control; still not an OPRA claim.
+- When real marks are available: short-vol kinds may re-enter evaluation; keep explicit `marks_mode=real_chain` in reports.
+- Implementation SSOT: `paper_live/options/marks_policy.py`.
 
 ### Risk & execution realism
 

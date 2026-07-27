@@ -25,8 +25,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from paper_live.cloud.free_data import SEED_DIR, build_cloud_feed
+from paper_live.options.book import book_delta_report_beta, build_sleeve_portfolio
 from paper_live.options.replay_options import book_delta_report, run_options_batch
 from paper_live.options.risk import OptionsRiskConfig
+from paper_live.options.scorecard import write_scorecard
 from paper_live.options.strategies import OptionStrategySpec
 from paper_live.options.stress import StressSpec, build_stressed_feed
 
@@ -157,8 +159,8 @@ def _run_window(
 def _ranking_table(results: Sequence[Any], spy_bh: Optional[float]) -> List[str]:
     ranking = sorted(results, key=lambda r: r.total_return, reverse=True)
     lines = [
-        "| Rank | ID | Kind | Und | Return | MaxDD | CVaR5% | Opens | DTE rolls | TP/SL | Δend | vsSPY | Kill |",
-        "|------|-----|------|-----|--------|-------|--------|-------|-----------|------|------|-------|------|",
+        "| Rank | ID | Kind | Und | Return | MaxDD | CVaR5% | Opens | DTE rolls | TP/SL/TE | Δend | vsSPY | Kill |",
+        "|------|-----|------|-----|--------|-------|--------|-------|-----------|----------|------|-------|------|",
     ]
     for i, r in enumerate(ranking, 1):
         vs = r.vs_spy_bh
@@ -166,7 +168,10 @@ def _ranking_table(results: Sequence[Any], spy_bh: Optional[float]) -> List[str]
             vs = r.total_return - spy_bh
         dlt = getattr(r, "approx_delta_end", None)
         dlt_s = f"{dlt:.0f}" if dlt is not None else "n/a"
-        tpsl = f"{getattr(r, 'n_tp', 0)}/{getattr(r, 'n_sl', 0)}"
+        tpsl = (
+            f"{getattr(r, 'n_tp', 0)}/{getattr(r, 'n_sl', 0)}/"
+            f"{getattr(r, 'n_time_exit', 0)}"
+        )
         n_open = getattr(r, "n_opens", r.n_rolls)
         n_dte = getattr(r, "n_dte_rolls", 0)
         lines.append(
@@ -217,8 +222,23 @@ def main() -> int:
     )
     ap.add_argument(
         "--names-zoo",
-        default=None,
-        help="Optional single-name zoo (e.g. paper_live/cloud/zoo_options_ta_names.json)",
+        default="paper_live/cloud/zoo_options_ta_names.json",
+        help="Single-name zoo (default: zoo_options_ta_names.json). Pass empty string to skip.",
+    )
+    ap.add_argument(
+        "--no-names",
+        action="store_true",
+        help="Skip single-name zoo even if default path exists",
+    )
+    ap.add_argument(
+        "--no-scorecard",
+        action="store_true",
+        help="Skip promote/watch/kill scorecard write",
+    )
+    ap.add_argument(
+        "--chain-diag",
+        action="store_true",
+        help="Optional: Yahoo chain mid vs model BS today (network; diagnostic only)",
     )
     ap.add_argument(
         "--out",
@@ -257,14 +277,22 @@ def main() -> int:
 
     zoo_path = Path(args.zoo)
     specs, capital0, risk = _specs_from_zoo(zoo_path)
-    if args.names_zoo:
-        n_specs, _, _ = _specs_from_zoo(Path(args.names_zoo))
-        # append non-duplicate ids
-        seen = {s.id for s in specs}
-        for s in n_specs:
-            if s.id not in seen:
-                specs.append(s)
-                seen.add(s.id)
+    names_zoo_arg = None if args.no_names else (args.names_zoo or None)
+    if names_zoo_arg in ("", "none", "None"):
+        names_zoo_arg = None
+    if names_zoo_arg:
+        npath = Path(names_zoo_arg)
+        if npath.is_file():
+            n_specs, _, _ = _specs_from_zoo(npath)
+            # append non-duplicate ids
+            seen = {s.id for s in specs}
+            for s in n_specs:
+                if s.id not in seen:
+                    specs.append(s)
+                    seen.add(s.id)
+        else:
+            logger.warning("names-zoo not found: %s — skipping", npath)
+            names_zoo_arg = None
 
     unds = sorted({sp.underlying.upper() for sp in specs} | set(BENCH_TICKERS) | set(VOL_TICKERS))
     logger.info("Building feed tickers=%s lookback=%d", unds, args.lookback_days)
@@ -396,7 +424,7 @@ def main() -> int:
     payload: Dict[str, Any] = {
         "as_of": as_of,
         "zoo": str(zoo_path),
-        "names_zoo": args.names_zoo,
+        "names_zoo": names_zoo_arg,
         "capital0": capital0,
         "has_vix": has_vix,
         "data_sources": sources,
@@ -433,7 +461,7 @@ def main() -> int:
         f"# OPT_TA multi-window matrix — `{as_of}`",
         "",
         f"**Zoo:** `{zoo_path}`"
-        + (f" + names `{args.names_zoo}`" if args.names_zoo else ""),
+        + (f" + names `{names_zoo_arg}`" if names_zoo_arg else ""),
         f"**Capital:** VIRTUAL ${capital0:,.0f}",
         f"**VIX in feed:** {has_vix}",
         f"**N strategies:** {len(specs)}",
@@ -522,6 +550,90 @@ def main() -> int:
     for b in multi_blocks:
         name = b.get("name") or "window"
         (latest / f"window_{name}.md").write_text(_window_md(str(name), b), encoding="utf-8")
+
+    # Beta-weighted book + sleeve portfolio on primary window
+    try:
+        primary_results = primary.get("results_obj") or []
+        p_end_d = date.fromisoformat(primary["window"]["end"])
+        if primary_results:
+            bw = book_delta_report_beta(primary_results, feed, p_end_d)
+            sleeve = build_sleeve_portfolio(primary_results, capital0=capital0)
+            payload["primary"]["book_delta_beta"] = bw
+            payload["primary"]["sleeve_portfolio"] = {
+                k: v
+                for k, v in sleeve.to_dict().items()
+                if k != "equity_curve"
+            }
+            # attach full curve separately (can be large)
+            (latest / "sleeve_equity.json").write_text(
+                json.dumps(sleeve.to_dict(), indent=2, default=str),
+                encoding="utf-8",
+            )
+            lines_extra = [
+                "",
+                "## Book risk (primary window)",
+                "",
+                f"- **Raw Δ sum:** {bw.get('sum_raw_delta_end')}",
+                f"- **Beta-weighted Δ sum:** {bw.get('sum_beta_weighted_delta')} "
+                f"(label=`{bw.get('label')}`)",
+                f"- **Sleeve portfolio:** return={_fmt_pct(sleeve.total_return)} "
+                f"maxDD={_fmt_pct(sleeve.max_dd)} weights={sleeve.weights} "
+                f"members={sleeve.members}",
+                "",
+            ]
+            md = md.rstrip() + "\n" + "\n".join(lines_extra) + "\n"
+            (latest / "SUMMARY.md").write_text(md, encoding="utf-8")
+            (latest / "summary.json").write_text(
+                json.dumps(payload, indent=2, default=str), encoding="utf-8"
+            )
+    except Exception as e:
+        logger.warning("Book beta / sleeve failed: %s", e)
+
+    # Optional chain diagnostic (today only — never rewrites history)
+    if args.chain_diag:
+        try:
+            from paper_live.options.chain_diag import diagnose_chain_vs_model
+            from paper_live.options.vol_surface import resolve_vix_level, VIX_TICKERS, VIX3M_TICKERS
+
+            last = days[-1]
+            vix = resolve_vix_level(feed, last, aliases=VIX_TICKERS)
+            vix3m = resolve_vix_level(feed, last, aliases=VIX3M_TICKERS)
+            diag = diagnose_chain_vs_model(
+                ("SPY", "QQQ", "AAPL"),
+                vix=vix,
+                vix3m=vix3m,
+            )
+            payload["chain_diag"] = diag
+            (latest / "chain_diag.json").write_text(
+                json.dumps(diag, indent=2, default=str), encoding="utf-8"
+            )
+            (latest / "summary.json").write_text(
+                json.dumps(payload, indent=2, default=str), encoding="utf-8"
+            )
+            logger.info("chain_diag ok=%s label=%s", diag.get("ok"), diag.get("label"))
+        except Exception as e:
+            logger.warning("chain_diag failed: %s", e)
+            (latest / "chain_diag.json").write_text(
+                json.dumps(
+                    {"ok": False, "label": "yahoo_chain_failed", "error": str(e)},
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+    # Scorecard promote / watch / kill
+    if not args.no_scorecard:
+        try:
+            sc_path = out_root / "SCORECARD.md"
+            write_scorecard(
+                latest / "summary.json",
+                out_md=sc_path,
+                out_json=out_root / "SCORECARD.json",
+                config_path=ROOT / "paper_live" / "cloud" / "scorecard_options_config.json",
+            )
+            logger.info("Scorecard → %s", sc_path)
+        except Exception as e:
+            logger.warning("Scorecard failed: %s", e)
 
     logger.info("Wrote pack to %s", latest)
     print(f"Wrote {latest / 'SUMMARY.md'}", file=sys.stderr)

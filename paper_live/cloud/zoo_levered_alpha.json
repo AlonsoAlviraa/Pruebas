@@ -1,0 +1,200 @@
+{
+  "version": "levered-alpha-zoo-v1",
+  "capital0": 100000.0,
+  "notes": "Research levered sleeves. Labels: levered_proxy / etf_levered_proxy. Financing default 5% on (L-1). VIRTUAL only. Not real TQQQ/margin fills.",
+  "financing_rate": 0.05,
+  "hard_dd_cap": -0.60,
+  "strategies": [
+    {
+      "id": "LEV_QQQ_1x",
+      "family": "index",
+      "underlying": "QQQ",
+      "leverage": 1.0,
+      "kind": "index_hold",
+      "label": "QQQ 1x hold (baseline)"
+    },
+    {
+      "id": "LEV_QQQ_1_5x",
+      "family": "index",
+      "underlying": "QQQ",
+      "leverage": 1.5,
+      "kind": "index_hold",
+      "label": "QQQ 1.5x + financing"
+    },
+    {
+      "id": "LEV_QQQ_2x",
+      "family": "index",
+      "underlying": "QQQ",
+      "leverage": 2.0,
+      "kind": "index_hold",
+      "label": "QQQ 2x daily-reset proxy"
+    },
+    {
+      "id": "LEV_QQQ_3x_daily",
+      "family": "index",
+      "underlying": "QQQ",
+      "leverage": 3.0,
+      "kind": "index_hold",
+      "daily_reset": true,
+      "label": "QQQ 3x daily-reset (TQQQ-like proxy)"
+    },
+    {
+      "id": "LEV_SPY_2x",
+      "family": "index",
+      "underlying": "SPY",
+      "leverage": 2.0,
+      "kind": "index_hold",
+      "label": "SPY 2x control"
+    },
+    {
+      "id": "LEV_TQQQ_voltarget",
+      "family": "index",
+      "underlying": "QQQ",
+      "leverage": 3.0,
+      "max_leverage": 3.0,
+      "vol_target": 0.20,
+      "vol_lookback": 20,
+      "kind": "index_hold",
+      "label": "QQQ vol-target 20% cap 3x"
+    },
+    {
+      "id": "LEV_QQQ2_sma200",
+      "family": "regime",
+      "underlying": "QQQ",
+      "leverage": 2.0,
+      "kind": "regime_sma200",
+      "label": "2x QQQ only if close>SMA200 else flat"
+    },
+    {
+      "id": "LEV_QQQ2_vix_rank",
+      "family": "regime",
+      "underlying": "QQQ",
+      "leverage": 2.0,
+      "kind": "regime_vix_rank",
+      "max_vix_rank": 0.70,
+      "label": "2x QQQ if VIX rank<=0.70 else 0.5x"
+    },
+    {
+      "id": "LEV_QQQ3_bull_only",
+      "family": "regime",
+      "underlying": "QQQ",
+      "leverage": 3.0,
+      "kind": "regime_sma200",
+      "label": "3x QQQ bull-only (SMA200) else flat"
+    },
+    {
+      "id": "LEV_QQQ1_5_sma200",
+      "family": "regime",
+      "underlying": "QQQ",
+      "leverage": 1.5,
+      "kind": "regime_sma200",
+      "label": "1.5x QQQ if SMA200 else flat"
+    },
+    {
+      "id": "LEV_MOM_TOP1_2x",
+      "family": "concentration",
+      "underlying": "MULTI",
+      "leverage": 2.0,
+      "kind": "top_mom",
+      "top_k": 1,
+      "mom_lookback": 20,
+      "rebalance_every": 5,
+      "universe": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "JPM", "XOM"],
+      "label": "Top-1 20d momentum 2x (weekly rebalance)"
+    },
+    {
+      "id": "LEV_MOM_TOP2_1_5x",
+      "family": "concentration",
+      "underlying": "MULTI",
+      "leverage": 1.5,
+      "kind": "top_mom",
+      "top_k": 2,
+      "mom_lookback": 20,
+      "rebalance_every": 5,
+      "universe": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "JPM", "XOM"],
+      "label": "Top-2 20d momentum 1.5x"
+    },
+    {
+      "id": "LEV_MOM_TOP2_2x",
+      "family": "concentration",
+      "underlying": "MULTI",
+      "leverage": 2.0,
+      "kind": "top_mom",
+      "top_k": 2,
+      "mom_lookback": 20,
+      "rebalance_every": 5,
+      "universe": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "JPM", "XOM"],
+      "label": "Top-2 20d momentum 2x"
+    },
+    {
+      "id": "LEV_NVDA_1_5x",
+      "family": "concentration",
+      "underlying": "NVDA",
+      "leverage": 1.5,
+      "kind": "index_hold",
+      "label": "NVDA 1.5x single-name tilt"
+    },
+    {
+      "id": "LEV_NVDA_2x",
+      "family": "concentration",
+      "underlying": "NVDA",
+      "leverage": 2.0,
+      "kind": "index_hold",
+      "label": "NVDA 2x single-name tilt"
+    },
+    {
+      "id": "LEV_DUAL_QQQ_SPY_2x",
+      "family": "dual",
+      "underlying": "MULTI",
+      "leverage": 2.0,
+      "kind": "dual_mom",
+      "mom_lookback": 60,
+      "rebalance_every": 21,
+      "label": "Dual mom SPY/QQQ winner 2x monthly"
+    },
+    {
+      "id": "LEV_CORE_SAT",
+      "family": "meta",
+      "underlying": "MULTI",
+      "kind": "core_sat",
+      "core_weight": 0.70,
+      "core": {"underlying": "QQQ", "leverage": 1.5},
+      "sat": {
+        "kind": "top_mom",
+        "top_k": 1,
+        "mom_lookback": 20,
+        "rebalance_every": 5,
+        "leverage": 1.0,
+        "universe": ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL"]
+      },
+      "label": "70% QQQ 1.5x + 30% top1 mom 1x"
+    },
+    {
+      "id": "BH_SPY_1x",
+      "family": "benchmark",
+      "underlying": "SPY",
+      "leverage": 1.0,
+      "kind": "index_hold",
+      "financing_rate": 0.0,
+      "label": "SPY BH pure path"
+    },
+    {
+      "id": "BH_QQQ_1x",
+      "family": "benchmark",
+      "underlying": "QQQ",
+      "leverage": 1.0,
+      "kind": "index_hold",
+      "financing_rate": 0.0,
+      "label": "QQQ BH pure path"
+    },
+    {
+      "id": "BH_IWM_1x",
+      "family": "benchmark",
+      "underlying": "IWM",
+      "leverage": 1.0,
+      "kind": "index_hold",
+      "financing_rate": 0.0,
+      "label": "IWM BH pure path"
+    }
+  ]
+}

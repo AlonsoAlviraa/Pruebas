@@ -211,6 +211,137 @@
       "underlying": "SPY",
       "hard_kill_enabled": false,
       "notes": "Floor benchmark."
+    },
+    {
+      "id": "OPT_TA13_csp_vrp_rank",
+      "label": "CSP when VRP proxy high + IV rank (model BS)",
+      "kind": "cash_secured_put",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.15,
+      "max_margin_fraction": 0.80,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.02,
+        "require_iv_rank_above": true,
+        "min_iv_rank": 0.45,
+        "require_vix_term_contango": true,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25
+      },
+      "notes": "Sell put only when surface IV − HV20 rich (vrp_proxy) + elevated IV rank + contango. Label not true VRP."
+    },
+    {
+      "id": "OPT_TA14_pcs_vrp_rank",
+      "label": "PCS defined-risk when VRP proxy high (model BS)",
+      "kind": "put_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.015,
+        "require_iv_rank_above": true,
+        "min_iv_rank": 0.40,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25
+      },
+      "notes": "Defined-risk premium sell gated by vrp_proxy + IV rank (research surface)."
+    },
+    {
+      "id": "OPT_TA15_ic_vrp_contango",
+      "label": "Iron condor VRP + term contango (model BS)",
+      "kind": "iron_condor",
+      "underlying": "SPY",
+      "dte_days": 35,
+      "otm_pct": 0.06,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.02,
+        "require_vix_term_contango": true,
+        "require_low_atr": true,
+        "max_atr_pctile": 0.50,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.30
+      },
+      "notes": "IC only when IV rich vs HV and VIX term contango + not explosive ATR."
+    },
+    {
+      "id": "OPT_TA16_cc_vrp_cap",
+      "label": "CC uptrend but skip extreme VRP (model BS)",
+      "kind": "covered_call",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "max_portfolio_dd": 0.18,
+      "max_margin_fraction": 0.95,
+      "meta": {
+        "require_uptrend": true,
+        "require_vrp_proxy_below": true,
+        "max_vrp_proxy": 0.10,
+        "require_iv_rank_below": true,
+        "max_iv_rank": 0.85,
+        "time_exit_dte": 7,
+        "time_exit_residual_credit_frac": 0.25
+      },
+      "notes": "Covered call in uptrend; avoid selling calls into extreme IV spike without stock view."
+    },
+    {
+      "id": "OPT_TA17_pcs_vrp_mgmt_strict",
+      "label": "PCS VRP + strict mgmt 2.0 time exit (model BS)",
+      "kind": "put_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.02,
+        "require_range_regime": true,
+        "max_atr_pctile": 0.45,
+        "take_profit_credit_frac": 0.50,
+        "stop_loss_credit_mult": 1.5,
+        "max_rolls": 1,
+        "time_exit_dte": 10,
+        "time_exit_residual_credit_frac": 0.35
+      },
+      "notes": "A/B mgmt_strict: tighter SL (1.5x) + earlier time exit vs default."
+    },
+    {
+      "id": "OPT_TA18_pcs_vrp_mgmt_loose",
+      "label": "PCS VRP + loose mgmt (model BS)",
+      "kind": "put_credit_spread",
+      "underlying": "SPY",
+      "dte_days": 30,
+      "otm_pct": 0.05,
+      "wing_otm_pct": 0.12,
+      "max_portfolio_dd": 0.12,
+      "max_single_day_drop": 0.06,
+      "max_margin_fraction": 0.40,
+      "meta": {
+        "require_vrp_proxy_above": true,
+        "min_vrp_proxy": 0.02,
+        "require_range_regime": true,
+        "max_atr_pctile": 0.45,
+        "take_profit_credit_frac": 0.65,
+        "stop_loss_credit_mult": 2.5,
+        "max_rolls": 2,
+        "time_exit_dte": 5,
+        "time_exit_residual_credit_frac": 0.15
+      },
+      "notes": "A/B mgmt_loose: wider SL, later TP, more rolls, only very late thin residual time-exit."
     }
   ]
 }

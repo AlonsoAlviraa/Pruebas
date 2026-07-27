@@ -1,0 +1,9 @@
+{
+  "fingerprint": "be397b5dd81a261e",
+  "as_of": "2010-01-01",
+  "history_start_need": "2005-06-01",
+  "max_names": 40,
+  "min_adv_usd": 50000.0,
+  "n_tickers": 39,
+  "schema": "early_l0_v2_causal"
+}

@@ -143,12 +143,18 @@ def equity_metrics(
     )
 
 
-def acceptance_gates(report: PerformanceReport, min_years: float = 8.0) -> Dict[str, bool]:
+def acceptance_gates(
+    report: PerformanceReport,
+    min_years: float = 8.0,
+    *,
+    sortino_min: float = 0.50,
+) -> Dict[str, bool]:
     """
     Research gates (two-tier intent):
     - Stretch: Sharpe >= 0.80
     - Acceptable long-only after costs: Sharpe >= 0.55 AND CAGR >= 10%
       (or beat benchmark Sharpe by 0.15)
+    - Sortino (MAR=0 ann) >= sortino_min for promotion-aware research (MET-01)
     """
     sharpe_stretch = report.sharpe >= 0.80
     sharpe_acceptable = report.sharpe >= 0.55
@@ -156,9 +162,11 @@ def acceptance_gates(report: PerformanceReport, min_years: float = 8.0) -> Dict[
         report.benchmark_sharpe is not None
         and report.sharpe >= report.benchmark_sharpe + 0.15
     )
+    sortino_ok = report.sortino >= sortino_min
     return {
         "years_ok": report.years >= min_years * 0.9,
         "sharpe_ok": sharpe_stretch or sharpe_acceptable or beat_bench,
+        "sortino_ok": sortino_ok,
         "cagr_ok": report.cagr >= 0.10,  # "muy aceptable" bar after costs
         "mdd_ok": report.max_drawdown >= -0.35,
         "trades_ok": report.n_trades >= 150,

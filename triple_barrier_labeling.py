@@ -1,82 +1,73 @@
 #!/usr/bin/env python3
 """
-TRIPLE BARRIER METHOD - López de Prado
-Labeling dinámico basado en volatilidad, no en tiempo fijo.
+TRIPLE BARRIER METHOD - López de Prado (legacy entrypoint)
 
-Concepto:
-- Barrera Superior: Take Profit = entry + (k_tp × ATR)
-- Barrera Inferior: Stop Loss = entry - (k_sl × ATR)
-- Barrera Vertical: Time Limit (ej. 20 días)
-
-Label:
-- BUY (1): Si toca barrera superior primero
-- SELL (-1): Si toca barrera inferior primero
-- HOLD (0): Si alcanza time limit sin tocar barreras
+SSOT implementation: trad_research.labels + LabelConfig (LAB-01).
+This module keeps the historical CLI/API surface for older notebooks.
 """
 import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import pandas_ta as ta
 from typing import Tuple, Dict
-from tqdm import tqdm
+
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover
+    def tqdm(x, **kwargs):  # type: ignore
+        return x
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from drl_platform.data_pipeline import DataPipeline, PipelineConfig
+from trad_research.config import LabelConfig
+from trad_research.labels import label_one_event
+
+try:
+    from drl_platform.data_pipeline import DataPipeline, PipelineConfig
+except ImportError:  # optional for pure unit use
+    DataPipeline = None  # type: ignore
+    PipelineConfig = None  # type: ignore
 
 
 def calculate_triple_barrier_label(
     data: pd.DataFrame,
     entry_idx: int,
-    k_tp: float = 3.0,    # Take profit: 3× ATR
+    k_tp: float = 3.0,    # Take profit: 3× ATR (legacy default)
     k_sl: float = 2.0,    # Stop loss: 2× ATR
     max_hold: int = 20    # Máximo 20 días
 ) -> Tuple[int, int, float]:
     """
-    Calcula label usando Triple Barrier Method
-    
+    Calcula label usando Triple Barrier Method (LdP encoding).
+
     Returns:
         label: 1 (BUY), -1 (SELL), 0 (HOLD)
         holding_days: Días hasta tocar barrera
         return_pct: Retorno al salir
     """
-    entry_price = data.iloc[entry_idx]['close']
-    entry_atr = data.iloc[entry_idx]['atr']
-    
+    entry_price = float(data.iloc[entry_idx]["close"])
+    entry_atr = float(data.iloc[entry_idx]["atr"])
     if pd.isna(entry_atr) or entry_atr <= 0:
         return 0, 0, 0.0
-    
-    # Definir barreras
-    upper_barrier = entry_price + (k_tp * entry_atr)
-    lower_barrier = entry_price - (k_sl * entry_atr)
-    
-    # Iterar días siguientes
-    for i in range(1, min(max_hold + 1, len(data) - entry_idx)):
-        current_idx = entry_idx + i
-        
-        high = data.iloc[current_idx]['high']
-        low = data.iloc[current_idx]['low']
-        close = data.iloc[current_idx]['close']
-        
-        # Check si toca barrera superior (TAKE PROFIT)
-        if high >= upper_barrier:
-            return_pct = (upper_barrier - entry_price) / entry_price
-            return 1, i, return_pct  # BUY label
-        
-        # Check si toca barrera inferior (STOP LOSS)
-        if low <= lower_barrier:
-            return_pct = (lower_barrier - entry_price) / entry_price
-            return -1, i, return_pct  # SELL label
-    
-    # Si no toca ninguna barrera (TIME LIMIT)
-    final_idx = min(entry_idx + max_hold, len(data) - 1)
-    final_price = data.iloc[final_idx]['close']
-    return_pct = (final_price - entry_price) / entry_price
-    
-    return 0, max_hold, return_pct  # HOLD label
+
+    end = min(entry_idx + max_hold, len(data) - 1)
+    if end <= entry_idx:
+        return 0, 0, 0.0
+
+    path = data.iloc[entry_idx + 1 : end + 1]
+    cfg = LabelConfig(k_tp=k_tp, k_sl=k_sl, max_horizon=max_hold)
+    label, days, ret = label_one_event(
+        entry_price,
+        path["high"].to_numpy(dtype=float),
+        path["low"].to_numpy(dtype=float),
+        entry_atr,
+        config=cfg,
+    )
+    if label == 0 and days == max_hold and len(path) > 0:
+        final_price = float(path.iloc[-1]["close"])
+        ret = (final_price - entry_price) / entry_price
+    return label, days, ret
 
 
 def apply_triple_barrier_to_ticker(

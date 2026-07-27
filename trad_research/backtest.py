@@ -37,6 +37,9 @@ class BacktestConfig:
     # Portfolio peak-to-trough circuit: block new entries if DD worse than this
     # Default 0.99 effectively disables; enable (e.g. 0.18) for kill-switch
     max_portfolio_dd: float = 0.99
+    # Multi-year mega segments: seed peak from prior OOS high-water mark so DD
+    # circuit is continuous across calendar years. None → start peak at initial_capital.
+    peak_equity_seed: Optional[float] = None
     # Scale new entries when soft regime is False
     risk_off_scale: float = 0.55
     soft_regime_ok: Optional[Dict[pd.Timestamp, bool]] = None
@@ -65,6 +68,9 @@ class BacktestConfig:
     ticker_max_realized_pnl_frac: float = 1.0  # 1.0 disables
     # Soft de-risk size scale when DD reaches this fraction of max_portfolio_dd
     dd_soft_scale: float = 0.55
+    # When DD breaches max_portfolio_dd: if set, scale size by this instead of hard-blocking
+    # new entries (recovery path). None = legacy hard block (skip day).
+    dd_breach_size_scale: Optional[float] = None
     # --- Bottleneck-fix knobs (defaults preserve legacy champions) ---
     # Skip entry if computed alloc < min_alloc_pct * equity (0.0 = off).
     min_alloc_pct: float = 0.0
@@ -93,7 +99,28 @@ class BacktestConfig:
     delist_dates: Optional[Dict[str, pd.Timestamp]] = None
     # Optional M&A: ticker -> successor ticker (same ISIN); if set, try roll on delist
     delist_successors: Optional[Dict[str, str]] = None
-    roll_on_delist: bool = False  # if True and successor listed, open successor with same $ 
+    roll_on_delist: bool = False  # if True and successor listed, open successor with same $
+    # --- Crash / oversold entry overlay (see trad_research.crash_entry) ---
+    # date -> True when index crash/oversold flag is on (causal map)
+    crash_entry_on: Optional[Dict[pd.Timestamp, bool]] = None
+    crash_relax_regime: bool = False  # allow entries when hard regime off on crash days
+    crash_score_boost: float = 1.0  # already applied in signal overlay; kept for meta
+    # Optional CrashEntryConfig instance (for signal-level relax on crash days)
+    crash_entry_cfg: Optional[Any] = None
+    # Optional WinRateFilterConfig (signal ATR tight / soft trend non-crash)
+    winrate_filter_cfg: Optional[Any] = None
+    # --- Win-rate research filters ---
+    # Skip re-entry on same ticker for N calendar days after a hard_stop exit (0 = off)
+    hard_stop_cooldown_days: int = 0
+    # Tighter ATR gate at *entry* on non-crash days only (SSOT with max_atr_pct_tight).
+    # Crash days: skip this gate so loose strategy max_atr_pct from signals applies.
+    # None = off. When set, never tighter than crash-day policy (crash = no entry tight).
+    max_atr_pct_entry: Optional[float] = None
+    # Optional fixed fractional risk sizing: risk dollars = equity * risk_per_trade_pct
+    # / stop_distance. When set, disables vol-target sizing for that entry path.
+    risk_per_trade_pct: Optional[float] = None
+    # Optional take-profit in R multiples of (entry - hard_stop). None = off.
+    take_profit_r: Optional[float] = None 
 
 
 @dataclass
@@ -166,6 +193,14 @@ def _chandelier_step(
     pos.bars_held += 1
     if high > pos.highest_high:
         pos.highest_high = high
+    # Fixed R take-profit (optional; Sistema A / research)
+    tp_r = getattr(cfg, "take_profit_r", None)
+    if tp_r is not None and float(tp_r) > 0 and pos.entry_price > 0:
+        risk = float(pos.entry_price) - float(pos.hard_stop)
+        if risk > 0:
+            tp_px = float(pos.entry_price) + float(tp_r) * risk
+            if high >= tp_px:
+                return True, "take_profit", tp_px
     k = cfg.k_atr * pos.k_atr_scale
     trail = pos.highest_high - k * atr
     pos.stop = max(pos.stop, trail)
@@ -240,7 +275,9 @@ def generate_signals(
         p_buy = ((pred == 1) | (pred == cfg.buy_class)).astype(float)
 
     sig = p_buy >= cfg.min_confidence
-    if cfg.require_trend and "sma_50" in df.columns:
+    # Soft-trend WR pack replaces hard SMA50: defer to apply_winrate_signal_filters
+    _soft_wr = _winrate_soft_trend_active(cfg)
+    if cfg.require_trend and "sma_50" in df.columns and not _soft_wr:
         sig = sig & (df["close"].to_numpy() > df["sma_50"].to_numpy())
     if cfg.require_momentum and "ret_1m" in df.columns:
         sig = sig & (df["ret_1m"].to_numpy() >= cfg.momentum_min)
@@ -250,10 +287,54 @@ def generate_signals(
         sig = sig & (df["dist_sma_200"].to_numpy() >= cfg.min_dist_sma200)
     if cfg.meta_model is not None and hasattr(cfg.meta_model, "predict_proba"):
         p_meta = cfg.meta_model.predict_proba(X)[:, 1]
-        sig = sig & (p_meta >= cfg.meta_threshold)
+        thr_meta = float(cfg.meta_threshold)
+        wr = getattr(cfg, "winrate_filter_cfg", None)
+        if wr is not None and getattr(wr, "min_meta_conf", None) is not None:
+            thr_meta = max(thr_meta, float(wr.min_meta_conf))
+        sig = sig & (p_meta >= thr_meta)
         # Rank by primary * meta confidence
         p_buy = p_buy * p_meta
-    return pd.Series(sig, index=df.index), pd.Series(p_buy, index=df.index)
+    sig_s = pd.Series(sig, index=df.index)
+    score_s = pd.Series(p_buy, index=df.index)
+    return _apply_entry_overlays(df, sig_s, score_s, np.asarray(p_buy, dtype=float), cfg)
+
+
+def _winrate_soft_trend_active(cfg: BacktestConfig) -> bool:
+    """True when WR pack will apply SMA50|SMA20 instead of hard close>SMA50."""
+    wr = getattr(cfg, "winrate_filter_cfg", None)
+    return wr is not None and bool(getattr(wr, "soft_trend_non_crash", False))
+
+
+def _apply_entry_overlays(
+    df: pd.DataFrame,
+    sig: pd.Series,
+    score: pd.Series,
+    p_buy: np.ndarray,
+    cfg: BacktestConfig,
+) -> Tuple[pd.Series, pd.Series]:
+    """Crash-day relax + win-rate filters (causal). No-op when configs absent."""
+    crash_cfg = getattr(cfg, "crash_entry_cfg", None)
+    crash_map = getattr(cfg, "crash_entry_on", None)
+    wr = getattr(cfg, "winrate_filter_cfg", None)
+    if crash_cfg is not None and getattr(crash_cfg, "enabled", False) and crash_map:
+        from trad_research.crash_entry import apply_crash_signal_overlay
+
+        sig, score = apply_crash_signal_overlay(
+            df, sig, score, p_buy, cfg, crash_map, crash_cfg
+        )
+    if wr is not None:
+        from trad_research.crash_entry import apply_winrate_signal_filters
+
+        sig, score = apply_winrate_signal_filters(
+            df,
+            sig,
+            score,
+            wr,
+            crash_map=crash_map,
+            non_crash_only=True,
+            p_buy=p_buy,
+        )
+    return sig, score
 
 
 def run_portfolio_backtest(
@@ -300,7 +381,11 @@ def run_portfolio_backtest(
     positions: Dict[str, OpenPosition] = {}
     trades: List[Dict[str, Any]] = []
     equity_points: List[Tuple[pd.Timestamp, float]] = []
-    peak_equity = cfg.initial_capital
+    # Continuous peak for MDD circuit when mega harness carries seed across OOS years
+    if cfg.peak_equity_seed is not None and float(cfg.peak_equity_seed) > 0:
+        peak_equity = float(cfg.peak_equity_seed)
+    else:
+        peak_equity = float(cfg.initial_capital)
 
     # Optional QQQ core sleeve (buy & hold, rebalanced daily to target %)
     qqq_shares = 0.0
@@ -367,6 +452,8 @@ def run_portfolio_backtest(
 
     # Realized PnL by ticker (for re-entry cap)
     realized_pnl_by_ticker: Dict[str, float] = {}
+    # hard_stop cooldown: ticker -> earliest re-entry date (UTC)
+    hard_stop_block_until: Dict[str, pd.Timestamp] = {}
     adaptive_extend_count = 0
 
     def _delist_ts(ticker: str) -> Optional[pd.Timestamp]:
@@ -490,6 +577,10 @@ def run_portfolio_backtest(
                         "extensions": pos.extensions,
                     }
                 )
+                if reason == "hard_stop" and int(cfg.hard_stop_cooldown_days or 0) > 0:
+                    hard_stop_block_until[t] = day + pd.Timedelta(
+                        days=int(cfg.hard_stop_cooldown_days)
+                    )
                 to_close.append(t)
         for t in to_close:
             if t in positions:
@@ -537,11 +628,21 @@ def run_portfolio_backtest(
         # 2) Entries ranked by p_buy (+ optional rotation when full)
         can_enter = len(positions) < cfg.max_positions or bool(cfg.enable_rotation)
         if can_enter:
+            # Crash overlay: on crash days, optionally ignore hard regime block
+            crash_day = False
+            if cfg.crash_entry_on is not None:
+                from trad_research.crash_entry import crash_on_day as _crash_on_day
+
+                crash_day = _crash_on_day(day, cfg.crash_entry_on)
+
             # Regime: legacy hard-block OR soft size-scale (bottleneck fix EXP3)
             size_scale = 1.0
             if cfg.require_regime and cfg.regime_ok is not None:
                 if not regime_on:
-                    if cfg.soft_hard_regime:
+                    if crash_day and cfg.crash_relax_regime:
+                        # Oversold/crash: allow stock-picker entries (research)
+                        size_scale = 1.0
+                    elif cfg.soft_hard_regime:
                         hard_scale = (
                             cfg.regime_hard_size_scale
                             if cfg.regime_hard_size_scale is not None
@@ -591,12 +692,18 @@ def run_portfolio_backtest(
             eq_now = mark_to_market(day)
             peak_equity = max(peak_equity, eq_now)
             dd = eq_now / peak_equity - 1.0 if peak_equity > 0 else 0.0
-            # Kill-switch: no new risk when portfolio DD breaches threshold
+            # Kill-switch / recovery: when portfolio DD breaches threshold
             if dd <= -abs(cfg.max_portfolio_dd):
-                equity_points.append((day, eq_now))
-                continue
-            # Soft de-risk when deep drawdown (halfway to kill-switch)
-            if cfg.max_portfolio_dd < 0.9 and dd <= -0.5 * abs(cfg.max_portfolio_dd):
+                rec = cfg.dd_breach_size_scale
+                if rec is None:
+                    # Legacy hard block — no new entries this day
+                    equity_points.append((day, eq_now))
+                    continue
+                # Soft recovery: allow reduced-size new risk (escape permanent-cash trap)
+                size_scale *= float(rec)
+            # Soft de-risk when deep drawdown (halfway to kill-switch), only if not already
+            # in full breach (breach path uses dd_breach_size_scale exclusively)
+            elif cfg.max_portfolio_dd < 0.9 and dd <= -0.5 * abs(cfg.max_portfolio_dd):
                 size_scale *= float(cfg.dd_soft_scale)
 
             # Optional rotation: free capital/slot if best candidate dominates worst held.
@@ -674,20 +781,44 @@ def run_portfolio_backtest(
                 if cfg.ticker_max_realized_pnl_frac < 0.99 and peak_equity > 0:
                     if realized_pnl_by_ticker.get(t, 0.0) >= cfg.ticker_max_realized_pnl_frac * peak_equity:
                         continue
+                # Hard-stop cooldown: skip same ticker for N days after hard_stop
+                if int(cfg.hard_stop_cooldown_days or 0) > 0:
+                    blocked_until = hard_stop_block_until.get(t)
+                    if blocked_until is not None and day < blocked_until:
+                        continue
                 row = frames[t].iloc[idx]
                 price = float(row["close"]) * (1 + cfg.slippage)
                 atr = float(row["atr"])
                 if price <= 0 or atr <= 0:
                     continue
+                # ATR tight at entry: non-crash days only (align with max_atr_pct_tight).
+                # Crash days keep strategy max_atr_pct from signal path (looser).
+                if cfg.max_atr_pct_entry is not None and price > 0 and not crash_day:
+                    atr_n = atr / price
+                    if atr_n > float(cfg.max_atr_pct_entry):
+                        continue
                 vol = max(atr / price, 1e-8)
                 pos_cap = min(cfg.max_position_pct, cfg.ticker_max_capital_pct)
-                alloc = eq_now * cfg.volatility_target_pct * size_scale / vol
-                alloc = min(alloc, eq_now * pos_cap * size_scale, cash * 0.98)
+                # EXP4 hard stop first so risk-based sizing can use stop distance
+                hard_preview = compute_entry_hard_stop(price, atr, cfg)
+                risk_pct = getattr(cfg, "risk_per_trade_pct", None)
+                if risk_pct is not None and float(risk_pct) > 0:
+                    stop_dist = max(price - hard_preview, price * 1e-4)
+                    risk_dollars = eq_now * float(risk_pct) * size_scale
+                    shares = int(risk_dollars / stop_dist)
+                    if shares <= 0:
+                        continue
+                    alloc = shares * price
+                    alloc = min(alloc, eq_now * pos_cap * size_scale, cash * 0.98)
+                    shares = int(alloc / price) if price > 0 else 0
+                else:
+                    alloc = eq_now * cfg.volatility_target_pct * size_scale / vol
+                    alloc = min(alloc, eq_now * pos_cap * size_scale, cash * 0.98)
+                    shares = int(alloc / price) if price > 0 else 0
                 floor = float(cfg.min_alloc_pct) * eq_now if cfg.min_alloc_pct > 0.0 else 0.0
                 # EXP1 pre-check: skip clearly sub-floor vol-target allocs early
-                if floor > 0.0 and alloc < floor:
+                if floor > 0.0 and (shares <= 0 or shares * price < floor):
                     continue
-                shares = int(alloc / price)
                 if shares <= 0:
                     continue
                 cost = shares * price
@@ -720,7 +851,11 @@ def run_portfolio_backtest(
                 )
 
         rebalance_qqq_sleeve(day)
-        equity_points.append((day, mark_to_market(day)))
+        # Always ratchet HWM on end-of-day MTM — including full-book days where
+        # can_enter is False (entry branch never runs). DD circuit must see true peak.
+        eq_eod = mark_to_market(day)
+        peak_equity = max(peak_equity, eq_eod)
+        equity_points.append((day, eq_eod))
 
     # Force close remaining at last day
     if positions and all_dates:

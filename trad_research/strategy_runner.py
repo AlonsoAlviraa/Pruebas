@@ -209,6 +209,38 @@ def run_strategy_walk_forward(
             bt.regime_ok = soft_regime
             bt.soft_regime_ok = soft_regime
 
+        # Crash / oversold entry + win-rate overlays (causal index maps)
+        if hasattr(strategy, "crash_entry_config"):
+            try:
+                from trad_research.crash_entry import build_crash_entry_map
+
+                ccfg = strategy.crash_entry_config()
+                if ccfg is not None and getattr(ccfg, "enabled", False):
+                    cmap, cmeta = build_crash_entry_map(data_root, ccfg)
+                    bt.crash_entry_on = cmap
+                    bt.crash_entry_cfg = ccfg
+                    bt.crash_relax_regime = bool(getattr(ccfg, "relax_regime", True))
+                    logger.info(
+                        "%s: crash_entry mode=%s indices=%s crash_days=%s",
+                        strategy.name,
+                        ccfg.mode,
+                        cmeta.get("indices_used"),
+                        cmeta.get("n_crash_days"),
+                    )
+            except Exception as e:
+                logger.warning("%s: crash_entry map failed: %s", strategy.name, e)
+        if hasattr(strategy, "winrate_filter_config"):
+            try:
+                wcfg = strategy.winrate_filter_config()
+                if wcfg is not None:
+                    bt.winrate_filter_cfg = wcfg
+                    if int(getattr(wcfg, "hard_stop_cooldown_days", 0) or 0) > 0:
+                        bt.hard_stop_cooldown_days = int(wcfg.hard_stop_cooldown_days)
+                    if getattr(wcfg, "max_atr_pct_tight", None) is not None:
+                        bt.max_atr_pct_entry = float(wcfg.max_atr_pct_tight)
+            except Exception as e:
+                logger.warning("%s: winrate filter failed: %s", strategy.name, e)
+
         # Sector ETF gate + rotation (strategy flags → BacktestConfig)
         if getattr(strategy, "require_sector_trend", False) or getattr(
             strategy, "enable_rotation", False

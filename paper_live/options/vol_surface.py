@@ -330,3 +330,116 @@ def synthetic_vix_path(
             "volume": np.full(n, 1.0),
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# IV rank / VRP proxy (research labels — not true exchange VRP)
+# ---------------------------------------------------------------------------
+
+
+def series_percentile_rank(series: pd.Series, lookback: int = 252) -> Optional[float]:
+    """Causal percentile of last value vs trailing ``lookback`` (0–1)."""
+    s = pd.to_numeric(series, errors="coerce").dropna()
+    if len(s) < max(10, lookback // 10):
+        return None
+    tail = s.iloc[-lookback:] if len(s) >= lookback else s
+    cur = float(tail.iloc[-1])
+    if not math.isfinite(cur):
+        return None
+    return float((tail <= cur).mean())
+
+
+def iv_rank_from_vix(
+    feed: Any,
+    day: date,
+    *,
+    lookback: int = 252,
+) -> Optional[float]:
+    """
+    Approximate IV rank = percentile of VIX close in trailing lookback.
+
+    Label: research proxy from index VIX, **not** single-name IV rank.
+    """
+    ser = vix_series_from_feed(feed, day)
+    if ser is None or ser.empty:
+        return None
+    # clip series through day
+    try:
+        ser = ser.loc[: pd.Timestamp(day)]
+    except Exception:
+        pass
+    return series_percentile_rank(ser, lookback=lookback)
+
+
+def iv_rank_from_hv(
+    feed: Any,
+    ticker: str,
+    day: date,
+    *,
+    lookback: int = 252,
+    hv_window: int = 20,
+) -> Optional[float]:
+    """Percentile rank of trailing HV20 for ``ticker`` (causal)."""
+    try:
+        hist = feed.history(ticker, through=day, include_through=True)
+    except Exception:
+        return None
+    if hist is None or hist.empty or len(hist) < hv_window + 5:
+        return None
+    closes = hist.set_index("date")["close"].astype(float)
+    rets = closes.pct_change()
+    hv = rets.rolling(hv_window).std() * math.sqrt(252.0)
+    hv = hv.dropna()
+    return series_percentile_rank(hv, lookback=lookback)
+
+
+def vrp_proxy(
+    iv: float,
+    hv: float,
+) -> Optional[float]:
+    """
+    ``vrp_proxy = iv − HV`` (decimal vols).
+
+    Label: ``vrp_proxy`` — **not** true variance risk premium from option markets.
+    """
+    if not math.isfinite(float(iv)) or not math.isfinite(float(hv)):
+        return None
+    return float(iv) - float(hv)
+
+
+def atm_iv_proxy_for_day(
+    *,
+    vix: Optional[float],
+    vix3m: Optional[float] = None,
+    hv: Optional[float] = None,
+    premium_mult: float = 1.15,
+    t_years: float = 30.0 / 365.0,
+) -> tuple[float, str]:
+    """ATM-ish IV for gate logic (30d default tenor). Returns (iv, source)."""
+    siv = iv_from_surface(
+        t_years=t_years,
+        spot=100.0,
+        strike=100.0,
+        option_type="put",
+        vix=vix,
+        vix3m=vix3m,
+        hv=hv,
+        premium_mult=premium_mult,
+    )
+    return float(siv.iv), str(siv.source)
+
+
+def vix_term_contango(
+    vix: Optional[float],
+    vix3m: Optional[float],
+    *,
+    min_ratio: float = 1.0,
+) -> Optional[bool]:
+    """True when VIX3M / VIX ≥ min_ratio (contango). None if missing data."""
+    if vix is None or vix3m is None:
+        return None
+    if not math.isfinite(float(vix)) or float(vix) <= 0:
+        return None
+    if not math.isfinite(float(vix3m)) or float(vix3m) <= 0:
+        return None
+    return float(vix3m) / float(vix) + 1e-12 >= float(min_ratio)

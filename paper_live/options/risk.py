@@ -79,12 +79,18 @@ def margin_at_risk_per_contract(
     k = (kind or "").lower()
     if k == "cash":
         return 0.0
-    if k in ("put_credit_spread", "call_credit_spread"):
+    if k in ("put_credit_spread", "call_credit_spread", "call_debit_spread", "put_debit_spread"):
         if short_strike is None or long_strike is None:
             width = abs(float(spot)) * 0.10
         else:
             width = abs(float(short_strike) - float(long_strike))
         return max(width, 0.0) * 100.0
+    if k in ("long_call", "long_put"):
+        # Premium budget proxy (~5% of spot × 100) — actual size uses mark
+        return max(float(spot) * 0.05, 0.5) * 100.0
+    if k == "pmcc":
+        # LEAP debit proxy
+        return max(float(spot) * 0.15, 1.0) * 100.0
     if k == "iron_condor":
         # Defined-risk: max loss ≈ larger wing width × 100 (proxy)
         if short_strike is None or long_strike is None:
