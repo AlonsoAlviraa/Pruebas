@@ -1,0 +1,50 @@
+{
+  "run_id": "paper_20260727T223557Z_ad1c7a7812",
+  "day": "2025-11-10",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100000.0,
+  "cash": 100000.0,
+  "gross_exposure": 0.0,
+  "dd_from_peak": 0.0,
+  "n_positions": 2,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 0.0,
+  "fees": 0.0,
+  "slippage_est": 0.0,
+  "turnover": 0.0,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260727T223557Z_ad1c7a7812",
+      "ticker": "NVDA",
+      "qty": 28.0,
+      "avg_px": 210.30610157122737,
+      "stop": 189.27549141410464,
+      "hard_stop": 189.27549141410464,
+      "opened_at": "2026-06-08T09:45:00+00:00",
+      "bars_held": 34,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260727T223557Z_ad1c7a7812",
+      "ticker": "XOM",
+      "qty": 42.0,
+      "avg_px": 140.27412430976145,
+      "stop": 143.15965863529254,
+      "hard_stop": 126.2467118787853,
+      "opened_at": "2026-06-16T09:45:00+00:00",
+      "bars_held": 28,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-27T22:36:01.320020+00:00"
+}

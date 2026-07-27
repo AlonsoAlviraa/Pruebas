@@ -1,0 +1,89 @@
+{
+  "run_id": "paper_20260727T223524Z_d48222fca6",
+  "day": "2026-06-05",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99599.55673428159,
+  "cash": 91135.11682339292,
+  "gross_exposure": 8464.439910888672,
+  "dd_from_peak": -0.01039173739287036,
+  "n_positions": 3,
+  "n_fills": 3,
+  "n_buys": 1,
+  "n_sells": 2,
+  "commission": 85.0,
+  "fees": 1.0216088157904715,
+  "slippage_est": 225.03630561480725,
+  "turnover": 8464.439910888672,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-06-05T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 9.0,
+      "price": 314.4785883266205,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-06-05T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 13.0,
+      "price": 209.18280171940526,
+      "commission": 1.0,
+      "fees": 0.02391301137881815
+    },
+    {
+      "ts": "2026-06-05T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 6.0,
+      "price": 415.1824071593274,
+      "commission": 1.0,
+      "fees": 0.020924755543647717
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260727T223524Z_d48222fca6",
+      "ticker": "AAPL",
+      "qty": 9.0,
+      "avg_px": 315.4791836730445,
+      "stop": 313.6910562079204,
+      "hard_stop": 293.39564081593136,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 15,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260727T223524Z_d48222fca6",
+      "ticker": "JPM",
+      "qty": 8.0,
+      "avg_px": 341.1846045636997,
+      "stop": 337.16826957865675,
+      "hard_stop": 317.3016822442407,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 15,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260727T223524Z_d48222fca6",
+      "ticker": "NVDA",
+      "qty": 14.0,
+      "avg_px": 208.66511772851416,
+      "stop": 194.05855948751815,
+      "hard_stop": 194.05855948751815,
+      "opened_at": "2026-07-13T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-27T22:35:30.317355+00:00"
+}
