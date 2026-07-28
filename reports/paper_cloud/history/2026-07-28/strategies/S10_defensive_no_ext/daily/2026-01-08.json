@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260728T223640Z_9df0d06585",
+  "day": "2026-01-08",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99511.48982295443,
+  "cash": 83425.20985469272,
+  "gross_exposure": 16086.279968261719,
+  "dd_from_peak": -0.007614675599343701,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 26.0,
+  "fees": 0.3700290455148423,
+  "slippage_est": 93.64995512116482,
+  "turnover": 16086.279968261719,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-08T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 326.5858566267877,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-08T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 33.0,
+      "price": 119.05139659025828,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-28T22:36:44.717147+00:00"
+}

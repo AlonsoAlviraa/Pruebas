@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260728T223640Z_9df0d06585",
+  "day": "2026-01-21",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99137.36454827123,
+  "cash": 94728.23452812963,
+  "gross_exposure": 4409.130020141602,
+  "dd_from_peak": -0.011345666188908088,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 33.0,
+  "fees": 0.5373871403817438,
+  "slippage_est": 125.02784926771972,
+  "turnover": 4409.130020141602,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-21T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 16.0,
+      "price": 226.8622245813413,
+      "commission": 1.0,
+      "fees": 0.031694364746411685
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-28T22:36:44.721121+00:00"
+}
