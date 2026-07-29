@@ -1,0 +1,96 @@
+{
+  "run_id": "paper_20260729T223148Z_9acf35f424",
+  "day": "2025-11-06",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99824.4887499441,
+  "cash": 85451.05880304468,
+  "gross_exposure": 14373.429946899414,
+  "dd_from_peak": -0.0017551125005590418,
+  "n_positions": 5,
+  "n_fills": 5,
+  "n_buys": 5,
+  "n_sells": 0,
+  "commission": 5.0,
+  "fees": 0.0,
+  "slippage_est": 8.721241511002546,
+  "turnover": 14373.429946899414,
+  "n_orders": 5,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-11-06T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 10.0,
+      "price": 285.50118654625675,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-06T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 249.30950120304433,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-06T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 15.0,
+      "price": 196.53785062595975,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-06T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 268.05074985472373,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-06T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 9.0,
+      "price": 311.1765899183202,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260729T223148Z_9acf35f424",
+      "ticker": "AAPL",
+      "qty": 9.0,
+      "avg_px": 315.4791837031781,
+      "stop": 318.69093414219213,
+      "hard_stop": 293.3956408439556,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 17,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260729T223148Z_9acf35f424",
+      "ticker": "JPM",
+      "qty": 8.0,
+      "avg_px": 341.18460453824923,
+      "stop": 337.4182696223001,
+      "hard_stop": 317.30168222057176,
+      "opened_at": "2026-07-07T09:45:00+00:00",
+      "bars_held": 17,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-29T22:31:53.419335+00:00"
+}
