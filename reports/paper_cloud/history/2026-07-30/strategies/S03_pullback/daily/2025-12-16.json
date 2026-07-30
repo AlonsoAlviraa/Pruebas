@@ -1,0 +1,39 @@
+{
+  "run_id": "paper_20260730T223927Z_c331a002da",
+  "day": "2025-12-16",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99974.12167721028,
+  "cash": 80521.88187771077,
+  "gross_exposure": 19452.23979949951,
+  "dd_from_peak": -0.005921273719958542,
+  "n_positions": 4,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 4.0,
+  "fees": 0.0,
+  "slippage_est": 11.67799777751965,
+  "turnover": 19452.23979949951,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260730T223927Z_c331a002da",
+      "ticker": "AAPL",
+      "qty": 18.0,
+      "avg_px": 275.1650019861732,
+      "stop": 319.34586178689545,
+      "hard_stop": 250.40015180741761,
+      "opened_at": "2026-06-26T09:45:00+00:00",
+      "bars_held": 24,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-07-30T22:39:32.172598+00:00"
+}

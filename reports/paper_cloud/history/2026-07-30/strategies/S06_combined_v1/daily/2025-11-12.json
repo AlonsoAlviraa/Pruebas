@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260730T223942Z_1f6be11247",
+  "day": "2025-11-12",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100241.92627357504,
+  "cash": 82197.89596961996,
+  "gross_exposure": 18044.030303955078,
+  "dd_from_peak": -0.001433665645970028,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 3.0,
+  "fees": 0.0,
+  "slippage_est": 10.67376304607319,
+  "turnover": 18044.030303955078,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-11-12T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 30.0,
+      "price": 195.83743413866287,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-30T22:39:46.269242+00:00"
+}

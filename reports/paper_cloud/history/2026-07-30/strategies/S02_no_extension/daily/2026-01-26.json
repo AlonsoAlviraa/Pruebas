@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260730T223923Z_d934dd8e47",
+  "day": "2026-01-26",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99797.40455639875,
+  "cash": 83617.97456372296,
+  "gross_exposure": 16179.429992675781,
+  "dd_from_peak": -0.004491580220814861,
+  "n_positions": 4,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 24.0,
+  "fees": 0.3366407458588761,
+  "slippage_est": 85.97148220149509,
+  "turnover": 16179.429992675781,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-26T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 328.0066862721627,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-30T22:39:27.777899+00:00"
+}

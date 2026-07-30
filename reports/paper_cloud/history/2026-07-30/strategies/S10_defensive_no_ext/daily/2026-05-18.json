@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260730T223954Z_e6f6b75d9b",
+  "day": "2026-05-18",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100431.29886693113,
+  "cash": 96419.04872960203,
+  "gross_exposure": 4012.2501373291016,
+  "dd_from_peak": -0.0022366866185803413,
+  "n_positions": 1,
+  "n_fills": 2,
+  "n_buys": 1,
+  "n_sells": 1,
+  "commission": 57.0,
+  "fees": 0.9562016228947019,
+  "slippage_est": 212.5848712363671,
+  "turnover": 4012.2501373291016,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-18T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 157.41440484667683,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-05-18T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 20.0,
+      "price": 220.74059146176057,
+      "commission": 1.0,
+      "fees": 0.03863849463388169
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-30T22:39:57.990351+00:00"
+}
