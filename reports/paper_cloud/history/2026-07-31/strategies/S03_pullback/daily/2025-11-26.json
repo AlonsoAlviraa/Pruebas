@@ -1,0 +1,55 @@
+{
+  "run_id": "paper_20260731T223502Z_dbe2e4ed5c",
+  "day": "2025-11-26",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100012.7522862969,
+  "cash": 85343.04211936575,
+  "gross_exposure": 14669.710166931152,
+  "dd_from_peak": -0.00033164805086172144,
+  "n_positions": 3,
+  "n_fills": 3,
+  "n_buys": 3,
+  "n_sells": 0,
+  "commission": 3.0,
+  "fees": 0.0,
+  "slippage_est": 8.787607807105601,
+  "turnover": 14669.710166931152,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-11-26T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 43.0,
+      "price": 114.47865650386002,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-26T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 16.0,
+      "price": 305.1830104194331,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-11-26T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 21.0,
+      "price": 230.87845163130206,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-31T22:35:06.969537+00:00"
+}

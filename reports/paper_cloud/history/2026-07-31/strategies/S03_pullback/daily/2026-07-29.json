@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260731T223502Z_dbe2e4ed5c",
+  "day": "2026-07-29",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101140.71349997743,
+  "cash": 95053.29345603212,
+  "gross_exposure": 6087.4200439453125,
+  "dd_from_peak": -0.014241082435478947,
+  "n_positions": 1,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 53.0,
+  "fees": 1.1330529005154073,
+  "slippage_est": 259.5337547993432,
+  "turnover": 6087.4200439453125,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-07-29T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 36.0,
+      "price": 156.65594215477617,
+      "commission": 1.0,
+      "fees": 0.05109291134057554
+    },
+    {
+      "ts": "2026-07-29T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 25.0,
+      "price": 190.75433089758104,
+      "commission": 1.0,
+      "fees": 0.042300866179516214
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-31T22:35:07.050556+00:00"
+}

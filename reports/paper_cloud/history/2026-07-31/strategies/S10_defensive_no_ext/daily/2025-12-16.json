@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260731T223528Z_c508ecc75b",
+  "day": "2025-12-16",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98775.69820966577,
+  "cash": 91144.55856122827,
+  "gross_exposure": 7631.1396484375,
+  "dd_from_peak": -0.013186174982388499,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 18.0,
+  "fees": 0.26591672813259176,
+  "slippage_est": 70.91540641480537,
+  "turnover": 7631.1396484375,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-12-16T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 17.0,
+      "price": 220.84079406279196,
+      "commission": 1.0,
+      "fees": 0.032856347992539704
+    },
+    {
+      "ts": "2025-12-16T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 34.0,
+      "price": 114.78916541008408,
+      "commission": 1.0,
+      "fees": 0.03686665299154287
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-07-31T22:35:31.822009+00:00"
+}
