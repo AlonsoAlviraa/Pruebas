@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260803T223546Z_9af06ff52a",
+  "day": "2025-12-10",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98368.32264254523,
+  "cash": 86536.94262240363,
+  "gross_exposure": 11831.380020141602,
+  "dd_from_peak": -0.01669539811493459,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 12.0,
+  "fees": 0.24210996131737234,
+  "slippage_est": 68.27179204345865,
+  "turnover": 11831.380020141602,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-12-10T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 18.0,
+      "price": 298.8280995716853,
+      "commission": 1.0,
+      "fees": 0.04601924633832268
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-03T22:35:50.980752+00:00"
+}

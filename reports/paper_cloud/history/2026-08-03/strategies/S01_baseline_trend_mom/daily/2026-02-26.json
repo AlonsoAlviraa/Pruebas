@@ -1,0 +1,55 @@
+{
+  "run_id": "paper_20260803T223510Z_ff5bfda5da",
+  "day": "2026-02-26",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99493.54698396129,
+  "cash": 91019.8970053236,
+  "gross_exposure": 8473.649978637695,
+  "dd_from_peak": -0.009208815268427761,
+  "n_positions": 3,
+  "n_fills": 3,
+  "n_buys": 3,
+  "n_sells": 0,
+  "commission": 45.0,
+  "fees": 0.531591336715945,
+  "slippage_est": 114.06778878626685,
+  "turnover": 8473.649978637695,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-26T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 20.0,
+      "price": 147.89868760446058,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-02-26T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 10.0,
+      "price": 275.11498322193347,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-02-26T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 15.0,
+      "price": 194.38656672635568,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-03T22:35:19.387607+00:00"
+}

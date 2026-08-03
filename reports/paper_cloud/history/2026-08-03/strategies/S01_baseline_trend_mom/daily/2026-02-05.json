@@ -1,0 +1,55 @@
+{
+  "run_id": "paper_20260803T223510Z_ff5bfda5da",
+  "day": "2026-02-05",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99647.81909052748,
+  "cash": 99647.81909052748,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.007672520223479862,
+  "n_positions": 0,
+  "n_fills": 3,
+  "n_buys": 0,
+  "n_sells": 3,
+  "commission": 42.0,
+  "fees": 0.531591336715945,
+  "slippage_est": 108.89584091148694,
+  "turnover": 9149.894505510625,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-05T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 25.0,
+      "price": 145.99234883000486,
+      "commission": 1.0,
+      "fees": 0.03334846976600097
+    },
+    {
+      "ts": "2026-02-05T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 9.0,
+      "price": 311.72044738049715,
+      "commission": 1.0,
+      "fees": 0.023937872211395792
+    },
+    {
+      "ts": "2026-02-05T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 12.0,
+      "price": 224.55014652800253,
+      "commission": 1.0,
+      "fees": 0.023548814066688243
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-03T22:35:19.382331+00:00"
+}
