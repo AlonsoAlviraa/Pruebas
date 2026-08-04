@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260804T223842Z_8d344a4236",
+  "day": "2026-06-23",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100676.78075275784,
+  "cash": 76314.42119465237,
+  "gross_exposure": 24362.35955810547,
+  "dd_from_peak": -0.01876210705557979,
+  "n_positions": 5,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 43.0,
+  "fees": 0.8403635405451514,
+  "slippage_est": 202.98621215138283,
+  "turnover": 24362.35955810547,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-06-23T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 14.0,
+      "price": 340.894419502724,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-04T22:38:45.744054+00:00"
+}

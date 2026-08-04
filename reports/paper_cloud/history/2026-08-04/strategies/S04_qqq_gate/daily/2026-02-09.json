@@ -1,0 +1,49 @@
+{
+  "run_id": "paper_20260804T223845Z_432d7acb44",
+  "day": "2026-02-09",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98756.31486895094,
+  "cash": 98756.31486895094,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.012436851310490549,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 40.0,
+  "fees": 0.6612134040648128,
+  "slippage_est": 142.5790616377604,
+  "turnover": 4684.697502707467,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-09T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 31.0,
+      "price": 151.11927428088603,
+      "commission": 1.0,
+      "fees": 0.04262358002165973
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260804T223845Z_432d7acb44",
+      "ticker": "JPM",
+      "qty": 11.0,
+      "avg_px": 337.6724911839322,
+      "stop": 341.50805958706167,
+      "hard_stop": 314.03541680105695,
+      "opened_at": "2026-07-10T09:45:00+00:00",
+      "bars_held": 18,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-04T22:38:49.621551+00:00"
+}

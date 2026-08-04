@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260804T223842Z_8d344a4236",
+  "day": "2026-07-24",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101462.04606455419,
+  "cash": 84646.8462659702,
+  "gross_exposure": 16815.199798583984,
+  "dd_from_peak": -0.011108583828196683,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 51.0,
+  "fees": 1.039658575411388,
+  "slippage_est": 248.5050408869413,
+  "turnover": 16815.199798583984,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-07-24T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 20.0,
+      "price": 231.18283397621053,
+      "commission": 1.0,
+      "fees": 0.04030925343619368
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-04T22:38:45.754458+00:00"
+}

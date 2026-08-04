@@ -1,0 +1,58 @@
+{
+  "run_id": "paper_20260804T223845Z_432d7acb44",
+  "day": "2026-02-05",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98601.1400465862,
+  "cash": 94072.6599898235,
+  "gross_exposure": 4528.480056762695,
+  "dd_from_peak": -0.013988599534138002,
+  "n_positions": 1,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 39.0,
+  "fees": 0.618589824043153,
+  "slippage_est": 139.76635621534456,
+  "turnover": 4528.480056762695,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-05T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 310.7271742393867,
+      "commission": 1.0,
+      "fees": 0.029169991333066032
+    },
+    {
+      "ts": "2026-02-05T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 16.0,
+      "price": 224.5501462034014,
+      "commission": 1.0,
+      "fees": 0.03139841871403538
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260804T223845Z_432d7acb44",
+      "ticker": "JPM",
+      "qty": 11.0,
+      "avg_px": 337.6724911839322,
+      "stop": 341.50805958706167,
+      "hard_stop": 314.03541680105695,
+      "opened_at": "2026-07-10T09:45:00+00:00",
+      "bars_held": 18,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-04T22:38:49.620502+00:00"
+}

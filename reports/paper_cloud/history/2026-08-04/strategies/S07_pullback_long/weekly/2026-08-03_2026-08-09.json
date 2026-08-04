@@ -1,0 +1,43 @@
+{
+  "run_id": "paper_20260804T223857Z_8585bd16e9",
+  "week_start": "2026-08-03",
+  "week_end": "2026-08-09",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 98424.97396780872,
+  "end_equity": 98522.5617260015,
+  "week_return": 0.0009914938684636443,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 65.0,
+  "fees": 1.5625025679078162,
+  "slippage_est": 362.87240070050734,
+  "turnover": 18764.760162353516,
+  "cost_drag_bps": 43.63,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-08-03",
+      "equity": 98424.97396780872,
+      "dd_from_peak": -0.02276178424605313,
+      "n_fills": 0,
+      "commission": 32.0
+    },
+    {
+      "day": "2026-08-04",
+      "equity": 98522.5617260015,
+      "dd_from_peak": -0.021792858547104665,
+      "n_fills": 1,
+      "commission": 33.0
+    }
+  ],
+  "generated_at": "2026-08-04T22:39:00.856682+00:00"
+}

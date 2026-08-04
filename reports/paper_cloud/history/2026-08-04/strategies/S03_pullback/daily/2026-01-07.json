@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260804T223842Z_8d344a4236",
+  "day": "2026-01-07",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100796.93645781529,
+  "cash": 80440.09690398228,
+  "gross_exposure": 20356.839553833008,
+  "dd_from_peak": -0.004310845216826342,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 1,
+  "n_sells": 1,
+  "commission": 8.0,
+  "fees": 0.08868727265659598,
+  "slippage_est": 33.35096729216298,
+  "turnover": 20356.839553833008,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-07T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 19.0,
+      "price": 263.3579340002041,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-07T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 43.0,
+      "price": 118.78051751578184,
+      "commission": 1.0,
+      "fees": 0.04799849802542895
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-04T22:38:45.691883+00:00"
+}

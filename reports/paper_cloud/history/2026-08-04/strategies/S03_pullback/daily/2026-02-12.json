@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20260804T223842Z_8d344a4236",
+  "day": "2026-02-12",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101770.76901572284,
+  "cash": 95473.70932334002,
+  "gross_exposure": 6297.0596923828125,
+  "dd_from_peak": -0.00629473775264755,
+  "n_positions": 1,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 21.0,
+  "fees": 0.43518239987743956,
+  "slippage_est": 96.59958014334251,
+  "turnover": 6297.0596923828125,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-02-12T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 16.0,
+      "price": 303.9195601091591,
+      "commission": 1.0,
+      "fees": 0.04155770369397236
+    },
+    {
+      "ts": "2026-02-12T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 20.0,
+      "price": 264.8617974855488,
+      "commission": 1.0,
+      "fees": 0.04569788759768781
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-08-04T22:38:45.703490+00:00"
+}
