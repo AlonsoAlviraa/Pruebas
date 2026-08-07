@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260807T010524Z_10a8e14355",
+  "run_id": "paper_20260807T220845Z_4223b64c98",
   "day": "2026-02-03",
   "strategy_id": "S07_pullback_long",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 99760.37717708045,
-  "cash": 81614.68693049841,
+  "equity": 99760.32818141098,
+  "cash": 81614.63793482895,
   "gross_exposure": 18145.69024658203,
-  "dd_from_peak": -0.00950288244451769,
+  "dd_from_peak": -0.009503368954195457,
   "n_positions": 3,
   "n_fills": 1,
   "n_buys": 0,
   "n_sells": 1,
   "commission": 13.0,
-  "fees": 0.25818976065804483,
-  "slippage_est": 69.27429702085033,
+  "fees": 0.2581893686750912,
+  "slippage_est": 69.2742121780918,
   "turnover": 18145.69024658203,
   "n_orders": 1,
   "n_rejects": 0,
@@ -26,35 +26,35 @@
       "ticker": "NVDA",
       "side": "sell",
       "qty": 32.0,
-      "price": 180.23179144757012,
+      "price": 180.23179143255115,
       "commission": 1.0,
-      "fees": 0.05145133861057795
+      "fees": 0.05145133860673309
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20260807T010524Z_10a8e14355",
+      "run_id": "paper_20260807T220845Z_4223b64c98",
       "ticker": "AAPL",
       "qty": 19.0,
-      "avg_px": 309.5456034313715,
-      "stop": 282.0768167737905,
-      "hard_stop": 278.59104308823436,
+      "avg_px": 309.5456034296174,
+      "stop": 282.0774270970621,
+      "hard_stop": 278.5910430866557,
       "opened_at": "2026-08-05T09:45:00+00:00",
-      "bars_held": 2,
+      "bars_held": 3,
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20260807T010524Z_10a8e14355",
+      "run_id": "paper_20260807T220845Z_4223b64c98",
       "ticker": "XOM",
       "qty": 42.0,
-      "avg_px": 140.27412483113872,
-      "stop": 143.5196594237624,
-      "hard_stop": 126.24671234802486,
+      "avg_px": 140.2741247401609,
+      "stop": 143.5196594261773,
+      "hard_stop": 126.2467122661448,
       "opened_at": "2026-06-16T09:45:00+00:00",
-      "bars_held": 36,
+      "bars_held": 37,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-08-07T01:05:27.695836+00:00"
+  "generated_at": "2026-08-07T22:08:50.730818+00:00"
 }

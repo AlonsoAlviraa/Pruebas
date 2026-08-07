@@ -1,59 +1,66 @@
 {
-  "run_id": "paper_20260807T010532Z_bfa2a6f32c",
+  "run_id": "paper_20260807T220855Z_b648f8d6d8",
   "week_start": "2026-08-03",
   "week_end": "2026-08-09",
   "strategy_id": "S10_defensive_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "days": 4,
-  "start_equity": 100282.10711138809,
-  "end_equity": 100303.39581674316,
-  "week_return": 0.00021228817351648388,
-  "max_dd": -0.00017792050680542904,
-  "rolling_sharpe_approx": 3.8662913289840186,
+  "days": 5,
+  "start_equity": 100412.91304719131,
+  "end_equity": 100487.90149153669,
+  "week_return": 0.0007468008054913877,
+  "max_dd": -0.00017768880737778492,
+  "rolling_sharpe_approx": 8.936120615064532,
   "n_fills": 3,
   "n_buys": 3,
   "n_sells": 0,
-  "commission": 252.0,
-  "fees": 4.240780827084978,
-  "slippage_est": 923.407582829173,
-  "turnover": 15662.540069580078,
-  "cost_drag_bps": 117.63,
+  "commission": 307.0,
+  "fees": 5.133770834275227,
+  "slippage_est": 1117.3167756822468,
+  "turnover": 27432.819854736328,
+  "cost_drag_bps": 142.36,
   "n_kill_events": 0,
   "n_rejects": 0,
   "micro_trade_pct": 0.0,
   "flags": [
-    "cost drag 117.63 bps \u2014 review slippage/commission"
+    "cost drag 142.36 bps \u2014 review slippage/commission"
   ],
   "daily": [
     {
       "day": "2026-08-03",
-      "equity": 100282.10711138809,
-      "dd_from_peak": -0.004880952030388408,
+      "equity": 100412.91304719131,
+      "dd_from_peak": -0.0048746246177483465,
       "n_fills": 0,
-      "commission": 62.0
+      "commission": 60.0
     },
     {
       "day": "2026-08-04",
-      "equity": 100282.10711138809,
-      "dd_from_peak": -0.004880952030388408,
+      "equity": 100412.91304719131,
+      "dd_from_peak": -0.0048746246177483465,
       "n_fills": 0,
-      "commission": 62.0
+      "commission": 60.0
     },
     {
       "day": "2026-08-05",
-      "equity": 100321.24502350109,
-      "dd_from_peak": -0.004492578840362027,
+      "equity": 100452.05095912144,
+      "dd_from_peak": -0.004486754889451161,
       "n_fills": 1,
-      "commission": 63.0
+      "commission": 61.0
     },
     {
       "day": "2026-08-06",
-      "equity": 100303.39581674316,
-      "dd_from_peak": -0.004669700025263346,
+      "equity": 100434.20175398786,
+      "dd_from_peak": -0.004663646450703607,
       "n_fills": 2,
-      "commission": 65.0
+      "commission": 63.0
+    },
+    {
+      "day": "2026-08-07",
+      "equity": 100487.90149153669,
+      "dd_from_peak": -0.004131464185847977,
+      "n_fills": 0,
+      "commission": 63.0
     }
   ],
-  "generated_at": "2026-08-07T01:05:36.084214+00:00"
+  "generated_at": "2026-08-07T22:08:58.868289+00:00"
 }

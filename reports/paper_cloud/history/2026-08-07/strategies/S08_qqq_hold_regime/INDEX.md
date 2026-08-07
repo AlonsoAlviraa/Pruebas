@@ -1,4 +1,4 @@
-# Paper digests — `paper_20260807T010527Z_1adaeeb814`
+# Paper digests — `paper_20260807T220850Z_87bca8c6af`
 
 Strategy: `S08_qqq_hold_regime` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S08_qqq_hold_regime` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-08-03 → 2026-08-09
 
-- Return: 1.99%
-- Commission: $4.00
+- Return: 3.13%
+- Commission: $5.00
 - Kill events: 0

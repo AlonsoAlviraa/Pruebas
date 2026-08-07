@@ -1,4 +1,4 @@
-# Paper digests — `paper_20260807T010532Z_bfa2a6f32c`
+# Paper digests — `paper_20260807T220855Z_b648f8d6d8`
 
 Strategy: `S10_defensive_no_ext` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S10_defensive_no_ext` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-08-03 → 2026-08-09
 
-- Return: 0.02%
-- Commission: $252.00
+- Return: 0.07%
+- Commission: $307.00
 - Kill events: 0

@@ -1,24 +1,24 @@
 {
-  "run_id": "paper_20260807T010529Z_71a557ccfd",
+  "run_id": "paper_20260807T220852Z_aa9f380a5c",
   "week_start": "2026-08-03",
   "week_end": "2026-08-09",
   "strategy_id": "S09_qqq_bh_proxy",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "days": 4,
-  "start_equity": 116325.1195182423,
-  "end_equity": 118701.66230388683,
-  "week_return": 0.0204301770373152,
-  "max_dd": -0.012475677139880181,
-  "rolling_sharpe_approx": 4.788592198941873,
+  "days": 5,
+  "start_equity": 115037.39703997571,
+  "end_equity": 118733.96057757337,
+  "week_return": 0.032133581189368376,
+  "max_dd": -0.012461027446465045,
+  "rolling_sharpe_approx": 6.780391125178852,
   "n_fills": 0,
   "n_buys": 0,
   "n_sells": 0,
-  "commission": 4.0,
+  "commission": 5.0,
   "fees": 0.0,
-  "slippage_est": 234.57466140578936,
-  "turnover": 465506.80920410156,
-  "cost_drag_bps": 20.51,
+  "slippage_est": 292.8805227776792,
+  "turnover": 576202.9039306641,
+  "cost_drag_bps": 25.89,
   "n_kill_events": 0,
   "n_rejects": 0,
   "micro_trade_pct": 0.0,
@@ -26,32 +26,39 @@
   "daily": [
     {
       "day": "2026-08-03",
-      "equity": 116325.1195182423,
-      "dd_from_peak": -0.060665365523086545,
+      "equity": 115037.39703997571,
+      "dd_from_peak": -0.06059621809499838,
       "n_fills": 0,
       "commission": 1.0
     },
     {
       "day": "2026-08-04",
-      "equity": 120201.25434490245,
-      "dd_from_peak": -0.029365267094964453,
+      "equity": 118865.97193011243,
+      "dd_from_peak": -0.029331796057952886,
       "n_fills": 0,
       "commission": 1.0
     },
     {
       "day": "2026-08-05",
-      "equity": 119133.60633464855,
-      "dd_from_peak": -0.037986610082749506,
+      "equity": 117811.42389544446,
+      "dd_from_peak": -0.037943312290568354,
       "n_fills": 0,
       "commission": 1.0
     },
     {
       "day": "2026-08-06",
-      "equity": 118701.66230388683,
-      "dd_from_peak": -0.041474592643441555,
+      "equity": 117384.77979144055,
+      "dd_from_peak": -0.041427319188685696,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-08-07",
+      "equity": 118733.96057757337,
+      "dd_from_peak": -0.03040981039955437,
       "n_fills": 0,
       "commission": 1.0
     }
   ],
-  "generated_at": "2026-08-07T01:05:32.127705+00:00"
+  "generated_at": "2026-08-07T22:08:55.076406+00:00"
 }
