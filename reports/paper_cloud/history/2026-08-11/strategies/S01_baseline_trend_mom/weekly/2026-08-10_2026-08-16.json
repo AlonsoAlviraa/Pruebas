@@ -1,0 +1,45 @@
+{
+  "run_id": "paper_20260811T222041Z_e4317d7880",
+  "week_start": "2026-08-10",
+  "week_end": "2026-08-16",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 99495.01378764471,
+  "end_equity": 99311.19542283028,
+  "week_return": -0.001847513335761386,
+  "max_dd": -0.001847513335761386,
+  "rolling_sharpe_approx": null,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 177.0,
+  "fees": 2.030212232855474,
+  "slippage_est": 462.8571783147298,
+  "turnover": 37334.24995422363,
+  "cost_drag_bps": 64.51,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "cost drag 64.51 bps \u2014 review slippage/commission"
+  ],
+  "daily": [
+    {
+      "day": "2026-08-10",
+      "equity": 99495.01378764471,
+      "dd_from_peak": -0.01654943410699561,
+      "n_fills": 0,
+      "commission": 88.0
+    },
+    {
+      "day": "2026-08-11",
+      "equity": 99311.19542283028,
+      "dd_from_peak": -0.018366372142544996,
+      "n_fills": 1,
+      "commission": 89.0
+    }
+  ],
+  "generated_at": "2026-08-11T22:20:46.515587+00:00"
+}
