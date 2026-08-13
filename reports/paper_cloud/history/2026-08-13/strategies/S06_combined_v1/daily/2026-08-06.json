@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20260813T222203Z_657ad8036e",
+  "day": "2026-08-06",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99887.86028040104,
+  "cash": 82155.4202016657,
+  "gross_exposure": 17732.44007873535,
+  "dd_from_peak": -0.007318820163941364,
+  "n_positions": 3,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 37.0,
+  "fees": 0.8697906100519772,
+  "slippage_est": 210.37231209234227,
+  "turnover": 17732.44007873535,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-06T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 38.0,
+      "price": 154.3125414299298,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-06T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 19.0,
+      "price": 314.52860253616404,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260813T222203Z_657ad8036e",
+      "ticker": "AAPL",
+      "qty": 19.0,
+      "avg_px": 314.52860253616404,
+      "stop": 287.7653055914823,
+      "hard_stop": 286.2210283079093,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 6,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260813T222203Z_657ad8036e",
+      "ticker": "NVDA",
+      "qty": 27.0,
+      "avg_px": 216.99011755876526,
+      "stop": 204.15458358154,
+      "hard_stop": 197.4610069784764,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260813T222203Z_657ad8036e",
+      "ticker": "XOM",
+      "qty": 38.0,
+      "avg_px": 154.3125414299298,
+      "stop": 150.08594898005617,
+      "hard_stop": 140.42441270123612,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 6,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-13T22:22:15.356264+00:00"
+}
