@@ -1,0 +1,39 @@
+{
+  "run_id": "paper_20260817T215632Z_f50dfcfe8a",
+  "day": "2026-03-19",
+  "strategy_id": "S08_qqq_hold_regime",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 96921.08054954685,
+  "cash": 5002.977522203102,
+  "gross_exposure": 91918.10302734375,
+  "dd_from_peak": -0.06040588668321778,
+  "n_positions": 1,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 1.0,
+  "fees": 0.0,
+  "slippage_est": 56.97096412501651,
+  "turnover": 91918.10302734375,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260817T215632Z_f50dfcfe8a",
+      "ticker": "QQQ",
+      "qty": 155.0,
+      "avg_px": 612.8775643728832,
+      "stop": 487.78538046794375,
+      "hard_stop": 398.3704168423741,
+      "opened_at": "2025-11-26T09:45:00+00:00",
+      "bars_held": 180,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-17T21:56:33.966113+00:00"
+}

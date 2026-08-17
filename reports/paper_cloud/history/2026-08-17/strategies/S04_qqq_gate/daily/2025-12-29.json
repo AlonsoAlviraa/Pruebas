@@ -1,0 +1,72 @@
+{
+  "run_id": "paper_20260817T215615Z_1101cf6bf0",
+  "day": "2025-12-29",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99629.14552204449,
+  "cash": 76152.95530598004,
+  "gross_exposure": 23476.190216064453,
+  "dd_from_peak": -0.0037887241132139593,
+  "n_positions": 6,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 10.0,
+  "fees": 0.06116709705410943,
+  "slippage_est": 30.035485878088082,
+  "turnover": 23476.190216064453,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260817T215615Z_1101cf6bf0",
+      "ticker": "JPM",
+      "qty": 10.0,
+      "avg_px": 363.18779460393824,
+      "stop": 346.2985040927098,
+      "hard_stop": 337.76464898166256,
+      "opened_at": "2026-08-12T09:45:00+00:00",
+      "bars_held": 4,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260817T215615Z_1101cf6bf0",
+      "ticker": "MSFT",
+      "qty": 8.0,
+      "avg_px": 496.65780344553053,
+      "stop": 462.6007823740213,
+      "hard_stop": 461.8917572043434,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260817T215615Z_1101cf6bf0",
+      "ticker": "NVDA",
+      "qty": 18.0,
+      "avg_px": 216.9901172613971,
+      "stop": 204.84458601934404,
+      "hard_stop": 201.8008090530993,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260817T215615Z_1101cf6bf0",
+      "ticker": "XOM",
+      "qty": 25.0,
+      "avg_px": 155.13302282613688,
+      "stop": 150.93255677900353,
+      "hard_stop": 144.2737112283073,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-17T21:56:19.716971+00:00"
+}

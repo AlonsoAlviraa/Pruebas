@@ -1,0 +1,36 @@
+{
+  "run_id": "paper_20260817T215632Z_f50dfcfe8a",
+  "week_start": "2026-08-17",
+  "week_end": "2026-08-23",
+  "strategy_id": "S08_qqq_hold_regime",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 1,
+  "start_equity": 118132.82676536716,
+  "end_equity": 118132.82676536716,
+  "week_return": 0.0,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 1.0,
+  "fees": 0.0,
+  "slippage_est": 56.97096412501651,
+  "turnover": 113129.84924316406,
+  "cost_drag_bps": 4.91,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-08-17",
+      "equity": 118132.82676536716,
+      "dd_from_peak": -0.020926514089672388,
+      "n_fills": 0,
+      "commission": 1.0
+    }
+  ],
+  "generated_at": "2026-08-17T21:56:34.015812+00:00"
+}
