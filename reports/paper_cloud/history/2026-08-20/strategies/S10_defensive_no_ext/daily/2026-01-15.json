@@ -1,0 +1,91 @@
+{
+  "run_id": "paper_20260820T215651Z_7272756330",
+  "day": "2026-01-15",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99983.88764994396,
+  "cash": 91911.71760599865,
+  "gross_exposure": 8072.1700439453125,
+  "dd_from_peak": -0.0015855423993075268,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 1,
+  "n_sells": 1,
+  "commission": 20.0,
+  "fees": 0.3071570183510527,
+  "slippage_est": 69.74502260951593,
+  "turnover": 8072.1700439453125,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-15T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 16.0,
+      "price": 239.45358515504964,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-15T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 21.0,
+      "price": 186.93777237988974,
+      "commission": 1.0,
+      "fees": 0.03489154575982147
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260820T215651Z_7272756330",
+      "ticker": "AAPL",
+      "qty": 12.0,
+      "avg_px": 314.52860176150494,
+      "stop": 296.50941299370714,
+      "hard_stop": 295.6568856558146,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260820T215651Z_7272756330",
+      "ticker": "GOOGL",
+      "qty": 11.0,
+      "avg_px": 356.1035515309737,
+      "stop": 334.73733843911526,
+      "hard_stop": 334.73733843911526,
+      "opened_at": "2026-08-11T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260820T215651Z_7272756330",
+      "ticker": "NVDA",
+      "qty": 18.0,
+      "avg_px": 216.99011727656372,
+      "stop": 208.6904880476074,
+      "hard_stop": 203.9707102399699,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260820T215651Z_7272756330",
+      "ticker": "XOM",
+      "qty": 26.0,
+      "avg_px": 154.3125388877629,
+      "stop": 158.98662507223096,
+      "hard_stop": 145.05378655449712,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-20T21:57:00.763217+00:00"
+}
