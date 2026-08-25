@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20260825T215558Z_804f8d5bff",
+  "day": "2025-12-04",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100026.43242203102,
+  "cash": 88046.39233719216,
+  "gross_exposure": 11980.040084838867,
+  "dd_from_peak": 0.0,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 2.0,
+  "fees": 0.0,
+  "slippage_est": 7.167477260968639,
+  "turnover": 11980.040084838867,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-12-04T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 51.0,
+      "price": 117.57050845546777,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-12-04T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 19.0,
+      "price": 313.4479858725783,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260825T215558Z_804f8d5bff",
+      "ticker": "AAPL",
+      "qty": 18.0,
+      "avg_px": 314.52860255615855,
+      "stop": 291.75529583274005,
+      "hard_stop": 286.22102832610426,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 14,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260825T215558Z_804f8d5bff",
+      "ticker": "NVDA",
+      "qty": 27.0,
+      "avg_px": 216.99011762955328,
+      "stop": 204.8445859807176,
+      "hard_stop": 197.4610070428935,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 15,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260825T215558Z_804f8d5bff",
+      "ticker": "XOM",
+      "qty": 38.0,
+      "avg_px": 154.31254149045273,
+      "stop": 157.05595020363882,
+      "hard_stop": 140.424412756312,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 14,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-25T21:56:08.548282+00:00"
+}
