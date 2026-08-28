@@ -1,0 +1,49 @@
+{
+  "run_id": "paper_20260828T053555Z_8a75f421dd",
+  "day": "2026-06-26",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100946.62102389363,
+  "cash": 100946.62102389363,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.004704734254245224,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 50.0,
+  "fees": 0.8619143125763953,
+  "slippage_est": 183.07206985817461,
+  "turnover": 3946.230526936738,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-06-26T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 12.0,
+      "price": 328.85254391139483,
+      "commission": 1.0,
+      "fees": 0.0335618442154939
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260828T053555Z_8a75f421dd",
+      "ticker": "GOOGL",
+      "qty": 11.0,
+      "avg_px": 356.1035517330178,
+      "stop": 334.73733862903674,
+      "hard_stop": 334.73733862903674,
+      "opened_at": "2026-08-11T09:45:00+00:00",
+      "bars_held": 13,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-28T05:35:59.614961+00:00"
+}

@@ -1,0 +1,82 @@
+{
+  "run_id": "paper_20260828T053532Z_2d60b30edd",
+  "day": "2026-01-22",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100116.1559228944,
+  "cash": 88188.45592594615,
+  "gross_exposure": 11927.699996948242,
+  "dd_from_peak": -0.0011756304478047763,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 17.0,
+  "fees": 0.23285551973574148,
+  "slippage_est": 54.04036244452716,
+  "turnover": 11927.699996948242,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-22T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 334.65068510485077,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260828T053532Z_2d60b30edd",
+      "ticker": "AMZN",
+      "qty": 15.0,
+      "avg_px": 260.7863847381076,
+      "stop": 242.53133780644004,
+      "hard_stop": 242.53133780644004,
+      "opened_at": "2026-08-18T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260828T053532Z_2d60b30edd",
+      "ticker": "JPM",
+      "qty": 10.0,
+      "avg_px": 363.1877959886279,
+      "stop": 346.2985041043161,
+      "hard_stop": 337.7646502694239,
+      "opened_at": "2026-08-12T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260828T053532Z_2d60b30edd",
+      "ticker": "MSFT",
+      "qty": 8.0,
+      "avg_px": 496.65780398285847,
+      "stop": 462.6007823468239,
+      "hard_stop": 461.89175770405836,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 17,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260828T053532Z_2d60b30edd",
+      "ticker": "NVDA",
+      "qty": 18.0,
+      "avg_px": 216.99011723475115,
+      "stop": 207.39458908973376,
+      "hard_stop": 201.80080902831855,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 17,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-28T05:35:39.502189+00:00"
+}
