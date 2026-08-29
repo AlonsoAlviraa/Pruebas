@@ -1,0 +1,72 @@
+{
+  "run_id": "paper_20260829T031830Z_6bc39287e0",
+  "day": "2026-04-02",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100066.11054460601,
+  "cash": 100066.11054460601,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.011279373470722054,
+  "n_positions": 4,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 20.0,
+  "fees": 0.4355313830194392,
+  "slippage_est": 108.82903245038537,
+  "turnover": 0.0,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260829T031830Z_6bc39287e0",
+      "ticker": "AAPL",
+      "qty": 16.0,
+      "avg_px": 309.5456036422672,
+      "stop": 291.08992069612543,
+      "hard_stop": 281.68649931446316,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 18,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260829T031830Z_6bc39287e0",
+      "ticker": "AMZN",
+      "qty": 19.0,
+      "avg_px": 258.4750018964402,
+      "stop": 246.09073651449035,
+      "hard_stop": 235.21225172576058,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 1,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260829T031830Z_6bc39287e0",
+      "ticker": "GOOGL",
+      "qty": 13.0,
+      "avg_px": 355.3931044569292,
+      "stop": 323.4077250558056,
+      "hard_stop": 323.4077250558056,
+      "opened_at": "2026-08-10T09:45:00+00:00",
+      "bars_held": 15,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260829T031830Z_6bc39287e0",
+      "ticker": "XOM",
+      "qty": 31.0,
+      "avg_px": 156.69397301478395,
+      "stop": 146.2868231932913,
+      "hard_stop": 142.5915154434534,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 1,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-08-29T03:18:34.254011+00:00"
+}
