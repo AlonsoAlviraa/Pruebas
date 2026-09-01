@@ -1,4 +1,4 @@
-# Paper digests — `paper_20260901T004558Z_ee00a73d0c`
+# Paper digests — `paper_20260901T233112Z_8bc95441b1`
 
 Strategy: `S05_topk_no_ext` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S05_topk_no_ext` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-08-31 → 2026-09-06
 
-- Return: 0.00%
-- Commission: $37.00
+- Return: -0.05%
+- Commission: $74.00
 - Kill events: 0

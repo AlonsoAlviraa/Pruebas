@@ -1,4 +1,4 @@
-# Paper digests — `paper_20260901T004603Z_ed40a9efb5`
+# Paper digests — `paper_20260901T233116Z_4226ead413`
 
 Strategy: `S06_combined_v1` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S06_combined_v1` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-08-31 → 2026-09-06
 
-- Return: 0.00%
-- Commission: $38.00
+- Return: -0.06%
+- Commission: $76.00
 - Kill events: 0
