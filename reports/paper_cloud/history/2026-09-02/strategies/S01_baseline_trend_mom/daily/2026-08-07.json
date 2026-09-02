@@ -1,0 +1,61 @@
+{
+  "run_id": "paper_20260902T233129Z_f2e169057e",
+  "day": "2026-08-07",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99369.61826634638,
+  "cash": 82125.50846410029,
+  "gross_exposure": 17244.109802246094,
+  "dd_from_peak": -0.017444847753303794,
+  "n_positions": 6,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 80.0,
+  "fees": 0.9146984474959753,
+  "slippage_est": 211.57480497776834,
+  "turnover": 17244.109802246094,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260902T233129Z_f2e169057e",
+      "ticker": "AMZN",
+      "qty": 11.0,
+      "avg_px": 260.7863846215627,
+      "stop": 243.19899103174077,
+      "hard_stop": 242.5313376980533,
+      "opened_at": "2026-08-18T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260902T233129Z_f2e169057e",
+      "ticker": "GOOGL",
+      "qty": 8.0,
+      "avg_px": 356.10355121107636,
+      "stop": 331.176302626301,
+      "hard_stop": 331.176302626301,
+      "opened_at": "2026-08-11T09:45:00+00:00",
+      "bars_held": 17,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260902T233129Z_f2e169057e",
+      "ticker": "XOM",
+      "qty": 18.0,
+      "avg_px": 163.6981702818571,
+      "stop": 154.21459795646896,
+      "hard_stop": 152.2392983621271,
+      "opened_at": "2026-09-01T09:45:00+00:00",
+      "bars_held": 2,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-02T23:31:37.805207+00:00"
+}
