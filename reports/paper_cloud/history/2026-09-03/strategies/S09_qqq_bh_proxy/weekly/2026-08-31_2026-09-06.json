@@ -1,0 +1,57 @@
+{
+  "run_id": "paper_20260903T232946Z_bd642b88ec",
+  "week_start": "2026-08-31",
+  "week_end": "2026-09-06",
+  "strategy_id": "S09_qqq_bh_proxy",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 4,
+  "start_equity": 115485.99078109348,
+  "end_equity": 115629.76653792942,
+  "week_return": 0.001244962751442813,
+  "max_dd": -0.012477350878402182,
+  "rolling_sharpe_approx": 0.6059427597549483,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 4.0,
+  "fees": 0.0,
+  "slippage_est": 234.52613343858502,
+  "turnover": 450506.9796142578,
+  "cost_drag_bps": 20.65,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-08-31",
+      "equity": 115485.99078109348,
+      "dd_from_peak": -0.038667679953894085,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-09-01",
+      "equity": 114045.03155257786,
+      "dd_from_peak": -0.05066256062185781,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-09-02",
+      "equity": 114297.82769515598,
+      "dd_from_peak": -0.048558226575800334,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-09-03",
+      "equity": 115629.76653792942,
+      "dd_from_peak": -0.03747085702367858,
+      "n_fills": 0,
+      "commission": 1.0
+    }
+  ],
+  "generated_at": "2026-09-03T23:29:49.009506+00:00"
+}

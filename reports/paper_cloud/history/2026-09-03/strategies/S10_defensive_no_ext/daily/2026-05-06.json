@@ -1,0 +1,91 @@
+{
+  "run_id": "paper_20260903T232949Z_62c4ede461",
+  "day": "2026-05-06",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100942.29459576006,
+  "cash": 92691.99463848467,
+  "gross_exposure": 8250.29995727539,
+  "dd_from_peak": 0.0,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 1,
+  "n_sells": 1,
+  "commission": 36.0,
+  "fees": 0.5857812597371381,
+  "slippage_est": 126.5006232069827,
+  "turnover": 8250.29995727539,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-06T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 20.0,
+      "price": 200.00993401689811,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-05-06T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 14.0,
+      "price": 287.33750171633636,
+      "commission": 1.0,
+      "fees": 0.03450580019222967
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260903T232949Z_62c4ede461",
+      "ticker": "AAPL",
+      "qty": 12.0,
+      "avg_px": 317.17020092396194,
+      "stop": 312.6973101365705,
+      "hard_stop": 298.1399888685242,
+      "opened_at": "2026-09-01T09:45:00+00:00",
+      "bars_held": 3,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260903T232949Z_62c4ede461",
+      "ticker": "AMZN",
+      "qty": 15.0,
+      "avg_px": 258.4750016876443,
+      "stop": 250.78713735201075,
+      "hard_stop": 242.96650158638562,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 5,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260903T232949Z_62c4ede461",
+      "ticker": "JPM",
+      "qty": 11.0,
+      "avg_px": 355.88342981634315,
+      "stop": 348.0758149189412,
+      "hard_stop": 334.5304240273625,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 5,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260903T232949Z_62c4ede461",
+      "ticker": "NVDA",
+      "qty": 18.0,
+      "avg_px": 219.0013177327463,
+      "stop": 211.24241429006796,
+      "hard_stop": 205.8612386687815,
+      "opened_at": "2026-08-31T09:45:00+00:00",
+      "bars_held": 4,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-03T23:29:52.764424+00:00"
+}
