@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20260908T233649Z_3ac08a8d96",
+  "day": "2026-01-14",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99217.95465118322,
+  "cash": 87441.22482330236,
+  "gross_exposure": 11776.72982788086,
+  "dd_from_peak": -0.010629261233193632,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 1,
+  "n_sells": 1,
+  "commission": 8.0,
+  "fees": 0.14189689489257312,
+  "slippage_est": 44.394335900062174,
+  "turnover": 11776.72982788086,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-14T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 32.0,
+      "price": 184.43060024266723,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-14T15:45:00+00:00",
+      "ticker": "META",
+      "side": "sell",
+      "qty": 9.0,
+      "price": 613.8638843952621,
+      "commission": 1.0,
+      "fees": 0.04569219967645887
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260908T233649Z_3ac08a8d96",
+      "ticker": "AAPL",
+      "qty": 18.0,
+      "avg_px": 314.528603225153,
+      "stop": 302.28529462312474,
+      "hard_stop": 286.22102893488926,
+      "opened_at": "2026-08-06T09:45:00+00:00",
+      "bars_held": 23,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260908T233649Z_3ac08a8d96",
+      "ticker": "AMZN",
+      "qty": 23.0,
+      "avg_px": 258.4750030018152,
+      "stop": 247.43256533151887,
+      "hard_stop": 235.21225273165183,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260908T233649Z_3ac08a8d96",
+      "ticker": "NVDA",
+      "qty": 27.0,
+      "avg_px": 216.99011751810485,
+      "stop": 211.68458235735494,
+      "hard_stop": 197.46100694147543,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 24,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-08T23:36:53.215064+00:00"
+}

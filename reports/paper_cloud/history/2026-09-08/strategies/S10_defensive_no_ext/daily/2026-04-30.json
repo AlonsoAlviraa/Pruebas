@@ -1,0 +1,100 @@
+{
+  "run_id": "paper_20260908T233705Z_171d1fd648",
+  "day": "2026-04-30",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99908.99430031556,
+  "cash": 92351.33408303041,
+  "gross_exposure": 7557.660217285156,
+  "dd_from_peak": -0.004229056901361994,
+  "n_positions": 2,
+  "n_fills": 3,
+  "n_buys": 1,
+  "n_sells": 2,
+  "commission": 30.0,
+  "fees": 0.47081376109650763,
+  "slippage_est": 115.0933152333615,
+  "turnover": 7557.660217285156,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-30T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 307.254262797564,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-30T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 12.0,
+      "price": 384.5691036790493,
+      "commission": 1.0,
+      "fees": 0.038910633953188736
+    },
+    {
+      "ts": "2026-04-30T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 21.0,
+      "price": 203.03758976274372,
+      "commission": 1.0,
+      "fees": 0.03759631508014095
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260908T233705Z_171d1fd648",
+      "ticker": "AAPL",
+      "qty": 12.0,
+      "avg_px": 317.17020093540464,
+      "stop": 312.6973101384847,
+      "hard_stop": 298.13998887928034,
+      "opened_at": "2026-09-01T09:45:00+00:00",
+      "bars_held": 5,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260908T233705Z_171d1fd648",
+      "ticker": "AMZN",
+      "qty": 15.0,
+      "avg_px": 258.4750017241798,
+      "stop": 250.78713736936467,
+      "hard_stop": 242.96650162072896,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260908T233705Z_171d1fd648",
+      "ticker": "JPM",
+      "qty": 11.0,
+      "avg_px": 355.8834297364172,
+      "stop": 348.08579415114514,
+      "hard_stop": 334.5304239522322,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260908T233705Z_171d1fd648",
+      "ticker": "NVDA",
+      "qty": 18.0,
+      "avg_px": 219.00131772478932,
+      "stop": 215.60241491647886,
+      "hard_stop": 205.86123866130194,
+      "opened_at": "2026-08-31T09:45:00+00:00",
+      "bars_held": 6,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-08T23:37:08.924487+00:00"
+}
