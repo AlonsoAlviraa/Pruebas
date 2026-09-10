@@ -1,0 +1,82 @@
+{
+  "run_id": "paper_20260910T232234Z_14ad61024b",
+  "day": "2026-08-04",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 97972.85518115471,
+  "cash": 91506.53489917229,
+  "gross_exposure": 6466.320281982422,
+  "dd_from_peak": -0.020937874172477833,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 31.0,
+  "fees": 0.7408584394913955,
+  "slippage_est": 173.59717857661272,
+  "turnover": 6466.320281982422,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-04T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 28.0,
+      "price": 211.81283751243782,
+      "commission": 1.0,
+      "fees": 0.05209407560278607
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "AAPL",
+      "qty": 19.0,
+      "avg_px": 309.5456041413861,
+      "stop": 296.5974161540581,
+      "hard_stop": 278.5910437272475,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 26,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "AMZN",
+      "qty": 22.0,
+      "avg_px": 258.4750028571236,
+      "stop": 244.07799327849548,
+      "hard_stop": 232.62750257141127,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "GOOGL",
+      "qty": 17.0,
+      "avg_px": 346.51778878212417,
+      "stop": 311.8660099039118,
+      "hard_stop": 311.8660099039118,
+      "opened_at": "2026-08-12T09:45:00+00:00",
+      "bars_held": 21,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 156.69397450069727,
+      "stop": 155.1930849834201,
+      "hard_stop": 141.02457705062756,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-10T23:22:38.143182+00:00"
+}

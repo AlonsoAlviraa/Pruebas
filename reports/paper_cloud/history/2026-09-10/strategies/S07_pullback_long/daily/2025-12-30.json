@@ -1,0 +1,91 @@
+{
+  "run_id": "paper_20260910T232234Z_14ad61024b",
+  "day": "2025-12-30",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100029.7638678485,
+  "cash": 88481.8341803485,
+  "gross_exposure": 11547.9296875,
+  "dd_from_peak": 0.0,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 2.0,
+  "fees": 0.0,
+  "slippage_est": 6.905703074368233,
+  "turnover": 11547.9296875,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2025-12-30T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 231.34873630676205,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2025-12-30T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 21.0,
+      "price": 272.9736862848793,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "AAPL",
+      "qty": 19.0,
+      "avg_px": 309.5456041413861,
+      "stop": 296.5974161540581,
+      "hard_stop": 278.5910437272475,
+      "opened_at": "2026-08-05T09:45:00+00:00",
+      "bars_held": 26,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "AMZN",
+      "qty": 22.0,
+      "avg_px": 258.4750028571236,
+      "stop": 244.07799327849548,
+      "hard_stop": 232.62750257141127,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "GOOGL",
+      "qty": 17.0,
+      "avg_px": 346.51778878212417,
+      "stop": 311.8660099039118,
+      "hard_stop": 311.8660099039118,
+      "opened_at": "2026-08-12T09:45:00+00:00",
+      "bars_held": 21,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260910T232234Z_14ad61024b",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 156.69397450069727,
+      "stop": 155.1930849834201,
+      "hard_stop": 141.02457705062756,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-10T23:22:38.078941+00:00"
+}
