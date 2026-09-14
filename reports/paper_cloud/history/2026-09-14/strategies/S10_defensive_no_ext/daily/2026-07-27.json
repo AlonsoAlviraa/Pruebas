@@ -1,0 +1,49 @@
+{
+  "run_id": "paper_20260914T235856Z_0c89f786ae",
+  "day": "2026-07-27",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100148.28199674861,
+  "cash": 100148.28199674861,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.004887444094734628,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 44.0,
+  "fees": 0.7424815264820303,
+  "slippage_est": 163.69553065019562,
+  "turnover": 3720.7961802430727,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-07-27T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 19.0,
+      "price": 195.83137790753014,
+      "commission": 1.0,
+      "fees": 0.032920369441944576
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260914T235856Z_0c89f786ae",
+      "ticker": "AAPL",
+      "qty": 11.0,
+      "avg_px": 335.0308862751417,
+      "stop": 315.38384859411156,
+      "hard_stop": 314.92903309863317,
+      "opened_at": "2026-09-14T09:45:00+00:00",
+      "bars_held": 1,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-14T23:59:00.037312+00:00"
+}
