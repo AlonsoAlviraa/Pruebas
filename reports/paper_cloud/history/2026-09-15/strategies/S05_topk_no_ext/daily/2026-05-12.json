@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20260915T233848Z_2542eb6177",
+  "day": "2026-05-12",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99276.93501009305,
+  "cash": 86113.83515657742,
+  "gross_exposure": 13163.099853515625,
+  "dd_from_peak": -0.009105776754030126,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 18.0,
+  "fees": 0.3857399952363503,
+  "slippage_est": 106.04899809505301,
+  "turnover": 13163.099853515625,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-12T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 19.0,
+      "price": 297.58373611304023,
+      "commission": 1.0,
+      "fees": 0.048386727889182114
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-09-15T23:38:52.287547+00:00"
+}

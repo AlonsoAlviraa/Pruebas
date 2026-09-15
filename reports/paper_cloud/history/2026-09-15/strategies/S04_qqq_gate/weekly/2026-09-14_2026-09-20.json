@@ -1,0 +1,45 @@
+{
+  "run_id": "paper_20260915T233841Z_58c88cea44",
+  "week_start": "2026-09-14",
+  "week_end": "2026-09-20",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 98988.84240244898,
+  "end_equity": 98931.6245673542,
+  "week_return": -0.0005780230751881721,
+  "max_dd": -0.0005780230751881721,
+  "rolling_sharpe_approx": null,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 165.0,
+  "fees": 2.6270611145706972,
+  "slippage_est": 583.2313283501408,
+  "turnover": 26819.449905395508,
+  "cost_drag_bps": 75.85,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "cost drag 75.85 bps \u2014 review slippage/commission"
+  ],
+  "daily": [
+    {
+      "day": "2026-09-14",
+      "equity": 98988.84240244898,
+      "dd_from_peak": -0.030668297950029566,
+      "n_fills": 1,
+      "commission": 82.0
+    },
+    {
+      "day": "2026-09-15",
+      "equity": 98931.6245673542,
+      "dd_from_peak": -0.03122859404132594,
+      "n_fills": 1,
+      "commission": 83.0
+    }
+  ],
+  "generated_at": "2026-09-15T23:38:48.007222+00:00"
+}

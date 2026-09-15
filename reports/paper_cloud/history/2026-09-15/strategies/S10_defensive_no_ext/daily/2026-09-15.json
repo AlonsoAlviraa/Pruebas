@@ -1,0 +1,39 @@
+{
+  "run_id": "paper_20260915T233909Z_0aca7587b8",
+  "day": "2026-09-15",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99320.76554903749,
+  "cash": 95676.02558932069,
+  "gross_exposure": 3644.739959716797,
+  "dd_from_peak": -0.01217626910775893,
+  "n_positions": 1,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 63.0,
+  "fees": 1.0400408884194194,
+  "slippage_est": 233.73420778500426,
+  "turnover": 3644.739959716797,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260915T233909Z_0aca7587b8",
+      "ticker": "AAPL",
+      "qty": 11.0,
+      "avg_px": 334.9908842730307,
+      "stop": 315.3838485984858,
+      "hard_stop": 314.89143121664887,
+      "opened_at": "2026-09-14T09:45:00+00:00",
+      "bars_held": 2,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-15T23:39:14.005605+00:00"
+}
