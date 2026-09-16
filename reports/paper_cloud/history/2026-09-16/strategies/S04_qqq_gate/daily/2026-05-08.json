@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20260916T234757Z_df0b3b35f0",
+  "day": "2026-05-08",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101351.06143893025,
+  "cash": 85330.26161898396,
+  "gross_exposure": 16020.799819946289,
+  "dd_from_peak": 0.0,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 36.0,
+  "fees": 0.5378406474568297,
+  "slippage_est": 123.14303370196083,
+  "turnover": 16020.799819946289,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-08T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 10.0,
+      "price": 397.23820331062154,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-05-08T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 14.0,
+      "price": 271.79298526790814,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260916T234757Z_df0b3b35f0",
+      "ticker": "AAPL",
+      "qty": 12.0,
+      "avg_px": 317.1702008090244,
+      "stop": 314.4847763174337,
+      "hard_stop": 294.96828675239266,
+      "opened_at": "2026-09-01T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260916T234757Z_df0b3b35f0",
+      "ticker": "MSFT",
+      "qty": 7.0,
+      "avg_px": 510.30600353867527,
+      "stop": 475.43584285899624,
+      "hard_stop": 474.58458329096794,
+      "opened_at": "2026-09-04T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260916T234757Z_df0b3b35f0",
+      "ticker": "XOM",
+      "qty": 24.0,
+      "avg_px": 163.69817181777069,
+      "stop": 159.17687889189602,
+      "hard_stop": 152.23929979052673,
+      "opened_at": "2026-09-01T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-16T23:48:21.210628+00:00"
+}
