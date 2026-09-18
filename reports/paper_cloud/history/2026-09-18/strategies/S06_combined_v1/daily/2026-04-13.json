@@ -1,0 +1,58 @@
+{
+  "run_id": "paper_20260918T233312Z_ce562cb58c",
+  "day": "2026-04-13",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98420.24348702419,
+  "cash": 75007.8137690066,
+  "gross_exposure": 23412.429718017578,
+  "dd_from_peak": -0.01764810111353854,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 18.0,
+  "fees": 0.34540167052190884,
+  "slippage_est": 102.0619803304373,
+  "turnover": 23412.429718017578,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-13T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 18.0,
+      "price": 317.33030315101473,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-13T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 31.0,
+      "price": 186.14161763529953,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260918T233312Z_ce562cb58c",
+      "ticker": "AMZN",
+      "qty": 23.0,
+      "avg_px": 261.00651975972437,
+      "stop": 243.98549542842946,
+      "hard_stop": 237.51593298134918,
+      "opened_at": "2026-08-19T09:45:00+00:00",
+      "bars_held": 22,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-18T23:33:15.967845+00:00"
+}
