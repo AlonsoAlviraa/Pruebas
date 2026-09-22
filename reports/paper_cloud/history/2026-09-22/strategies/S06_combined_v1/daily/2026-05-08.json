@@ -1,0 +1,39 @@
+{
+  "run_id": "paper_20260922T001648Z_930f7fc130",
+  "day": "2026-05-08",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99964.76506194174,
+  "cash": 75357.0847335726,
+  "gross_exposure": 24607.68032836914,
+  "dd_from_peak": -0.0027156016462106525,
+  "n_positions": 4,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 20.0,
+  "fees": 0.40023486397888974,
+  "slippage_est": 115.52906484223101,
+  "turnover": 24607.68032836914,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20260922T001648Z_930f7fc130",
+      "ticker": "AMZN",
+      "qty": 23.0,
+      "avg_px": 261.006519758992,
+      "stop": 243.98549544447786,
+      "hard_stop": 237.51593298068272,
+      "opened_at": "2026-08-19T09:45:00+00:00",
+      "bars_held": 22,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-22T00:16:57.962791+00:00"
+}
