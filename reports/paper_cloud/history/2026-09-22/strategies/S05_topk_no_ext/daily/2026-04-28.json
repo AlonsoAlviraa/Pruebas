@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20260922T001637Z_d93449a897",
+  "run_id": "paper_20260922T234627Z_e9b639f325",
   "day": "2026-04-28",
   "strategy_id": "S05_topk_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 98114.10906423509,
-  "cash": 80215.60903371751,
+  "equity": 98156.07818744452,
+  "cash": 80257.57815692695,
   "gross_exposure": 17898.500030517578,
-  "dd_from_peak": -0.02070368928287325,
+  "dd_from_peak": -0.018439218125554713,
   "n_positions": 3,
   "n_fills": 0,
   "n_buys": 0,
   "n_sells": 0,
-  "commission": 19.0,
-  "fees": 0.3909647663965706,
-  "slippage_est": 109.69860671226664,
+  "commission": 17.0,
+  "fees": 0.33766943862503745,
+  "slippage_est": 97.19634910557039,
   "turnover": 17898.500030517578,
   "n_orders": 0,
   "n_rejects": 0,
@@ -23,17 +23,39 @@
   "fills": [],
   "positions": [
     {
-      "run_id": "paper_20260922T001637Z_d93449a897",
+      "run_id": "paper_20260922T234627Z_e9b639f325",
+      "ticker": "AAPL",
+      "qty": 17.0,
+      "avg_px": 335.4811694182182,
+      "stop": 323.4168293925815,
+      "hard_stop": 305.2878641705786,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 2,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260922T234627Z_e9b639f325",
       "ticker": "GOOGL",
       "qty": 16.0,
-      "avg_px": 357.52438805697057,
-      "stop": 335.0941945644287,
-      "hard_stop": 325.3471931318432,
+      "avg_px": 357.52438794576574,
+      "stop": 339.824205547083,
+      "hard_stop": 325.34719303064685,
       "opened_at": "2026-09-18T09:45:00+00:00",
-      "bars_held": 1,
+      "bars_held": 3,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260922T234627Z_e9b639f325",
+      "ticker": "NVDA",
+      "qty": 26.0,
+      "avg_px": 223.07376731351667,
+      "stop": 210.7070767187044,
+      "hard_stop": 202.99712825530017,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 2,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-09-22T00:16:48.696300+00:00"
+  "generated_at": "2026-09-22T23:46:31.966445+00:00"
 }
