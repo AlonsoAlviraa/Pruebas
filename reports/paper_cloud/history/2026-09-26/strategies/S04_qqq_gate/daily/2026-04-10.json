@@ -1,0 +1,109 @@
+{
+  "run_id": "paper_20260926T000607Z_761e60172f",
+  "day": "2026-04-10",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99696.76658508972,
+  "cash": 84544.61682007507,
+  "gross_exposure": 15152.149765014648,
+  "dd_from_peak": -0.010136472418827425,
+  "n_positions": 4,
+  "n_fills": 4,
+  "n_buys": 4,
+  "n_sells": 0,
+  "commission": 18.0,
+  "fees": 0.23546868937192805,
+  "slippage_est": 63.89776087598689,
+  "turnover": 15152.149765014648,
+  "n_orders": 4,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 16.0,
+      "price": 235.44118517872366,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 310.18601005954605,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 154.1324225275102,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 320.2120038536147,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20260926T000607Z_761e60172f",
+      "ticker": "AAPL",
+      "qty": 12.0,
+      "avg_px": 317.1702007614458,
+      "stop": 323.60477144528437,
+      "hard_stop": 294.9682867081446,
+      "opened_at": "2026-09-01T09:45:00+00:00",
+      "bars_held": 17,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260926T000607Z_761e60172f",
+      "ticker": "META",
+      "qty": 5.0,
+      "avg_px": 680.7081708225259,
+      "stop": 716.1120748363501,
+      "hard_stop": 633.058598864949,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 4,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260926T000607Z_761e60172f",
+      "ticker": "MSFT",
+      "qty": 7.0,
+      "avg_px": 510.30600334603713,
+      "stop": 475.4358428937094,
+      "hard_stop": 474.5845831118145,
+      "opened_at": "2026-09-04T09:45:00+00:00",
+      "bars_held": 14,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20260926T000607Z_761e60172f",
+      "ticker": "NVDA",
+      "qty": 17.0,
+      "avg_px": 223.07376704200348,
+      "stop": 210.70707671473767,
+      "hard_stop": 207.45860334906322,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 4,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-09-26T00:06:13.840621+00:00"
+}
