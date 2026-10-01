@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20261001T004838Z_1475a21c7b",
+  "day": "2026-04-10",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99823.67105097554,
+  "cash": 92292.48124689839,
+  "gross_exposure": 7531.189804077148,
+  "dd_from_peak": -0.007636813678839172,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 16.0,
+  "fees": 0.2390048391765229,
+  "slippage_est": 60.207029897556225,
+  "turnover": 7531.189804077148,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 310.1860092982101,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 154.13242273237427,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261001T004838Z_1475a21c7b",
+      "ticker": "AAPL",
+      "qty": 12.0,
+      "avg_px": 334.9908844421563,
+      "stop": 325.22384494782625,
+      "hard_stop": 314.8914313756269,
+      "opened_at": "2026-09-14T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261001T004838Z_1475a21c7b",
+      "ticker": "NVDA",
+      "qty": 18.0,
+      "avg_px": 223.07376715775013,
+      "stop": 217.14924089277218,
+      "hard_stop": 209.6893411282851,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261001T004838Z_1475a21c7b",
+      "ticker": "XOM",
+      "qty": 25.0,
+      "avg_px": 160.3261393942611,
+      "stop": 153.995522183744,
+      "hard_stop": 150.70657103060543,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 3,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-01T00:48:42.792937+00:00"
+}

@@ -1,0 +1,43 @@
+{
+  "run_id": "paper_20261001T004820Z_2460567176",
+  "week_start": "2026-09-28",
+  "week_end": "2026-10-04",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 2,
+  "start_equity": 100788.1603852101,
+  "end_equity": 100538.32061775404,
+  "week_return": -0.0024788602798302417,
+  "max_dd": -0.0024788602798302417,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 74.0,
+  "fees": 1.7607419035702114,
+  "slippage_est": 412.71729965485406,
+  "turnover": 36317.48036193848,
+  "cost_drag_bps": 48.47,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-09-28",
+      "equity": 100788.1603852101,
+      "dd_from_peak": -0.008283621389184481,
+      "n_fills": 0,
+      "commission": 37.0
+    },
+    {
+      "day": "2026-09-29",
+      "equity": 100538.32061775404,
+      "dd_from_peak": -0.01074194772897985,
+      "n_fills": 0,
+      "commission": 37.0
+    }
+  ],
+  "generated_at": "2026-10-01T00:48:24.824795+00:00"
+}
