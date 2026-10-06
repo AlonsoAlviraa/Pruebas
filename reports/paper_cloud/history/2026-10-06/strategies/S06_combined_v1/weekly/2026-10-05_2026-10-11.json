@@ -1,0 +1,36 @@
+{
+  "run_id": "paper_20261006T015212Z_a25d2e7a68",
+  "week_start": "2026-10-05",
+  "week_end": "2026-10-11",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 1,
+  "start_equity": 100383.16812566949,
+  "end_equity": 100383.16812566949,
+  "week_return": 0.0,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 40.0,
+  "fees": 0.925366101395159,
+  "slippage_est": 216.7827162590705,
+  "turnover": 24067.42010498047,
+  "cost_drag_bps": 25.67,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-10-05",
+      "equity": 100383.16812566949,
+      "dd_from_peak": -0.009450044647549838,
+      "n_fills": 0,
+      "commission": 40.0
+    }
+  ],
+  "generated_at": "2026-10-06T01:52:15.757610+00:00"
+}
