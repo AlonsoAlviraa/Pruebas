@@ -1,0 +1,91 @@
+{
+  "run_id": "paper_20261008T011435Z_f3411bebcd",
+  "day": "2026-01-16",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99903.29642541976,
+  "cash": 88152.16667993636,
+  "gross_exposure": 11751.129745483398,
+  "dd_from_peak": -0.0009670357458023693,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 2.0,
+  "fees": 0.0,
+  "slippage_est": 7.103354853669373,
+  "turnover": 11751.129745483398,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-01-16T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 31.0,
+      "price": 189.19345091267297,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-16T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 239.23345367083073,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261008T011435Z_f3411bebcd",
+      "ticker": "AAPL",
+      "qty": 18.0,
+      "avg_px": 335.48116967139237,
+      "stop": 323.41682938724557,
+      "hard_stop": 305.28786440096707,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261008T011435Z_f3411bebcd",
+      "ticker": "GOOGL",
+      "qty": 17.0,
+      "avg_px": 351.00048692146174,
+      "stop": 327.85035972645755,
+      "hard_stop": 319.4104430985302,
+      "opened_at": "2026-10-01T09:45:00+00:00",
+      "bars_held": 4,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261008T011435Z_f3411bebcd",
+      "ticker": "NVDA",
+      "qty": 27.0,
+      "avg_px": 223.0737675524984,
+      "stop": 224.097076138496,
+      "hard_stop": 202.99712847277354,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261008T011435Z_f3411bebcd",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 160.32614234069334,
+      "stop": 154.4966316148783,
+      "hard_stop": 145.89678953003093,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-08T01:14:41.206462+00:00"
+}
