@@ -4,6 +4,7 @@ Free multi-strategy paper runs (GitHub Actions). Virtual capital only.
 
 | Date | N strats | Top strategy | Return | Link |
 |------|----------|--------------|--------|------|
+| 2026-10-10 | 10 | `S09_qqq_bh_proxy` | 22.04% | [open](history/2026-10-10/SUMMARY.md) |
 | 2026-10-09 | 10 | `S09_qqq_bh_proxy` | 23.49% | [open](history/2026-10-09/SUMMARY.md) |
 | 2026-10-08 | 10 | `S09_qqq_bh_proxy` | 20.87% | [open](history/2026-10-08/SUMMARY.md) |
 | 2026-10-07 | 10 | `S09_qqq_bh_proxy` | 20.87% | [open](history/2026-10-07/SUMMARY.md) |

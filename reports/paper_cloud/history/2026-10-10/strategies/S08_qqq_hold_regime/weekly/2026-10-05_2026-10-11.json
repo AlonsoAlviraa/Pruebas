@@ -1,0 +1,59 @@
+{
+  "run_id": "paper_20261010T011029Z_03955113bf",
+  "week_start": "2026-10-05",
+  "week_end": "2026-10-11",
+  "strategy_id": "S08_qqq_hold_regime",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 4,
+  "start_equity": 120287.43885750779,
+  "end_equity": 118977.19959969529,
+  "week_return": -0.010892569251263251,
+  "max_dd": -0.015198264727643518,
+  "rolling_sharpe_approx": -6.642984708613892,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 4.0,
+  "fees": 0.0,
+  "slippage_est": 227.06683559385056,
+  "turnover": 459217.83740234375,
+  "cost_drag_bps": 19.21,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "week daily Sharpe approx -6.64 < -1"
+  ],
+  "daily": [
+    {
+      "day": "2026-10-05",
+      "equity": 120287.43885750779,
+      "dd_from_peak": 0.0,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-10-06",
+      "equity": 120813.35292000779,
+      "dd_from_peak": 0.0,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-10-07",
+      "equity": 120519.99403328904,
+      "dd_from_peak": -0.002428199198419634,
+      "n_fills": 0,
+      "commission": 1.0
+    },
+    {
+      "day": "2026-10-08",
+      "equity": 118977.19959969529,
+      "dd_from_peak": -0.015198264727643518,
+      "n_fills": 0,
+      "commission": 1.0
+    }
+  ],
+  "generated_at": "2026-10-10T01:10:30.935074+00:00"
+}

@@ -1,0 +1,72 @@
+{
+  "run_id": "paper_20261010T011006Z_2fcfb61301",
+  "day": "2026-03-12",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99554.72233340019,
+  "cash": 94697.92252871269,
+  "gross_exposure": 4856.7998046875,
+  "dd_from_peak": -0.0069507582925794065,
+  "n_positions": 1,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 5.0,
+  "fees": 0.0825191985736511,
+  "slippage_est": 23.881390732226407,
+  "turnover": 4856.7998046875,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20261010T011006Z_2fcfb61301",
+      "ticker": "AMZN",
+      "qty": 19.0,
+      "avg_px": 253.07175278943203,
+      "stop": 240.38264305633137,
+      "hard_stop": 230.29529503838316,
+      "opened_at": "2026-09-18T09:45:00+00:00",
+      "bars_held": 15,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261010T011006Z_2fcfb61301",
+      "ticker": "GOOGL",
+      "qty": 14.0,
+      "avg_px": 342.55541970147897,
+      "stop": 328.0115704051882,
+      "hard_stop": 311.72543192834587,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 10,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261010T011006Z_2fcfb61301",
+      "ticker": "JPM",
+      "qty": 14.0,
+      "avg_px": 337.81256221981556,
+      "stop": 320.25236281589446,
+      "hard_stop": 307.4094316200322,
+      "opened_at": "2026-09-23T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261010T011006Z_2fcfb61301",
+      "ticker": "XOM",
+      "qty": 31.0,
+      "avg_px": 157.6245240589369,
+      "stop": 156.90859599979015,
+      "hard_stop": 143.4383168936326,
+      "opened_at": "2026-09-22T09:45:00+00:00",
+      "bars_held": 13,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-10T01:10:10.657773+00:00"
+}
