@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20261013T024244Z_e1f9ac40de",
+  "day": "2026-08-28",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98763.02557503377,
+  "cash": 75136.96531807576,
+  "gross_exposure": 23626.060256958008,
+  "dd_from_peak": -0.017157533430994132,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 26.0,
+  "fees": 0.5558216452893631,
+  "slippage_est": 135.27343454183108,
+  "turnover": 23626.060256958008,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-28T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 22.0,
+      "price": 258.475002428022,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-28T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 37.0,
+      "price": 156.693975024875,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261013T024244Z_e1f9ac40de",
+      "ticker": "AMZN",
+      "qty": 22.0,
+      "avg_px": 258.475002428022,
+      "stop": 244.07799333184968,
+      "hard_stop": 232.62750218521978,
+      "opened_at": "2026-08-28T09:45:00+00:00",
+      "bars_held": 31,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261013T024244Z_e1f9ac40de",
+      "ticker": "GOOGL",
+      "qty": 16.0,
+      "avg_px": 351.6108383103841,
+      "stop": 326.60858899276593,
+      "hard_stop": 316.4497544793457,
+      "opened_at": "2026-10-09T09:45:00+00:00",
+      "bars_held": 2,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261013T024244Z_e1f9ac40de",
+      "ticker": "JPM",
+      "qty": 17.0,
+      "avg_px": 337.8125648819127,
+      "stop": 318.0907096340334,
+      "hard_stop": 304.0313083937214,
+      "opened_at": "2026-09-23T09:45:00+00:00",
+      "bars_held": 14,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-13T02:42:48.436245+00:00"
+}
