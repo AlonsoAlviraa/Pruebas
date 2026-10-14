@@ -1,4 +1,4 @@
-# Paper cloud multi-strategy — `2026-10-13`
+# Paper cloud multi-strategy — `2026-10-14`
 
 **Window:** 2026-01-23 → 2026-10-12 · **Capital:** VIRTUAL $100,000 · **mode:** paper
 
@@ -52,4 +52,4 @@ Free cloud batch (GitHub Actions). Not financial advice.
 See `strategies/<id>/dashboard.html`, `daily/`, and `closed_trades.csv`.
 
 ---
-_Generated 2026-10-13T02:42:56.389388+00:00 · paper only_
+_Generated 2026-10-14T00:32:56.062224+00:00 · paper only_

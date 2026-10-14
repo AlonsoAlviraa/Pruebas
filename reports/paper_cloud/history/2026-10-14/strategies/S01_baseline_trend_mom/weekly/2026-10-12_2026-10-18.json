@@ -1,0 +1,36 @@
+{
+  "run_id": "paper_20261014T003217Z_63beb8d034",
+  "week_start": "2026-10-12",
+  "week_end": "2026-10-18",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 1,
+  "start_equity": 99256.9842283151,
+  "end_equity": 99256.9842283151,
+  "week_return": 0.0,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 95.0,
+  "fees": 1.0747180396738338,
+  "slippage_est": 245.06948202084752,
+  "turnover": 20122.800201416016,
+  "cost_drag_bps": 34.37,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-10-12",
+      "equity": 99256.9842283151,
+      "dd_from_peak": -0.019017756164861233,
+      "n_fills": 0,
+      "commission": 95.0
+    }
+  ],
+  "generated_at": "2026-10-14T00:32:22.734396+00:00"
+}
