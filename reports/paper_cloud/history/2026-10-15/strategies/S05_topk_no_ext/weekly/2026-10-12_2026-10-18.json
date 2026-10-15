@@ -1,43 +1,60 @@
 {
-  "run_id": "paper_20261015T000311Z_d88fedac6f",
+  "run_id": "paper_20261015T234757Z_6435183ba7",
   "week_start": "2026-10-12",
   "week_end": "2026-10-18",
   "strategy_id": "S05_topk_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "days": 2,
-  "start_equity": 100044.17215923629,
-  "end_equity": 100052.51271392206,
-  "week_return": 8.33687210934908e-05,
-  "max_dd": 0.0,
-  "rolling_sharpe_approx": null,
-  "n_fills": 1,
-  "n_buys": 0,
+  "days": 4,
+  "start_equity": 99822.1870245408,
+  "end_equity": 99644.81905249598,
+  "week_return": -0.0017768391710474285,
+  "max_dd": -0.0020865648497334632,
+  "rolling_sharpe_approx": -7.250775845106157,
+  "n_fills": 2,
+  "n_buys": 1,
   "n_sells": 1,
-  "commission": 71.0,
-  "fees": 1.6646357694263256,
-  "slippage_est": 388.8696895467379,
-  "turnover": 30292.909866333008,
-  "cost_drag_bps": 46.13,
+  "commission": 145.0,
+  "fees": 3.3764563163159496,
+  "slippage_est": 791.4269055924996,
+  "turnover": 66351.53921508789,
+  "cost_drag_bps": 94.15,
   "n_kill_events": 0,
   "n_rejects": 0,
   "micro_trade_pct": 0.0,
-  "flags": [],
+  "flags": [
+    "cost drag 94.15 bps \u2014 review slippage/commission",
+    "week daily Sharpe approx -7.25 < -1"
+  ],
   "daily": [
     {
       "day": "2026-10-12",
-      "equity": 100044.17215923629,
-      "dd_from_peak": -0.006789363584909558,
+      "equity": 99822.1870245408,
+      "dd_from_peak": -0.006816513463867913,
       "n_fills": 0,
       "commission": 35.0
     },
     {
       "day": "2026-10-13",
-      "equity": 100052.51271392206,
-      "dd_from_peak": -0.006706560884375268,
+      "equity": 99830.52757995526,
+      "dd_from_peak": -0.006733528887461593,
       "n_fills": 1,
       "commission": 36.0
+    },
+    {
+      "day": "2026-10-14",
+      "equity": 99853.16916541102,
+      "dd_from_peak": -0.006508255834907439,
+      "n_fills": 1,
+      "commission": 37.0
+    },
+    {
+      "day": "2026-10-15",
+      "equity": 99644.81905249598,
+      "dd_from_peak": -0.008581240786782685,
+      "n_fills": 0,
+      "commission": 37.0
     }
   ],
-  "generated_at": "2026-10-15T00:03:15.049359+00:00"
+  "generated_at": "2026-10-15T23:48:00.808978+00:00"
 }

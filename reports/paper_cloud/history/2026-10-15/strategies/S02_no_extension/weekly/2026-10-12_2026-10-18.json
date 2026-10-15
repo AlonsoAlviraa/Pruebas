@@ -1,43 +1,60 @@
 {
-  "run_id": "paper_20261015T000258Z_51fcdc8656",
+  "run_id": "paper_20261015T234743Z_983650ebba",
   "week_start": "2026-10-12",
   "week_end": "2026-10-18",
   "strategy_id": "S02_no_extension",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "days": 2,
-  "start_equity": 100709.53716246894,
-  "end_equity": 100727.3949417927,
-  "week_return": 0.00017731964446388027,
-  "max_dd": 0.0,
-  "rolling_sharpe_approx": null,
-  "n_fills": 1,
-  "n_buys": 0,
+  "days": 4,
+  "start_equity": 100853.85302187054,
+  "end_equity": 100615.54031210995,
+  "week_return": -0.0023629509693487982,
+  "max_dd": -0.0025395672126486968,
+  "rolling_sharpe_approx": -12.406174757798837,
+  "n_fills": 2,
+  "n_buys": 1,
   "n_sells": 1,
-  "commission": 105.0,
-  "fees": 1.5848043819178477,
-  "slippage_est": 362.29849882096624,
-  "turnover": 44051.73994445801,
-  "cost_drag_bps": 46.56,
+  "commission": 205.0,
+  "fees": 3.072906226990001,
+  "slippage_est": 701.3750292457183,
+  "turnover": 91328.48965454102,
+  "cost_drag_bps": 90.17,
   "n_kill_events": 0,
   "n_rejects": 0,
   "micro_trade_pct": 0.0,
-  "flags": [],
+  "flags": [
+    "cost drag 90.17 bps \u2014 review slippage/commission",
+    "week daily Sharpe approx -12.41 < -1"
+  ],
   "daily": [
     {
       "day": "2026-10-12",
-      "equity": 100709.53716246894,
-      "dd_from_peak": -0.0063858535608355416,
+      "equity": 100853.85302187054,
+      "dd_from_peak": -0.006376773346835396,
       "n_fills": 0,
-      "commission": 52.0
+      "commission": 50.0
     },
     {
       "day": "2026-10-13",
-      "equity": 100727.3949417927,
-      "dd_from_peak": -0.006209666253654711,
+      "equity": 100871.71080154534,
+      "dd_from_peak": -0.006200836541947141,
       "n_fills": 1,
-      "commission": 53.0
+      "commission": 51.0
+    },
+    {
+      "day": "2026-10-14",
+      "equity": 100686.67063742733,
+      "dd_from_peak": -0.008023872543273747,
+      "n_fills": 1,
+      "commission": 52.0
+    },
+    {
+      "day": "2026-10-15",
+      "equity": 100615.54031210995,
+      "dd_from_peak": -0.008724656313423007,
+      "n_fills": 0,
+      "commission": 52.0
     }
   ],
-  "generated_at": "2026-10-15T00:03:02.122442+00:00"
+  "generated_at": "2026-10-15T23:47:47.765277+00:00"
 }

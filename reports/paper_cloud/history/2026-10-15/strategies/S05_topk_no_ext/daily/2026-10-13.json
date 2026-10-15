@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20261015T000311Z_d88fedac6f",
+  "run_id": "paper_20261015T234757Z_6435183ba7",
   "day": "2026-10-13",
   "strategy_id": "S05_topk_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100052.51271392206,
-  "cash": 87809.96283294061,
+  "equity": 99830.52757995526,
+  "cash": 87587.97769897382,
   "gross_exposure": 12242.549880981445,
-  "dd_from_peak": -0.006706560884375268,
+  "dd_from_peak": -0.006733528887461593,
   "n_positions": 2,
   "n_fills": 1,
   "n_buys": 0,
   "n_sells": 1,
   "commission": 36.0,
-  "fees": 0.8577446907638347,
-  "slippage_est": 199.0960783054359,
+  "fees": 0.8568274821057807,
+  "slippage_est": 198.42819491604968,
   "turnover": 12242.549880981445,
   "n_orders": 1,
   "n_rejects": 0,
@@ -26,35 +26,46 @@
       "ticker": "NVDA",
       "side": "sell",
       "qty": 26.0,
-      "price": 223.73851971799948,
+      "price": 223.73851974602613,
       "commission": 1.0,
-      "fees": 0.05085361210134389
+      "fees": 0.050853612107173436
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20261015T000311Z_d88fedac6f",
+      "run_id": "paper_20261015T234757Z_6435183ba7",
       "ticker": "AAPL",
       "qty": 17.0,
-      "avg_px": 335.4811698211021,
-      "stop": 326.226826916191,
-      "hard_stop": 305.28786453720295,
+      "avg_px": 335.48116975366446,
+      "stop": 326.22682695906246,
+      "hard_stop": 305.2878644758347,
       "opened_at": "2026-09-21T09:45:00+00:00",
-      "bars_held": 17,
+      "bars_held": 19,
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20261015T000311Z_d88fedac6f",
+      "run_id": "paper_20261015T234757Z_6435183ba7",
+      "ticker": "NVDA",
+      "qty": 26.0,
+      "avg_px": 225.6653178614524,
+      "stop": 209.22082964082253,
+      "hard_stop": 205.35543925392167,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 2,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261015T234757Z_6435183ba7",
       "ticker": "XOM",
       "qty": 37.0,
-      "avg_px": 160.32614287840602,
-      "stop": 163.43663406863007,
-      "hard_stop": 145.89679001934948,
+      "avg_px": 160.3261428655418,
+      "stop": 167.13164139070014,
+      "hard_stop": 145.89679000764306,
       "opened_at": "2026-09-25T09:45:00+00:00",
-      "bars_held": 13,
+      "bars_held": 15,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-10-15T00:03:15.048149+00:00"
+  "generated_at": "2026-10-15T23:48:00.805692+00:00"
 }
