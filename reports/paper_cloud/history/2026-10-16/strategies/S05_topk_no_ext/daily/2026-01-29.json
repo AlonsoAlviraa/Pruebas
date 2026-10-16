@@ -1,0 +1,82 @@
+{
+  "run_id": "paper_20261016T234851Z_df3e76c51c",
+  "day": "2026-01-29",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100001.05401952547,
+  "cash": 88231.72429235262,
+  "gross_exposure": 11769.329727172852,
+  "dd_from_peak": 0.0,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 2.0,
+  "fees": 0.0,
+  "slippage_est": 7.055645391515213,
+  "turnover": 11769.329727172852,
+  "n_orders": 2,
+  "n_rejects": 1,
+  "n_kill_events": 0,
+  "reject_reasons": {
+    "gap_up_chase": 1
+  },
+  "fills": [
+    {
+      "ts": "2026-01-29T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 24.0,
+      "price": 242.96570259004866,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-01-29T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 31.0,
+      "price": 191.454801467297,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261016T234851Z_df3e76c51c",
+      "ticker": "AAPL",
+      "qty": 17.0,
+      "avg_px": 335.4811698605379,
+      "stop": 326.2268269298394,
+      "hard_stop": 305.28786457308945,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 20,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261016T234851Z_df3e76c51c",
+      "ticker": "NVDA",
+      "qty": 26.0,
+      "avg_px": 225.66531789724104,
+      "stop": 209.22082964891695,
+      "hard_stop": 205.35543928648934,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 3,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261016T234851Z_df3e76c51c",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 160.32614381558255,
+      "stop": 167.70663834614152,
+      "hard_stop": 145.89679087218013,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 16,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-16T23:48:55.154270+00:00"
+}
