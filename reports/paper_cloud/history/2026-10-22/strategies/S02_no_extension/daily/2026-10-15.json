@@ -1,0 +1,83 @@
+{
+  "run_id": "paper_20261022T000948Z_7523c9b082",
+  "day": "2026-10-15",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100557.55027884536,
+  "cash": 76954.74058646255,
+  "gross_exposure": 23602.809692382812,
+  "dd_from_peak": -0.008729648087466346,
+  "n_positions": 6,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 50.0,
+  "fees": 0.7491458868170322,
+  "slippage_est": 170.6511854241227,
+  "turnover": 23602.809692382812,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20261022T000948Z_7523c9b082",
+      "ticker": "AMZN",
+      "qty": 15.0,
+      "avg_px": 259.8958363861919,
+      "stop": 248.39457167045578,
+      "hard_stop": 239.10416947529654,
+      "opened_at": "2026-10-08T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261022T000948Z_7523c9b082",
+      "ticker": "GOOGL",
+      "qty": 11.0,
+      "avg_px": 351.0004857623928,
+      "stop": 334.03035241203685,
+      "hard_stop": 322.9204469014014,
+      "opened_at": "2026-10-01T09:45:00+00:00",
+      "bars_held": 14,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261022T000948Z_7523c9b082",
+      "ticker": "MSFT",
+      "qty": 7.0,
+      "avg_px": 528.5569376735592,
+      "stop": 516.2696013699333,
+      "hard_stop": 486.2723826596745,
+      "opened_at": "2026-10-09T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261022T000948Z_7523c9b082",
+      "ticker": "NVDA",
+      "qty": 17.0,
+      "avg_px": 225.66531751930145,
+      "stop": 209.22082963495717,
+      "hard_stop": 207.61209211775736,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 5,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261022T000948Z_7523c9b082",
+      "ticker": "XOM",
+      "qty": 25.0,
+      "avg_px": 160.32614069953,
+      "stop": 168.806629190919,
+      "hard_stop": 147.5000494435676,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 18,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-22T00:09:53.328971+00:00"
+}
