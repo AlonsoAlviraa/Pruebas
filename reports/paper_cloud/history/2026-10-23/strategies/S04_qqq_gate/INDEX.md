@@ -1,4 +1,4 @@
-# Paper digests — `paper_20261023T000722Z_e8ef28a496`
+# Paper digests — `paper_20261023T235825Z_f4ea833357`
 
 Strategy: `S04_qqq_gate` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S04_qqq_gate` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-10-19 → 2026-10-25
 
-- Return: -0.13%
-- Commission: $255.00
+- Return: -0.40%
+- Commission: $390.00
 - Kill events: 0

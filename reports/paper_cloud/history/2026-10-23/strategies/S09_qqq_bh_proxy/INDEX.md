@@ -1,4 +1,4 @@
-# Paper digests — `paper_20261023T000740Z_ec2093cd5d`
+# Paper digests — `paper_20261023T235843Z_2e634ffea4`
 
 Strategy: `S09_qqq_bh_proxy` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S09_qqq_bh_proxy` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-10-19 → 2026-10-25
 
-- Return: 0.93%
-- Commission: $3.00
+- Return: -1.91%
+- Commission: $5.00
 - Kill events: 0

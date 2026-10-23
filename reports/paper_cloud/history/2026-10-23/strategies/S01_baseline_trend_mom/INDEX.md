@@ -1,4 +1,4 @@
-# Paper digests — `paper_20261023T000708Z_0e295a02db`
+# Paper digests — `paper_20261023T235812Z_fb027eda7e`
 
 Strategy: `S01_baseline_trend_mom` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S01_baseline_trend_mom` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-10-19 → 2026-10-25
 
-- Return: -0.10%
-- Commission: $288.00
+- Return: -0.46%
+- Commission: $447.00
 - Kill events: 0

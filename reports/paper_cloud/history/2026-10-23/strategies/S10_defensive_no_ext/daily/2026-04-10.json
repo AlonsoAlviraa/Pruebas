@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20261023T000743Z_8a4188af7e",
+  "run_id": "paper_20261023T235845Z_565ad64be6",
   "day": "2026-04-10",
   "strategy_id": "S10_defensive_no_ext",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 99499.08953136973,
-  "cash": 91967.89972729258,
+  "equity": 99714.72640813884,
+  "cash": 92183.5366040617,
   "gross_exposure": 7531.189804077148,
-  "dd_from_peak": -0.005009104686302779,
+  "dd_from_peak": -0.002852735918611571,
   "n_positions": 2,
   "n_fills": 2,
   "n_buys": 2,
   "n_sells": 0,
-  "commission": 6.0,
-  "fees": 0.0635651804936987,
-  "slippage_est": 20.940209013784425,
+  "commission": 4.0,
+  "fees": 0.031241762758540233,
+  "slippage_est": 12.645343375430713,
   "turnover": 7531.189804077148,
   "n_orders": 2,
   "n_rejects": 0,
@@ -26,7 +26,7 @@
       "ticker": "JPM",
       "side": "buy",
       "qty": 12.0,
-      "price": 310.1860094505892,
+      "price": 310.18600991779334,
       "commission": 1.0,
       "fees": 0.0
     },
@@ -35,24 +35,12 @@
       "ticker": "XOM",
       "side": "buy",
       "qty": 25.0,
-      "price": 154.13242402700897,
+      "price": 154.1324240395376,
       "commission": 1.0,
       "fees": 0.0
     }
   ],
-  "positions": [
-    {
-      "run_id": "paper_20261023T000743Z_8a4188af7e",
-      "ticker": "AAPL",
-      "qty": 12.0,
-      "avg_px": 333.0197014917803,
-      "stop": 330.5625547221532,
-      "hard_stop": 313.0385194022735,
-      "opened_at": "2026-10-05T09:45:00+00:00",
-      "bars_held": 13,
-      "meta_json": "{}"
-    }
-  ],
+  "positions": [],
   "notes": [],
-  "generated_at": "2026-10-23T00:07:46.938240+00:00"
+  "generated_at": "2026-10-23T23:58:49.204868+00:00"
 }

@@ -1,4 +1,4 @@
-# Paper digests — `paper_20261023T000718Z_d44888ce86`
+# Paper digests — `paper_20261023T235821Z_ddfe207500`
 
 Strategy: `S03_pullback` · mode=paper · VIRTUAL capital
 
@@ -7,6 +7,6 @@ Strategy: `S03_pullback` · mode=paper · VIRTUAL capital
 
 ## Latest week 2026-10-19 → 2026-10-25
 
-- Return: -0.08%
-- Commission: $124.00
+- Return: -0.49%
+- Commission: $208.00
 - Kill events: 0

@@ -1,20 +1,20 @@
 {
-  "run_id": "paper_20261023T000714Z_104cfa608c",
+  "run_id": "paper_20261023T235817Z_fd70138f90",
   "day": "2026-10-13",
   "strategy_id": "S02_no_extension",
   "mode": "paper",
   "capital_label": "VIRTUAL",
-  "equity": 100704.41038961883,
-  "cash": 80682.74060507293,
+  "equity": 101035.65332732898,
+  "cash": 81013.98354278308,
   "gross_exposure": 20021.6697845459,
-  "dd_from_peak": -0.006211076944196536,
+  "dd_from_peak": -0.00619083212919147,
   "n_positions": 5,
   "n_fills": 1,
   "n_buys": 0,
   "n_sells": 1,
-  "commission": 49.0,
-  "fees": 0.7468815661769398,
-  "slippage_est": 168.47847668761096,
+  "commission": 47.0,
+  "fees": 0.7154830043904495,
+  "slippage_est": 160.36890083222204,
   "turnover": 20021.6697845459,
   "n_orders": 1,
   "n_rejects": 0,
@@ -26,57 +26,35 @@
       "ticker": "NVDA",
       "side": "sell",
       "qty": 18.0,
-      "price": 223.73852004100115,
+      "price": 223.73852008599144,
       "commission": 1.0,
-      "fees": 0.03520634688590416
+      "fees": 0.035206346892382764
     }
   ],
   "positions": [
     {
-      "run_id": "paper_20261023T000714Z_104cfa608c",
-      "ticker": "AMZN",
-      "qty": 15.0,
-      "avg_px": 259.8958364257219,
-      "stop": 248.39457167844347,
-      "hard_stop": 239.10416951166414,
-      "opened_at": "2026-10-08T09:45:00+00:00",
-      "bars_held": 10,
-      "meta_json": "{}"
-    },
-    {
-      "run_id": "paper_20261023T000714Z_104cfa608c",
-      "ticker": "MSFT",
-      "qty": 7.0,
-      "avg_px": 528.5569377183102,
-      "stop": 516.2696013695213,
-      "hard_stop": 486.2723827008454,
-      "opened_at": "2026-10-09T09:45:00+00:00",
-      "bars_held": 9,
-      "meta_json": "{}"
-    },
-    {
-      "run_id": "paper_20261023T000714Z_104cfa608c",
+      "run_id": "paper_20261023T235817Z_fd70138f90",
       "ticker": "NVDA",
       "qty": 17.0,
-      "avg_px": 225.6653175201832,
-      "stop": 209.22082964060132,
-      "hard_stop": 207.61209211856857,
+      "avg_px": 225.66531750689433,
+      "stop": 209.22082964941274,
+      "hard_stop": 207.6120921063428,
       "opened_at": "2026-10-14T09:45:00+00:00",
-      "bars_held": 6,
+      "bars_held": 8,
       "meta_json": "{}"
     },
     {
-      "run_id": "paper_20261023T000714Z_104cfa608c",
+      "run_id": "paper_20261023T235817Z_fd70138f90",
       "ticker": "XOM",
       "qty": 25.0,
-      "avg_px": 160.3261407409199,
-      "stop": 168.80662918210012,
-      "hard_stop": 147.5000494816463,
+      "avg_px": 160.326140753952,
+      "stop": 172.2966346866235,
+      "hard_stop": 147.50004949363583,
       "opened_at": "2026-09-25T09:45:00+00:00",
-      "bars_held": 19,
+      "bars_held": 21,
       "meta_json": "{}"
     }
   ],
   "notes": [],
-  "generated_at": "2026-10-23T00:07:18.186152+00:00"
+  "generated_at": "2026-10-23T23:58:21.118679+00:00"
 }

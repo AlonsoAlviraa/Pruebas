@@ -1,0 +1,60 @@
+{
+  "run_id": "paper_20261023T235817Z_fd70138f90",
+  "day": "2026-10-23",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100454.6789398936,
+  "cash": 92288.10865791117,
+  "gross_exposure": 8166.570281982422,
+  "dd_from_peak": -0.011905425478341836,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 52.0,
+  "fees": 0.8438775156485018,
+  "slippage_est": 182.7649706836756,
+  "turnover": 8166.570281982422,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-23T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 7.0,
+      "price": 515.4435663976423,
+      "commission": 1.0,
+      "fees": 0.030026839718267966
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261023T235817Z_fd70138f90",
+      "ticker": "NVDA",
+      "qty": 17.0,
+      "avg_px": 225.66531750689433,
+      "stop": 209.22082964941274,
+      "hard_stop": 207.6120921063428,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261023T235817Z_fd70138f90",
+      "ticker": "XOM",
+      "qty": 25.0,
+      "avg_px": 160.326140753952,
+      "stop": 172.2966346866235,
+      "hard_stop": 147.50004949363583,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 21,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-23T23:58:21.124717+00:00"
+}
