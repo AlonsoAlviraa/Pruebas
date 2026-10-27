@@ -1,0 +1,71 @@
+{
+  "run_id": "paper_20261027T004411Z_cd92209f3c",
+  "day": "2026-07-16",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100738.22901794309,
+  "cash": 94931.02918884152,
+  "gross_exposure": 5807.1998291015625,
+  "dd_from_peak": -0.003756809679077433,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 15.0,
+  "fees": 0.3638427757182056,
+  "slippage_est": 75.6022380717377,
+  "turnover": 5807.1998291015625,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-07-16T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 19.0,
+      "price": 342.9440865178781,
+      "commission": 1.0,
+      "fees": 0.055281501150717456
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261027T004411Z_cd92209f3c",
+      "ticker": "AAPL",
+      "qty": 17.0,
+      "avg_px": 335.48116973879826,
+      "stop": 329.80684393929425,
+      "hard_stop": 305.2878644623064,
+      "opened_at": "2026-09-21T09:45:00+00:00",
+      "bars_held": 25,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261027T004411Z_cd92209f3c",
+      "ticker": "NVDA",
+      "qty": 26.0,
+      "avg_px": 225.66531789235026,
+      "stop": 209.22082959630356,
+      "hard_stop": 205.35543928203873,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 8,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261027T004411Z_cd92209f3c",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 160.32614412677336,
+      "stop": 172.29663468865976,
+      "hard_stop": 145.89679115536376,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 21,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-27T00:44:17.480416+00:00"
+}

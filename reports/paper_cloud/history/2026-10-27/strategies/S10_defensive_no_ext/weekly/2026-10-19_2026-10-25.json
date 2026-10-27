@@ -1,0 +1,67 @@
+{
+  "run_id": "paper_20261027T004439Z_869a497483",
+  "week_start": "2026-10-19",
+  "week_end": "2026-10-25",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 5,
+  "start_equity": 100465.99511387551,
+  "end_equity": 100433.77406627573,
+  "week_return": -0.00032071595531668606,
+  "max_dd": -0.0008378950714894584,
+  "rolling_sharpe_approx": -2.2563051028804058,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 274.0,
+  "fees": 4.53245604045893,
+  "slippage_est": 957.1353179584141,
+  "turnover": 24024.859832763672,
+  "cost_drag_bps": 122.99,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [
+    "cost drag 122.99 bps \u2014 review slippage/commission",
+    "week daily Sharpe approx -2.26 < -1"
+  ],
+  "daily": [
+    {
+      "day": "2026-10-19",
+      "equity": 100465.99511387551,
+      "dd_from_peak": -0.01099460547967357,
+      "n_fills": 0,
+      "commission": 54.0
+    },
+    {
+      "day": "2026-10-20",
+      "equity": 100381.81515171731,
+      "dd_from_peak": -0.011823288225418671,
+      "n_fills": 0,
+      "commission": 54.0
+    },
+    {
+      "day": "2026-10-21",
+      "equity": 100392.43285338902,
+      "dd_from_peak": -0.011718765653190855,
+      "n_fills": 1,
+      "commission": 55.0
+    },
+    {
+      "day": "2026-10-22",
+      "equity": 100443.19298522496,
+      "dd_from_peak": -0.011219073750916797,
+      "n_fills": 0,
+      "commission": 55.0
+    },
+    {
+      "day": "2026-10-23",
+      "equity": 100433.77406627573,
+      "dd_from_peak": -0.011311795289590476,
+      "n_fills": 1,
+      "commission": 56.0
+    }
+  ],
+  "generated_at": "2026-10-27T00:44:44.900833+00:00"
+}

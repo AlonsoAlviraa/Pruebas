@@ -1,0 +1,91 @@
+{
+  "run_id": "paper_20261027T004353Z_b127e80fd1",
+  "day": "2026-08-28",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98146.74631080369,
+  "cash": 79191.8260990117,
+  "gross_exposure": 18954.920211791992,
+  "dd_from_peak": -0.018532536891963103,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 30.0,
+  "fees": 0.5331846887957221,
+  "slippage_est": 135.87633998454695,
+  "turnover": 18954.920211791992,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-28T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 18.0,
+      "price": 258.4750019251179,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-28T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 31.0,
+      "price": 156.69397462475985,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261027T004353Z_b127e80fd1",
+      "ticker": "AMZN",
+      "qty": 19.0,
+      "avg_px": 253.0717528513079,
+      "stop": 245.58262479314607,
+      "hard_stop": 230.2952950946902,
+      "opened_at": "2026-09-18T09:45:00+00:00",
+      "bars_held": 26,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261027T004353Z_b127e80fd1",
+      "ticker": "JPM",
+      "qty": 14.0,
+      "avg_px": 337.8125639439813,
+      "stop": 321.3423592433289,
+      "hard_stop": 307.409433189023,
+      "opened_at": "2026-09-23T09:45:00+00:00",
+      "bars_held": 23,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261027T004353Z_b127e80fd1",
+      "ticker": "NVDA",
+      "qty": 22.0,
+      "avg_px": 215.42918395327442,
+      "stop": 203.54091825881645,
+      "hard_stop": 196.04055739747972,
+      "opened_at": "2026-10-15T09:45:00+00:00",
+      "bars_held": 7,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261027T004353Z_b127e80fd1",
+      "ticker": "XOM",
+      "qty": 31.0,
+      "avg_px": 157.6245253467295,
+      "stop": 171.46859358570813,
+      "hard_stop": 143.43831806552387,
+      "opened_at": "2026-09-22T09:45:00+00:00",
+      "bars_held": 24,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-27T00:44:04.081452+00:00"
+}
