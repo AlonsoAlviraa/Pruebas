@@ -1,0 +1,87 @@
+{
+  "run_id": "paper_20261028T004149Z_f74741f775",
+  "day": "2026-09-21",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99387.63819328415,
+  "cash": 80332.22806755172,
+  "gross_exposure": 19055.410125732422,
+  "dd_from_peak": -0.028164282373008054,
+  "n_positions": 5,
+  "n_fills": 4,
+  "n_buys": 3,
+  "n_sells": 1,
+  "commission": 65.0,
+  "fees": 0.9932678789264926,
+  "slippage_est": 224.8946176383358,
+  "turnover": 19055.410125732422,
+  "n_orders": 4,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-21T09:45:00+00:00",
+      "ticker": "META",
+      "side": "buy",
+      "qty": 5.0,
+      "price": 680.7081712916415,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-09-21T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 17.0,
+      "price": 223.07376718073127,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-09-21T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 350.8504018821408,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-09-21T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 24.0,
+      "price": 158.92218909441624,
+      "commission": 1.0,
+      "fees": 0.03449706030612792
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261028T004149Z_f74741f775",
+      "ticker": "AAPL",
+      "qty": 11.0,
+      "avg_px": 330.99846965135373,
+      "stop": 330.62250051347314,
+      "hard_stop": 307.82857677575896,
+      "opened_at": "2026-09-30T09:45:00+00:00",
+      "bars_held": 19,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261028T004149Z_f74741f775",
+      "ticker": "NVDA",
+      "qty": 17.0,
+      "avg_px": 225.66531752499668,
+      "stop": 209.8687452982469,
+      "hard_stop": 209.8687452982469,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 9,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-28T00:41:53.875673+00:00"
+}

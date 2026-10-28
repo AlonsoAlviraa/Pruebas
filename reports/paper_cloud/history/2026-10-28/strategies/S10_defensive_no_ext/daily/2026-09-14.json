@@ -1,0 +1,55 @@
+{
+  "run_id": "paper_20261028T004209Z_3e62f29cb7",
+  "day": "2026-09-14",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100364.26189469965,
+  "cash": 96367.30205583246,
+  "gross_exposure": 3996.9598388671875,
+  "dd_from_peak": -0.011996148212392477,
+  "n_positions": 1,
+  "n_fills": 3,
+  "n_buys": 1,
+  "n_sells": 2,
+  "commission": 43.0,
+  "fees": 0.709430603179195,
+  "slippage_est": 154.02160951368538,
+  "turnover": 3996.9598388671875,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-14T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 334.9908846099174,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-09-14T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 347.52884634384395,
+      "commission": 1.0,
+      "fees": 0.03240853847825827
+    },
+    {
+      "ts": "2026-09-14T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 18.0,
+      "price": 210.90202074411238,
+      "commission": 1.0,
+      "fees": 0.03335789098715218
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-10-28T00:42:13.401430+00:00"
+}
