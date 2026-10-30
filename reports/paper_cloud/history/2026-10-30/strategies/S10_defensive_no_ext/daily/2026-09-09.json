@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261030T011845Z_0a91c4e26e",
+  "day": "2026-09-09",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100699.07277929923,
+  "cash": 92771.20290625235,
+  "gross_exposure": 7927.869873046875,
+  "dd_from_peak": -0.008700194860798094,
+  "n_positions": 2,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 40.0,
+  "fees": 0.6436641590663071,
+  "slippage_est": 139.40097172009175,
+  "turnover": 7927.869873046875,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-09T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 15.0,
+      "price": 250.3858758937401,
+      "commission": 1.0,
+      "fees": 0.03253630510724881
+    },
+    {
+      "ts": "2026-09-09T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 12.0,
+      "price": 312.1969924568823,
+      "commission": 1.0,
+      "fees": 0.0319629112758607
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-10-30T01:18:47.955735+00:00"
+}
