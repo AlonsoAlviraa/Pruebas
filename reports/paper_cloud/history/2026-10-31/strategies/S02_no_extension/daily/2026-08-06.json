@@ -1,0 +1,80 @@
+{
+  "run_id": "paper_20261031T005937Z_1ce4c9939f",
+  "day": "2026-08-06",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100905.96492402931,
+  "cash": 89189.38487642189,
+  "gross_exposure": 11716.580047607422,
+  "dd_from_peak": -0.007466907723439942,
+  "n_positions": 3,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 27.0,
+  "fees": 0.41055107019338477,
+  "slippage_est": 93.75796863250534,
+  "turnover": 11716.580047607422,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-06T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 26.0,
+      "price": 154.31254019687546,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-06T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 314.5286022859683,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261031T005937Z_1ce4c9939f",
+      "ticker": "AAPL",
+      "qty": 11.0,
+      "avg_px": 348.20880197918723,
+      "stop": 332.9344399956696,
+      "hard_stop": 320.35209782085224,
+      "opened_at": "2026-10-29T09:45:00+00:00",
+      "bars_held": 1,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261031T005937Z_1ce4c9939f",
+      "ticker": "MSFT",
+      "qty": 7.0,
+      "avg_px": 540.5441062659402,
+      "stop": 508.8982899807385,
+      "hard_stop": 497.300577764665,
+      "opened_at": "2026-10-29T09:45:00+00:00",
+      "bars_held": 1,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261031T005937Z_1ce4c9939f",
+      "ticker": "NVDA",
+      "qty": 17.0,
+      "avg_px": 225.66531754993355,
+      "stop": 209.22082964050242,
+      "hard_stop": 207.61209214593887,
+      "opened_at": "2026-10-14T09:45:00+00:00",
+      "bars_held": 12,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-31T00:59:41.367843+00:00"
+}

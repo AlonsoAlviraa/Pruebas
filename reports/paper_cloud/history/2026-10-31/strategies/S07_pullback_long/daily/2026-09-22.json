@@ -1,0 +1,60 @@
+{
+  "run_id": "paper_20261031T005957Z_9b8c386cae",
+  "day": "2026-09-22",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99010.88969667253,
+  "cash": 80976.35972841081,
+  "gross_exposure": 18034.52996826172,
+  "dd_from_peak": -0.013038207102639365,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 21.0,
+  "fees": 0.45203662330594224,
+  "slippage_est": 105.44491612841313,
+  "turnover": 18034.52996826172,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-22T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 37.0,
+      "price": 157.21113810798875,
+      "commission": 1.0,
+      "fees": 0.05267649687996467
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261031T005957Z_9b8c386cae",
+      "ticker": "JPM",
+      "qty": 17.0,
+      "avg_px": 337.81256810147636,
+      "stop": 320.530712104591,
+      "hard_stop": 304.03131129132873,
+      "opened_at": "2026-09-23T09:45:00+00:00",
+      "bars_held": 27,
+      "meta_json": "{}"
+    },
+    {
+      "run_id": "paper_20261031T005957Z_9b8c386cae",
+      "ticker": "NVDA",
+      "qty": 27.0,
+      "avg_px": 215.42918422313346,
+      "stop": 201.79256666458073,
+      "hard_stop": 193.88626580082013,
+      "opened_at": "2026-10-15T09:45:00+00:00",
+      "bars_held": 11,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-10-31T01:00:00.719488+00:00"
+}
