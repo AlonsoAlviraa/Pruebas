@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261103T030312Z_ae975043c2",
+  "day": "2026-10-22",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99004.69281175529,
+  "cash": 87919.1425645629,
+  "gross_exposure": 11085.550247192383,
+  "dd_from_peak": -0.03190888675564496,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 79.0,
+  "fees": 1.246490820193337,
+  "slippage_est": 274.01270086218705,
+  "turnover": 11085.550247192383,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-22T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 24.0,
+      "price": 178.1230507297357,
+      "commission": 1.0,
+      "fees": 0.03818362574010925
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-03T03:03:17.758907+00:00"
+}

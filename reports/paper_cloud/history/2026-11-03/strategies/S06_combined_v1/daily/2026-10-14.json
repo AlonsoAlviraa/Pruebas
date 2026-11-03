@@ -1,0 +1,49 @@
+{
+  "run_id": "paper_20261103T030321Z_25cffcfa0c",
+  "day": "2026-10-14",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101527.77108524044,
+  "cash": 76920.1411108752,
+  "gross_exposure": 24607.629974365234,
+  "dd_from_peak": -0.008133769335851193,
+  "n_positions": 4,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 36.0,
+  "fees": 0.8383364247430384,
+  "slippage_est": 194.47650960375137,
+  "turnover": 24607.629974365234,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-14T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 27.0,
+      "price": 225.66531798862593,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261103T030321Z_25cffcfa0c",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 160.3261434272668,
+      "stop": 177.0466346512319,
+      "hard_stop": 145.8967905188128,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 27,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-11-03T03:03:26.394509+00:00"
+}
