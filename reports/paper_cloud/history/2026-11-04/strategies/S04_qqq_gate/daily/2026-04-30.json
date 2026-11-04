@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261104T013705Z_b95dd06776",
+  "day": "2026-04-30",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101015.84421333476,
+  "cash": 84599.62418159647,
+  "gross_exposure": 16416.22003173828,
+  "dd_from_peak": -0.00470206072207402,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 10.0,
+  "fees": 0.10059309029910526,
+  "slippage_est": 34.543853503541385,
+  "turnover": 16416.22003173828,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-30T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 21.0,
+      "price": 200.34841709707365,
+      "commission": 1.0,
+      "fees": 0.037144534072308374
+    },
+    {
+      "ts": "2026-04-30T15:45:00+00:00",
+      "ticker": "META",
+      "side": "sell",
+      "qty": 6.0,
+      "price": 618.3290921309825,
+      "commission": 1.0,
+      "fees": 0.03067579642228716
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-04T01:37:09.899638+00:00"
+}

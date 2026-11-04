@@ -1,0 +1,36 @@
+{
+  "run_id": "paper_20261104T013716Z_1bb40f7651",
+  "week_start": "2026-11-02",
+  "week_end": "2026-11-08",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "days": 1,
+  "start_equity": 98007.41824178096,
+  "end_equity": 98007.41824178096,
+  "week_return": 0.0,
+  "max_dd": 0.0,
+  "rolling_sharpe_approx": null,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 29.0,
+  "fees": 0.696279566248667,
+  "slippage_est": 143.54818019666996,
+  "turnover": 5789.859771728516,
+  "cost_drag_bps": 17.68,
+  "n_kill_events": 0,
+  "n_rejects": 0,
+  "micro_trade_pct": 0.0,
+  "flags": [],
+  "daily": [
+    {
+      "day": "2026-11-02",
+      "equity": 98007.41824178096,
+      "dd_from_peak": -0.023041026100053874,
+      "n_fills": 0,
+      "commission": 29.0
+    }
+  ],
+  "generated_at": "2026-11-04T01:37:19.431561+00:00"
+}

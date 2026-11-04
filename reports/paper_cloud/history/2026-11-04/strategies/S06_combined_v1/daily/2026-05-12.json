@@ -1,0 +1,49 @@
+{
+  "run_id": "paper_20261104T013713Z_25d8d7b537",
+  "day": "2026-05-12",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101675.66822959876,
+  "cash": 82788.62819053626,
+  "gross_exposure": 18887.0400390625,
+  "dd_from_peak": -0.0033288946603637903,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 7.0,
+  "fees": 0.10506080313532112,
+  "slippage_est": 36.90775094951249,
+  "turnover": 18887.0400390625,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-12T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 19.0,
+      "price": 298.0632136232291,
+      "commission": 1.0,
+      "fees": 0.048459608470730824
+    }
+  ],
+  "positions": [
+    {
+      "run_id": "paper_20261104T013713Z_25d8d7b537",
+      "ticker": "XOM",
+      "qty": 37.0,
+      "avg_px": 160.32614342564744,
+      "stop": 177.0466346930321,
+      "hard_stop": 145.89679051733918,
+      "opened_at": "2026-09-25T09:45:00+00:00",
+      "bars_held": 27,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-11-04T01:37:16.336468+00:00"
+}
