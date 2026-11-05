@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261105T014454Z_b881583aab",
+  "day": "2026-03-06",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99604.5072120621,
+  "cash": 99604.5072120621,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.003954927879379011,
+  "n_positions": 0,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 2.0,
+  "fees": 0.046557747615821383,
+  "slippage_est": 12.092632463936866,
+  "turnover": 5383.968451977673,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-03-06T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 21.0,
+      "price": 256.3794500941749,
+      "commission": 1.0,
+      "fees": 0.046557747615821383
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-05T01:44:57.557294+00:00"
+}

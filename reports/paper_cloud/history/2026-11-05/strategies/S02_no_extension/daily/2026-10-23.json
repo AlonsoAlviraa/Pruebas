@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261105T014439Z_c0d759684d",
+  "day": "2026-10-23",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100454.71590641103,
+  "cash": 92288.14562442861,
+  "gross_exposure": 8166.570281982422,
+  "dd_from_peak": -0.01190541762249131,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 52.0,
+  "fees": 0.8438778104583279,
+  "slippage_est": 182.7648105944726,
+  "turnover": 8166.570281982422,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-23T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 7.0,
+      "price": 515.4435667344097,
+      "commission": 1.0,
+      "fees": 0.030026839737126946
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-05T01:44:43.420658+00:00"
+}

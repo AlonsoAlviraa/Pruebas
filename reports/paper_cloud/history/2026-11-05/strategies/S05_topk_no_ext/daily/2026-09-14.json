@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261105T014454Z_b881583aab",
+  "day": "2026-09-14",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100487.95511643119,
+  "cash": 88328.01552597708,
+  "gross_exposure": 12159.939590454102,
+  "dd_from_peak": -0.00623281731011216,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 22.0,
+  "fees": 0.517063018646438,
+  "slippage_est": 117.44062929188127,
+  "turnover": 12159.939590454102,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-14T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 27.0,
+      "price": 210.90202034579633,
+      "commission": 1.0,
+      "fees": 0.050036836394692
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-05T01:44:57.615522+00:00"
+}

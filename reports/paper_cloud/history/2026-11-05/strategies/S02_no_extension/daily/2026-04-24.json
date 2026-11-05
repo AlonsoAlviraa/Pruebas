@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261105T014439Z_c0d759684d",
+  "day": "2026-04-24",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100474.47282093271,
+  "cash": 76700.87258594736,
+  "gross_exposure": 23773.60023498535,
+  "dd_from_peak": 0.0,
+  "n_positions": 6,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 8.0,
+  "fees": 0.031038498502973997,
+  "slippage_est": 21.871096007111703,
+  "turnover": 23773.60023498535,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-24T09:45:00+00:00",
+      "ticker": "META",
+      "side": "buy",
+      "qty": 6.0,
+      "price": 660.7162027122915,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-05T01:44:43.359830+00:00"
+}
