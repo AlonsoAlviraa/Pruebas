@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261106T014555Z_1009696a68",
+  "day": "2026-09-25",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100159.1691246151,
+  "cash": 82567.32894517174,
+  "gross_exposure": 17591.84017944336,
+  "dd_from_peak": -0.009484357218914385,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 29.0,
+  "fees": 0.6659071583634709,
+  "slippage_est": 152.90834680873485,
+  "turnover": 17591.84017944336,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-25T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 37.0,
+      "price": 160.32614274560325,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-06T01:45:59.603384+00:00"
+}
