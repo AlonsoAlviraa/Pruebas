@@ -1,0 +1,55 @@
+{
+  "run_id": "paper_20261107T010650Z_117dc0a539",
+  "day": "2026-04-10",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99652.61574124901,
+  "cash": 88314.54605435937,
+  "gross_exposure": 11338.069686889648,
+  "dd_from_peak": -0.0034738425875098233,
+  "n_positions": 3,
+  "n_fills": 3,
+  "n_buys": 3,
+  "n_sells": 0,
+  "commission": 5.0,
+  "fees": 0.03103818878925728,
+  "slippage_est": 14.90869676666955,
+  "turnover": 11338.069686889648,
+  "n_orders": 3,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 310.18601007809167,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 154.13242302143203,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-04-10T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 12.0,
+      "price": 320.212003028845,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-07T01:06:53.583540+00:00"
+}

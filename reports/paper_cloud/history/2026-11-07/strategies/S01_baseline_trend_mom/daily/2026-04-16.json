@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261107T010645Z_29c816d2ac",
+  "day": "2026-04-16",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100065.60839781206,
+  "cash": 79589.37849363725,
+  "gross_exposure": 20476.229904174805,
+  "dd_from_peak": -0.000373614474579842,
+  "n_positions": 7,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 13.0,
+  "fees": 0.07338354983179671,
+  "slippage_est": 30.37600103625823,
+  "turnover": 20476.229904174805,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-04-16T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 266.96006899947776,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-07T01:06:50.194925+00:00"
+}

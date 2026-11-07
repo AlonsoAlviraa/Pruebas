@@ -1,0 +1,41 @@
+{
+  "run_id": "paper_20261107T010714Z_de4b8ad5d4",
+  "day": "2026-11-03",
+  "strategy_id": "S09_qqq_bh_proxy",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 113300.54529588185,
+  "cash": 2285.1805497880996,
+  "gross_exposure": 111015.36474609375,
+  "dd_from_peak": -0.09612717715167585,
+  "n_positions": 1,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 1.0,
+  "fees": 0.0,
+  "slippage_est": 58.599845719709265,
+  "turnover": 111015.36474609375,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20261107T010714Z_de4b8ad5d4",
+      "ticker": "QQQ",
+      "qty": 162.0,
+      "avg_px": 603.171725001308,
+      "stop": 572.230671763448,
+      "hard_stop": 60.31717250013079,
+      "opened_at": "2026-02-19T09:45:00+00:00",
+      "bars_held": 181,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [
+    "Soft de-risk zone: DD from peak \u2265 9%"
+  ],
+  "generated_at": "2026-11-07T01:07:16.418387+00:00"
+}
