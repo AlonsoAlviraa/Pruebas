@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261110T034534Z_bbb727eb32",
+  "day": "2026-05-21",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100032.0153766033,
+  "cash": 100032.0153766033,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.0023571457670511498,
+  "n_positions": 0,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 2.0,
+  "fees": 0.04504238395000163,
+  "slippage_est": 5.939581012757117,
+  "turnover": 4966.297993750204,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-21T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 32.0,
+      "price": 155.19681230469388,
+      "commission": 1.0,
+      "fees": 0.04504238395000163
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-10T03:45:37.960116+00:00"
+}

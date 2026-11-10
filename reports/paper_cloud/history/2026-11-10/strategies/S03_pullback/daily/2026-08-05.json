@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261110T034534Z_bbb727eb32",
+  "day": "2026-08-05",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98421.18590957476,
+  "cash": 93756.18590957476,
+  "gross_exposure": 4665.0,
+  "dd_from_peak": -0.018422327510303038,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 25.0,
+  "fees": 0.4965885709700699,
+  "slippage_est": 117.75634813932058,
+  "turnover": 4665.0,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-05T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 15.0,
+      "price": 309.54560320502065,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-10T03:45:37.983728+00:00"
+}
