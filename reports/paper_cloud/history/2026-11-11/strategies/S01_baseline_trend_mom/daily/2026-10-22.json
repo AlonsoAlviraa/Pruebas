@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261111T012526Z_5f816db3d6",
+  "day": "2026-10-22",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98757.56750710089,
+  "cash": 90607.67732460577,
+  "gross_exposure": 8149.890182495117,
+  "dd_from_peak": -0.02554785077906696,
+  "n_positions": 3,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 91.0,
+  "fees": 1.0747631465994323,
+  "slippage_est": 235.35618218157248,
+  "turnover": 8149.890182495117,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-22T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 18.0,
+      "price": 178.1230532204973,
+      "commission": 1.0,
+      "fees": 0.028637719663751608
+    },
+    {
+      "ts": "2026-10-22T15:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 247.99713930910096,
+      "commission": 1.0,
+      "fees": 0.023649748259200885
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-11T01:25:31.071887+00:00"
+}

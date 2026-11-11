@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261111T012526Z_5f816db3d6",
+  "day": "2026-06-01",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100831.26959026836,
+  "cash": 86203.54960430645,
+  "gross_exposure": 14627.719985961914,
+  "dd_from_peak": -0.005086396504778823,
+  "n_positions": 5,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 31.0,
+  "fees": 0.3319810930705726,
+  "slippage_est": 79.20084896095369,
+  "turnover": 14627.719985961914,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-06-01T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 8.0,
+      "price": 376.74590252022335,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-06-01T09:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "buy",
+      "qty": 6.0,
+      "price": 465.1189024847539,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-11T01:25:31.041190+00:00"
+}
