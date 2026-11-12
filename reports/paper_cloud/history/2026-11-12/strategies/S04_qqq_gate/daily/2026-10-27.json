@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261112T022712Z_6b6d4a7954",
+  "day": "2026-10-27",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99046.84855853122,
+  "cash": 95341.86851702731,
+  "gross_exposure": 3704.9800415039062,
+  "dd_from_peak": -0.031496732268348704,
+  "n_positions": 1,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 81.0,
+  "fees": 1.308877124986359,
+  "slippage_est": 282.08674843973535,
+  "turnover": 3704.9800415039062,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-27T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 346.8917445533838,
+      "commission": 1.0,
+      "fees": 0.03235247352069777
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-12T02:27:17.333402+00:00"
+}

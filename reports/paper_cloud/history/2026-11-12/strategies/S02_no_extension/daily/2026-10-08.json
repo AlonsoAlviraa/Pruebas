@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261112T022701Z_b1e7d0fe7d",
+  "day": "2026-10-08",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100776.99398429395,
+  "cash": 80688.72384269239,
+  "gross_exposure": 20088.270141601562,
+  "dd_from_peak": -0.008736007586623407,
+  "n_positions": 5,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 45.0,
+  "fees": 0.6802774542803809,
+  "slippage_est": 151.69589823959248,
+  "turnover": 20088.270141601562,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-08T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 15.0,
+      "price": 259.8958357761701,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-12T02:27:07.815570+00:00"
+}
