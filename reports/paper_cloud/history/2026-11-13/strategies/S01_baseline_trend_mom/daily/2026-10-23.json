@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261113T020424Z_729663b82c",
+  "day": "2026-10-23",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98708.80846884666,
+  "cash": 93184.48829367576,
+  "gross_exposure": 5524.320175170898,
+  "dd_from_peak": -0.026028957399985342,
+  "n_positions": 2,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 92.0,
+  "fees": 1.096215806177252,
+  "slippage_est": 239.48738603233753,
+  "turnover": 5524.320175170898,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-10-23T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 5.0,
+      "price": 515.5666382062077,
+      "commission": 1.0,
+      "fees": 0.02145266552824831
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-13T02:04:30.179288+00:00"
+}

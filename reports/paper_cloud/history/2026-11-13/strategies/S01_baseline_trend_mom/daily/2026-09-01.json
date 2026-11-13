@@ -1,0 +1,64 @@
+{
+  "run_id": "paper_20261113T020424Z_729663b82c",
+  "day": "2026-09-01",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99297.44272282011,
+  "cash": 87925.09273197538,
+  "gross_exposure": 11372.349990844727,
+  "dd_from_peak": -0.0202208362510653,
+  "n_positions": 4,
+  "n_fills": 4,
+  "n_buys": 1,
+  "n_sells": 3,
+  "commission": 62.0,
+  "fees": 0.7151430113534147,
+  "slippage_est": 161.8494421105153,
+  "turnover": 11372.349990844727,
+  "n_orders": 4,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-01T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 18.0,
+      "price": 163.6981702498983,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-09-01T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 6.0,
+      "price": 500.71937474703066,
+      "commission": 1.0,
+      "fees": 0.025030529987857472
+    },
+    {
+      "ts": "2026-09-01T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 13.0,
+      "price": 217.30953809852198,
+      "commission": 1.0,
+      "fees": 0.024758191962246285
+    },
+    {
+      "ts": "2026-09-01T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 8.0,
+      "price": 354.7370339216291,
+      "commission": 1.0,
+      "fees": 0.024031170170984262
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-13T02:04:30.164029+00:00"
+}
