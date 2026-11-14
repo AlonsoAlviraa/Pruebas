@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261114T014025Z_c26ec5a394",
+  "day": "2026-09-15",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101328.37274671599,
+  "cash": 95614.71278883025,
+  "gross_exposure": 5713.659957885742,
+  "dd_from_peak": -0.010080686433994734,
+  "n_positions": 1,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 27.0,
+  "fees": 0.6875986715243564,
+  "slippage_est": 150.50862044118963,
+  "turnover": 5713.659957885742,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-15T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 19.0,
+      "price": 331.14118967281513,
+      "commission": 1.0,
+      "fees": 0.05348746083026789
+    },
+    {
+      "ts": "2026-09-15T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 17.0,
+      "price": 344.5787271096391,
+      "commission": 1.0,
+      "fees": 0.04968470688691091
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-14T01:40:28.281218+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261114T014028Z_293d4f06da",
+  "day": "2026-11-06",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 97766.24547519315,
+  "cash": 97766.24547519315,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.025445088472695554,
+  "n_positions": 0,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 30.0,
+  "fees": 0.7422714330593279,
+  "slippage_est": 152.1493390541226,
+  "turnover": 5654.487916604997,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-11-06T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 17.0,
+      "price": 332.61693627088215,
+      "commission": 1.0,
+      "fees": 0.04805790333283997
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-14T01:40:35.359952+00:00"
+}

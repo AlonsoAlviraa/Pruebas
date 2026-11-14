@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261114T014011Z_b51c55e744",
+  "day": "2026-08-20",
+  "strategy_id": "S02_no_extension",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101192.40303712833,
+  "cash": 77717.53343873966,
+  "gross_exposure": 23474.869598388672,
+  "dd_from_peak": -0.007553852085555923,
+  "n_positions": 6,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 28.0,
+  "fees": 0.38209440975701336,
+  "slippage_est": 93.09416268376495,
+  "turnover": 23474.869598388672,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-20T09:45:00+00:00",
+      "ticker": "JPM",
+      "side": "buy",
+      "qty": 11.0,
+      "price": 357.81457835576487,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-14T01:40:14.523511+00:00"
+}

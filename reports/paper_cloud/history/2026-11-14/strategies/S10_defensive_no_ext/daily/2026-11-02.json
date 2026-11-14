@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261114T014038Z_088f0f121b",
+  "day": "2026-11-02",
+  "strategy_id": "S10_defensive_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100301.91136136603,
+  "cash": 100301.91136136603,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.014926382414507167,
+  "n_positions": 0,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 58.0,
+  "fees": 0.9790234735961675,
+  "slippage_est": 204.14134349165863,
+  "turnover": 3551.0893473160986,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-11-02T15:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "sell",
+      "qty": 7.0,
+      "price": 507.2984781880141,
+      "commission": 1.0,
+      "fees": 0.029570714778528788
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-14T01:40:41.034345+00:00"
+}

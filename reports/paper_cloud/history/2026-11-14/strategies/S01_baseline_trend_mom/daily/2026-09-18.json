@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261114T014006Z_f1bf354fd7",
+  "day": "2026-09-18",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99210.51167014954,
+  "cash": 85313.40168479798,
+  "gross_exposure": 13897.109985351562,
+  "dd_from_peak": -0.025177552941290315,
+  "n_positions": 5,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 67.0,
+  "fees": 0.7626584410746171,
+  "slippage_est": 167.8863608735453,
+  "turnover": 13897.109985351562,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-18T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 8.0,
+      "price": 357.52438495863794,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-14T01:40:11.228000+00:00"
+}
