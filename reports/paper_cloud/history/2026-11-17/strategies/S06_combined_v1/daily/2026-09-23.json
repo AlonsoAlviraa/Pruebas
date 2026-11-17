@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261117T040827Z_b33ea75811",
+  "day": "2026-09-23",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101870.80189235818,
+  "cash": 83982.46214016092,
+  "gross_exposure": 17888.339752197266,
+  "dd_from_peak": -0.014722442564679805,
+  "n_positions": 3,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 31.0,
+  "fees": 0.7433841327513602,
+  "slippage_est": 171.72732310778764,
+  "turnover": 17888.339752197266,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-09-23T15:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "sell",
+      "qty": 17.0,
+      "price": 338.4024374945,
+      "commission": 1.0,
+      "fees": 0.048844731499252
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-17T04:08:35.800362+00:00"
+}
