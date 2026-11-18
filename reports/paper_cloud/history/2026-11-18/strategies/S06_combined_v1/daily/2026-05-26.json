@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261118T030626Z_1ebdae1970",
+  "day": "2026-05-26",
+  "strategy_id": "S06_combined_v1",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 102595.99600143702,
+  "cash": 102595.99600143702,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.007707900473587825,
+  "n_positions": 0,
+  "n_fills": 2,
+  "n_buys": 0,
+  "n_sells": 2,
+  "commission": 12.0,
+  "fees": 0.331177032965877,
+  "slippage_est": 68.53114391740502,
+  "turnover": 12673.652444472502,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-26T15:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "sell",
+      "qty": 22.0,
+      "price": 308.14498575795005,
+      "commission": 1.0,
+      "fees": 0.05788551749339921
+    },
+    {
+      "ts": "2026-05-26T15:45:00+00:00",
+      "ticker": "XOM",
+      "side": "sell",
+      "qty": 39.0,
+      "price": 151.14007071275898,
+      "commission": 1.0,
+      "fees": 0.0536297020623808
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-18T03:06:29.085969+00:00"
+}
