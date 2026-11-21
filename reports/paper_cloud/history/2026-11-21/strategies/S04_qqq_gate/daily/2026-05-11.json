@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261121T024434Z_80fd2f7125",
+  "day": "2026-05-11",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 102151.66380815857,
+  "cash": 85451.41386919373,
+  "gross_exposure": 16700.249938964844,
+  "dd_from_peak": -0.0006148821900426871,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 14.0,
+  "fees": 0.17936181364629009,
+  "slippage_est": 41.861765067027335,
+  "turnover": 16700.249938964844,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-11T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 10.0,
+      "price": 393.8861856333795,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-05-11T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 15.0,
+      "price": 270.001901864112,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-21T02:44:39.201098+00:00"
+}
