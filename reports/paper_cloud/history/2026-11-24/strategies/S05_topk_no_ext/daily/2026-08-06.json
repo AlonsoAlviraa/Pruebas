@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261124T052847Z_ea7299f8b5",
+  "day": "2026-08-06",
+  "strategy_id": "S05_topk_no_ext",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101372.19502571359,
+  "cash": 83265.92494514718,
+  "gross_exposure": 18106.270080566406,
+  "dd_from_peak": -0.007053506425132361,
+  "n_positions": 3,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 19.0,
+  "fees": 0.42136302083863025,
+  "slippage_est": 103.56371101758666,
+  "turnover": 18106.270080566406,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-06T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 39.0,
+      "price": 154.3125411413148,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-06T09:45:00+00:00",
+      "ticker": "AAPL",
+      "side": "buy",
+      "qty": 19.0,
+      "price": 314.5286026987473,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-24T05:28:49.998710+00:00"
+}

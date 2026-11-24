@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261124T052837Z_31c30799df",
+  "day": "2026-06-29",
+  "strategy_id": "S03_pullback",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98041.68809626266,
+  "cash": 78664.65840265914,
+  "gross_exposure": 19377.029693603516,
+  "dd_from_peak": -0.0221353240239498,
+  "n_positions": 4,
+  "n_fills": 1,
+  "n_buys": 1,
+  "n_sells": 0,
+  "commission": 18.0,
+  "fees": 0.2817673000635522,
+  "slippage_est": 78.25366376248354,
+  "turnover": 19377.029693603516,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-06-29T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 193.96631640812976,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-24T05:28:40.592218+00:00"
+}

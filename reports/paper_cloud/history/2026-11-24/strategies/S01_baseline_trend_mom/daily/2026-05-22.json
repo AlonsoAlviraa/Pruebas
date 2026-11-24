@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261124T052830Z_d399e60125",
+  "day": "2026-05-22",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 101640.25484270604,
+  "cash": 89998.26471514256,
+  "gross_exposure": 11641.990127563477,
+  "dd_from_peak": -0.004076468770197628,
+  "n_positions": 4,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 18.0,
+  "fees": 0.18714368332470366,
+  "slippage_est": 41.12361537904823,
+  "turnover": 11641.990127563477,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-05-22T15:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "sell",
+      "qty": 15.0,
+      "price": 217.26353442213744,
+      "commission": 1.0,
+      "fees": 0.02856162413065649
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-24T05:28:34.530330+00:00"
+}
