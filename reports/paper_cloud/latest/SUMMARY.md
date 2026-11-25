@@ -1,10 +1,10 @@
-# Paper cloud multi-strategy — `2026-11-24`
+# Paper cloud multi-strategy — `2026-11-25`
 
-**Window:** 2026-03-09 → 2026-11-23 · **Capital:** VIRTUAL $100,000 · **mode:** paper
+**Window:** 2026-03-10 → 2026-11-24 · **Capital:** VIRTUAL $100,000 · **mode:** paper
 
 **Data:** REAL free market (10/10 tickers) — `yahoo`
 
-**Benchmarks:** SPY B&H **6.49%** · Equal-weight names B&H **7.74%**
+**Benchmarks:** SPY B&H **6.14%** · Equal-weight names B&H **6.95%**
 
 Free cloud batch (GitHub Actions). Not financial advice.
 
@@ -12,16 +12,16 @@ Free cloud batch (GitHub Actions). Not financial advice.
 
 | Rank | Strategy | Mode | Return | vs SPY | WR | PF | Closed | Entries | Kill |
 |------|----------|------|--------|--------|----|----|--------|---------|------|
-| 1 | `S09_qqq_bh_proxy` | `qqq_hold` | 9.26% | +2.77% | n/a | n/a | 0 | 1 | no |
-| 2 | `S08_qqq_hold_regime` | `qqq_hold` | 6.38% | -0.11% | n/a | n/a | 0 | 1 | no |
-| 3 | `S06_combined_v1` | `combined_v1` | 1.65% | -4.84% | 50.0% | 1.55 | 20 | 20 | no |
-| 4 | `S05_topk_no_ext` | `no_extension` | 0.87% | -5.62% | 50.0% | 1.32 | 18 | 18 | no |
-| 5 | `S10_defensive_no_ext` | `no_extension` | 0.48% | -6.01% | 39.3% | 1.22 | 28 | 28 | no |
-| 6 | `S02_no_extension` | `no_extension` | 0.25% | -6.24% | 40.7% | 1.10 | 27 | 27 | no |
-| 7 | `S04_qqq_gate` | `qqq_gate` | -0.71% | -7.20% | 40.0% | 0.87 | 40 | 40 | no |
-| 8 | `S01_baseline_trend_mom` | `trend_mom` | -1.06% | -7.55% | 37.8% | 0.77 | 45 | 45 | no |
-| 9 | `S03_pullback` | `pullback` | -1.55% | -8.04% | 27.3% | 0.59 | 22 | 22 | no |
-| 10 | `S07_pullback_long` | `combined_v2` | -2.29% | -8.78% | 33.3% | 0.38 | 15 | 15 | no |
+| 1 | `S09_qqq_bh_proxy` | `qqq_hold` | 4.82% | -1.32% | n/a | n/a | 0 | 1 | no |
+| 2 | `S08_qqq_hold_regime` | `qqq_hold` | 4.38% | -1.76% | n/a | n/a | 0 | 1 | no |
+| 3 | `S06_combined_v1` | `combined_v1` | 1.65% | -4.49% | 50.0% | 1.55 | 20 | 20 | no |
+| 4 | `S05_topk_no_ext` | `no_extension` | 0.87% | -5.28% | 50.0% | 1.32 | 18 | 18 | no |
+| 5 | `S10_defensive_no_ext` | `no_extension` | 0.48% | -5.66% | 39.3% | 1.22 | 28 | 28 | no |
+| 6 | `S02_no_extension` | `no_extension` | 0.25% | -5.89% | 40.7% | 1.10 | 27 | 27 | no |
+| 7 | `S04_qqq_gate` | `qqq_gate` | -0.71% | -6.85% | 40.0% | 0.87 | 40 | 40 | no |
+| 8 | `S01_baseline_trend_mom` | `trend_mom` | -1.06% | -7.20% | 37.8% | 0.77 | 45 | 45 | no |
+| 9 | `S03_pullback` | `pullback` | -1.55% | -7.69% | 27.3% | 0.59 | 22 | 22 | no |
+| 10 | `S07_pullback_long` | `combined_v2` | -2.29% | -8.43% | 33.3% | 0.38 | 15 | 15 | no |
 
 ## Exit reasons (per strategy)
 
@@ -52,4 +52,4 @@ Free cloud batch (GitHub Actions). Not financial advice.
 See `strategies/<id>/dashboard.html`, `daily/`, and `closed_trades.csv`.
 
 ---
-_Generated 2026-11-24T05:29:04.700478+00:00 · paper only_
+_Generated 2026-11-25T04:31:41.060554+00:00 · paper only_
