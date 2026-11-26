@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261126T034447Z_8d3c69ae41",
+  "day": "2026-08-03",
+  "strategy_id": "S01_baseline_trend_mom",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100282.01774656508,
+  "cash": 100282.01774656508,
+  "gross_exposure": 0.0,
+  "dd_from_peak": -0.017384918154731865,
+  "n_positions": 0,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 40.0,
+  "fees": 0.49714739924474016,
+  "slippage_est": 108.51585742329226,
+  "turnover": 2819.4273840099618,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-03T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 8.0,
+      "price": 352.4284230012452,
+      "commission": 1.0,
+      "fees": 0.023883419072079692
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-26T03:44:54.088137+00:00"
+}

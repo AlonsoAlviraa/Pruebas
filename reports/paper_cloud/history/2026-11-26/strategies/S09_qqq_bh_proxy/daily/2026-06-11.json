@@ -1,0 +1,39 @@
+{
+  "run_id": "paper_20261126T034524Z_3ddccfd536",
+  "day": "2026-06-11",
+  "strategy_id": "S09_qqq_bh_proxy",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 117247.73316485566,
+  "cash": 2508.5339461056574,
+  "gross_exposure": 114739.19921875,
+  "dd_from_peak": -0.0381182957517785,
+  "n_positions": 1,
+  "n_fills": 0,
+  "n_buys": 0,
+  "n_sells": 0,
+  "commission": 1.0,
+  "fees": 0.0,
+  "slippage_est": 58.46410076934262,
+  "turnover": 114739.19921875,
+  "n_orders": 0,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [],
+  "positions": [
+    {
+      "run_id": "paper_20261126T034524Z_3ddccfd536",
+      "ticker": "QQQ",
+      "qty": 160.0,
+      "avg_px": 609.3154128368396,
+      "stop": 576.8378909407129,
+      "hard_stop": 60.93154128368395,
+      "opened_at": "2026-03-11T09:45:00+00:00",
+      "bars_held": 181,
+      "meta_json": "{}"
+    }
+  ],
+  "notes": [],
+  "generated_at": "2026-11-26T03:45:27.235646+00:00"
+}

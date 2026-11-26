@@ -1,0 +1,37 @@
+{
+  "run_id": "paper_20261126T034503Z_6baf0df218",
+  "day": "2026-08-06",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 100073.63205022119,
+  "cash": 80872.79202336572,
+  "gross_exposure": 19200.84002685547,
+  "dd_from_peak": -0.025765965895790943,
+  "n_positions": 5,
+  "n_fills": 1,
+  "n_buys": 0,
+  "n_sells": 1,
+  "commission": 45.0,
+  "fees": 0.6732889604668713,
+  "slippage_est": 158.57604262983804,
+  "turnover": 19200.84002685547,
+  "n_orders": 1,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-06T15:45:00+00:00",
+      "ticker": "JPM",
+      "side": "sell",
+      "qty": 11.0,
+      "price": 356.0861971884822,
+      "commission": 1.0,
+      "fees": 0.03316158535258643
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-26T03:45:10.270437+00:00"
+}
