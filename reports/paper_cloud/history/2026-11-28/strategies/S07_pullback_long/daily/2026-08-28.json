@@ -1,0 +1,46 @@
+{
+  "run_id": "paper_20261128T032906Z_bf72a661c5",
+  "day": "2026-08-28",
+  "strategy_id": "S07_pullback_long",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 98629.1138312292,
+  "cash": 75003.0535742712,
+  "gross_exposure": 23626.060256958008,
+  "dd_from_peak": -0.01675811411681649,
+  "n_positions": 4,
+  "n_fills": 2,
+  "n_buys": 2,
+  "n_sells": 0,
+  "commission": 20.0,
+  "fees": 0.39699211080915087,
+  "slippage_est": 101.27050126965923,
+  "turnover": 23626.060256958008,
+  "n_orders": 2,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-28T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 22.0,
+      "price": 258.475001495311,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-28T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 37.0,
+      "price": 156.69397363919026,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-28T03:29:09.482580+00:00"
+}

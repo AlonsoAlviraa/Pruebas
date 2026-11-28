@@ -1,0 +1,73 @@
+{
+  "run_id": "paper_20261128T032857Z_7b87e640b8",
+  "day": "2026-08-05",
+  "strategy_id": "S04_qqq_gate",
+  "mode": "paper",
+  "capital_label": "VIRTUAL",
+  "equity": 99986.35853823708,
+  "cash": 76956.92872866677,
+  "gross_exposure": 23029.429809570312,
+  "dd_from_peak": -0.026615892806334362,
+  "n_positions": 6,
+  "n_fills": 5,
+  "n_buys": 5,
+  "n_sells": 0,
+  "commission": 44.0,
+  "fees": 0.64012778904406,
+  "slippage_est": 156.22447816709635,
+  "turnover": 23029.429809570312,
+  "n_orders": 5,
+  "n_rejects": 0,
+  "n_kill_events": 0,
+  "reject_reasons": {},
+  "fills": [
+    {
+      "ts": "2026-08-05T09:45:00+00:00",
+      "ticker": "MSFT",
+      "side": "buy",
+      "qty": 8.0,
+      "price": 496.6578040512574,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-05T09:45:00+00:00",
+      "ticker": "AMZN",
+      "side": "buy",
+      "qty": 14.0,
+      "price": 281.75895183870676,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-05T09:45:00+00:00",
+      "ticker": "XOM",
+      "side": "buy",
+      "qty": 25.0,
+      "price": 155.13302232060474,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-05T09:45:00+00:00",
+      "ticker": "NVDA",
+      "side": "buy",
+      "qty": 18.0,
+      "price": 216.99011682977465,
+      "commission": 1.0,
+      "fees": 0.0
+    },
+    {
+      "ts": "2026-08-05T09:45:00+00:00",
+      "ticker": "GOOGL",
+      "side": "buy",
+      "qty": 10.0,
+      "price": 383.57000227074025,
+      "commission": 1.0,
+      "fees": 0.0
+    }
+  ],
+  "positions": [],
+  "notes": [],
+  "generated_at": "2026-11-28T03:29:01.333854+00:00"
+}
